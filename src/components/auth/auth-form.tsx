@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import axios from "axios"
 import { proxy } from "@/app/proxy.js"
 
 type AuthMode = "login" | "register";
 
 export default function AuthForm() {
+    const router = useRouter();
     const [mode, setMode] = useState<AuthMode>("login");
     const [formData, setFormData] = useState({
         username: "",
@@ -44,20 +46,25 @@ export default function AuthForm() {
                 withCredentials: true,
             });
 
+            localStorage.setItem("Name", response.data.data.username);
+            localStorage.setItem("accessToken", response.data.accessToken);
+            
             console.log("✅ Success:", response.data);
-            alert(`${mode === "login" ? "Login" : "Registration"} successful!`);
+
+            // Redirect to dashboard
+            router.push("/dashboard");
 
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 console.error("❌ Error Response:", error.response?.data);
                 console.error("Status:", error.response?.status);
                 console.error("Full Error:", error.message);
-                
-                const errorMessage = error.response?.data?.message 
-                    || error.response?.data?.error 
-                    || error.message 
+
+                const errorMessage = error.response?.data?.message
+                    || error.response?.data?.error
+                    || error.message
                     || "An error occurred";
-                    
+
                 alert(`${mode === "login" ? "Login" : "Registration"} failed: ${errorMessage}`);
             } else {
                 console.error("❌ Unexpected Error:", error);
@@ -73,6 +80,8 @@ export default function AuthForm() {
     };
 
     return (
+
+
         <div className="relative h-screen w-full flex items-center justify-center px-4 py-4 bg-gray-50 overflow-hidden">
             {/* Grid Background */}
             <div className="absolute inset-0 opacity-[0.07]">

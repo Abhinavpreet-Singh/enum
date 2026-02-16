@@ -1,8 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import useAuth from "@/hooks/useAuth";
+import axios from "axios";
+import { proxy } from "@/app/proxy";
 
 export default function Header() {
+ const isAuthenticated = useAuth();
+
+ const handleLogout = async() => {
+  try {
+    const response = await axios.post(`${proxy}/api/v1/users/logout`, {}, { withCredentials: true });
+    console.log(response)
+    localStorage.clear();
+    window.location.href = '/login';
+  } catch (error) {
+    console.error('Logout error:', error);
+  }
+ }
   return (
     <header
       className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200"
@@ -41,7 +56,7 @@ export default function Header() {
           </nav>
 
           {/* Auth buttons */}
-          <div className="flex items-center gap-3 md:gap-4">
+          {!isAuthenticated ? <div className="flex items-center gap-3 md:gap-4">
             <Link
               href="/login"
               className="font-mono text-xs font-medium text-gray-700 hover:text-black transition-colors tracking-wider hidden sm:inline"
@@ -54,7 +69,7 @@ export default function Header() {
             >
               START FREE
             </Link>
-          </div>
+          </div> : <button onClick={handleLogout} className="border px-3 py-1">Logout</button>}
         </div>
       </div>
     </header>

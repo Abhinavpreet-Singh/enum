@@ -7,7 +7,7 @@ interface DashboardContentProps {
 }
 
 export default function DashboardContent({
-  userName = "Abhinav",
+  userName = localStorage.getItem("Name") || "Guest",
 }: DashboardContentProps) {
   return (
     <div className="space-y-8">
