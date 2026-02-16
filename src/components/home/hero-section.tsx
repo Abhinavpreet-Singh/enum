@@ -6,7 +6,7 @@ export default function HeroSection() {
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center px-6 overflow-hidden bg-white pt-14">
       {/* Visible Grid Background */}
-      <div className="absolute inset-0 opacity-[0.06]">
+      <div className="absolute inset-0 opacity-[0.07]">
         <div
           className="absolute inset-0"
           style={{
