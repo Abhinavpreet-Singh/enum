@@ -5,17 +5,17 @@ import Link from "next/link";
 export default function Footer() {
   return (
     <footer className="border-t border-gray-300 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-6 py-16">
-        <div className="grid md:grid-cols-4 gap-12">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-12 md:py-16">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-12">
           {/* Brand column */}
-          <div className="md:col-span-1">
+          <div className="md:col-span-1 col-span-2 md:col-span-1">
             <Link
               href="/"
-              className="text-xl font-bold mb-4 inline-block text-black"
+              className="text-lg md:text-xl font-bold mb-3 md:mb-4 inline-block text-black"
             >
               ENUM
             </Link>
-            <p className="text-sm text-gray-700 leading-relaxed">
+            <p className="text-xs md:text-sm text-gray-700 leading-relaxed">
               The flight simulator for software engineers.
               <br />
               Practice production, not puzzles.
@@ -24,14 +24,14 @@ export default function Footer() {
 
           {/* Platform column */}
           <div>
-            <h3 className="font-semibold mb-4 text-sm tracking-wider text-black">
+            <h3 className="font-semibold mb-3 md:mb-4 text-xs md:text-sm tracking-wider text-black">
               PLATFORM
             </h3>
-            <ul className="space-y-3">
+            <ul className="space-y-2 md:space-y-3">
               <li>
                 <Link
                   href="/simulations"
-                  className="text-sm text-gray-700 hover:text-black transition-colors"
+                  className="text-xs md:text-sm text-gray-700 hover:text-black transition-colors"
                 >
                   Simulations
                 </Link>
@@ -39,7 +39,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="/tracks"
-                  className="text-sm text-gray-700 hover:text-black transition-colors"
+                  className="text-xs md:text-sm text-gray-700 hover:text-black transition-colors"
                 >
                   Tracks
                 </Link>
@@ -47,7 +47,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="/dsa-arena"
-                  className="text-sm text-gray-700 hover:text-black transition-colors"
+                  className="text-xs md:text-sm text-gray-700 hover:text-black transition-colors"
                 >
                   DSA Arena
                 </Link>
@@ -57,14 +57,14 @@ export default function Footer() {
 
           {/* Company column */}
           <div>
-            <h3 className="font-semibold mb-4 text-sm tracking-wider text-black">
+            <h3 className="font-semibold mb-3 md:mb-4 text-xs md:text-sm tracking-wider text-black">
               COMPANY
             </h3>
-            <ul className="space-y-3">
+            <ul className="space-y-2 md:space-y-3">
               <li>
                 <Link
                   href="/about"
-                  className="text-sm text-gray-700 hover:text-black transition-colors"
+                  className="text-xs md:text-sm text-gray-700 hover:text-black transition-colors"
                 >
                   About
                 </Link>
@@ -72,7 +72,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="/careers"
-                  className="text-sm text-gray-700 hover:text-black transition-colors"
+                  className="text-xs md:text-sm text-gray-700 hover:text-black transition-colors"
                 >
                   Careers
                 </Link>
@@ -80,7 +80,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="/contact"
-                  className="text-sm text-gray-700 hover:text-black transition-colors"
+                  className="text-xs md:text-sm text-gray-700 hover:text-black transition-colors"
                 >
                   Contact
                 </Link>
@@ -90,16 +90,16 @@ export default function Footer() {
 
           {/* Social column */}
           <div>
-            <h3 className="font-semibold mb-4 text-sm tracking-wider text-black">
+            <h3 className="font-semibold mb-3 md:mb-4 text-xs md:text-sm tracking-wider text-black">
               SOCIAL
             </h3>
-            <ul className="space-y-3">
+            <ul className="space-y-2 md:space-y-3">
               <li>
                 <a
                   href="https://twitter.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-gray-700 hover:text-black transition-colors"
+                  className="text-xs md:text-sm text-gray-700 hover:text-black transition-colors"
                 >
                   Twitter
                 </a>
@@ -109,7 +109,7 @@ export default function Footer() {
                   href="https://github.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-gray-700 hover:text-black transition-colors"
+                  className="text-xs md:text-sm text-gray-700 hover:text-black transition-colors"
                 >
                   GitHub
                 </a>
@@ -119,7 +119,7 @@ export default function Footer() {
                   href="https://discord.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-gray-700 hover:text-black transition-colors"
+                  className="text-xs md:text-sm text-gray-700 hover:text-black transition-colors"
                 >
                   Discord
                 </a>
@@ -129,20 +129,20 @@ export default function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="border-t border-gray-200 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-          <p className="text-sm text-gray-600">
+        <div className="border-t border-gray-200 mt-8 md:mt-12 pt-6 md:pt-8 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0">
+          <p className="text-xs md:text-sm text-gray-600 text-center md:text-left">
             © {new Date().getFullYear()} ENUM INC. ALL RIGHTS RESERVED.
           </p>
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center gap-4 md:gap-6">
             <Link
               href="/privacy"
-              className="text-sm text-gray-600 hover:text-black transition-colors"
+              className="text-xs md:text-sm text-gray-600 hover:text-black transition-colors"
             >
               PRIVACY
             </Link>
             <Link
               href="/terms"
-              className="text-sm text-gray-600 hover:text-black transition-colors"
+              className="text-xs md:text-sm text-gray-600 hover:text-black transition-colors"
             >
               TERMS
             </Link>

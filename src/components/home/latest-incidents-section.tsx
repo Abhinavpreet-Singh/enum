@@ -53,34 +53,34 @@ const difficultyColors = {
 
 export default function LatestIncidentsSection() {
   return (
-    <section className="py-20 px-6 bg-white border-t border-gray-300">
+    <section className="py-16 md:py-20 px-4 md:px-6 bg-white border-t border-gray-300">
       <div className="max-w-7xl mx-auto">
         {/* Section header */}
-        <div className="mb-12">
-          <h2 className="font-mono text-4xl font-bold mb-4 text-black tracking-tight">
+        <div className="mb-8 md:mb-12">
+          <h2 className="font-mono text-2xl md:text-4xl font-bold mb-3 md:mb-4 text-black tracking-tight">
             Latest Incidents
           </h2>
-          <p className="text-gray-700 text-sm font-mono tracking-[0.05em]">
+          <p className="text-gray-700 text-xs md:text-sm font-mono tracking-[0.05em]">
             Pick a ticket and start fixing.
           </p>
         </div>
 
         {/* Incident cards grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {incidents.map((incident) => (
             <Link
               key={incident.id}
               href={`/incident/${incident.id}`}
-              className="group bg-white border border-gray-200 p-6 rounded-lg hover:border-black hover:rounded-lg transition-all"
+              className="group bg-white border border-gray-200 p-4 md:p-6 rounded-lg hover:border-black transition-all"
             >
               {/* Track badge and time */}
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3 md:mb-4 gap-2 flex-wrap">
                 <span
-                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-mono font-semibold border ${incident.badgeColor}`}
+                  className={`inline-flex items-center px-2 md:px-3 py-1 rounded-full text-xs font-mono font-semibold border ${incident.badgeColor}`}
                 >
                   {incident.track}
                 </span>
-                <span className="flex items-center text-xs text-gray-500 font-mono">
+                <span className="flex items-center text-xs text-gray-500 font-mono whitespace-nowrap">
                   <svg
                     className="w-4 h-4 mr-1"
                     fill="none"
@@ -99,17 +99,17 @@ export default function LatestIncidentsSection() {
               </div>
 
               {/* Title */}
-              <h3 className="text-xl font-bold mb-3 text-black group-hover:text-gray-700 transition-colors">
+              <h3 className="text-lg md:text-xl font-bold mb-2 md:mb-3 text-black group-hover:text-gray-700 transition-colors">
                 {incident.title}
               </h3>
 
               {/* Description */}
-              <p className="text-gray-700 text-sm leading-relaxed mb-4">
+              <p className="text-gray-700 text-sm leading-relaxed mb-3 md:mb-4">
                 {incident.description}
               </p>
 
               {/* Footer - Difficulty and arrow */}
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+              <div className="flex items-center justify-between pt-3 md:pt-4 border-t border-gray-200">
                 <div>
                   <span className="text-xs text-gray-600">Difficulty: </span>
                   <span
@@ -119,7 +119,7 @@ export default function LatestIncidentsSection() {
                   </span>
                 </div>
                 <svg
-                  className="w-5 h-5 text-gray-400 group-hover:text-black group-hover:translate-x-1 transition-all"
+                  className="w-4 md:w-5 h-4 md:h-5 text-gray-400 group-hover:text-black group-hover:translate-x-1 transition-all"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -137,7 +137,7 @@ export default function LatestIncidentsSection() {
         </div>
 
         {/* View all link */}
-        <div className="text-center mt-12">
+        <div className="text-center mt-8 md:mt-12">
           <Link
             href="/incidents"
             className="inline-flex items-center text-sm font-medium text-gray-700 hover:text-black transition-colors"
