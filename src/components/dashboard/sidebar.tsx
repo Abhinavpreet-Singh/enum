@@ -10,6 +10,7 @@ import {
   Trophy,
   Settings,
   LogOut,
+  Shield,
 } from "lucide-react";
 
 const navItems = [
@@ -18,6 +19,7 @@ const navItems = [
   { icon: Radio, label: "Tracks", href: "/dashboard/tracks" },
   { icon: Target, label: "DSA Arena", href: "/dashboard/dsa-arena" },
   { icon: Trophy, label: "Leaderboard", href: "/dashboard/leaderboard" },
+  { icon: Shield, label: "Admin", href: "/dashboard/admin" },
 ];
 
 interface SidebarProps {

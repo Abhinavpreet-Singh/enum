@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { questions } from "@/data/dsa-questions";
+import { Question, fetchQuestions } from "@/data/dsa-questions";
 import { CheckCircle2, Clock } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const difficultyColors = {
   Easy: "text-green-600 bg-green-50",
@@ -11,6 +12,39 @@ const difficultyColors = {
 };
 
 export default function QuestionsList() {
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadQuestions = async () => {
+      setLoading(true);
+      const fetchedQuestions = await fetchQuestions();
+      setQuestions(fetchedQuestions);
+      setLoading(false);
+    };
+    loadQuestions();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="text-center py-8 text-gray-500 font-mono text-sm">
+          Loading questions...
+        </div>
+      </div>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="text-center py-8 text-gray-500 font-mono text-sm">
+          No questions available. Add questions from the admin panel.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {questions.map((question) => (

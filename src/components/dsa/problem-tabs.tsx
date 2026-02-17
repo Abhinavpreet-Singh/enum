@@ -110,24 +110,28 @@ export default function ProblemTabs({ question }: ProblemTabsProps) {
                 EXAMPLES
               </h2>
               <div className="space-y-4">
-                {question.examples.map((example, idx) => (
-                  <div
-                    key={idx}
-                    className="border border-gray-300 rounded-lg p-4 bg-gray-50"
-                  >
-                    <p className="font-mono text-xs text-gray-600 mb-2">
-                      <span className="font-bold">Input:</span> {example.input}
-                    </p>
-                    <p className="font-mono text-xs text-gray-600 mb-2">
-                      <span className="font-bold">Output:</span>{" "}
-                      {example.output}
-                    </p>
-                    <p className="font-mono text-xs text-gray-500">
-                      <span className="font-bold">Explanation:</span>{" "}
-                      {example.explanation}
-                    </p>
-                  </div>
-                ))}
+                {question.examples && question.examples.length > 0 ? (
+                  question.examples.map((example, idx) => (
+                    <div
+                      key={idx}
+                      className="border border-gray-300 rounded-lg p-4 bg-gray-50"
+                    >
+                      <p className="font-mono text-xs text-gray-600 mb-2">
+                        <span className="font-bold">Input:</span> {String(example.input)}
+                      </p>
+                      <p className="font-mono text-xs text-gray-600 mb-2">
+                        <span className="font-bold">Output:</span>{" "}
+                        {String(example.output)}
+                      </p>
+                      <p className="font-mono text-xs text-gray-500">
+                        <span className="font-bold">Explanation:</span>{" "}
+                        {String(example.explanation)}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">No examples available</p>
+                )}
               </div>
             </div>
 
@@ -137,15 +141,19 @@ export default function ProblemTabs({ question }: ProblemTabsProps) {
                 CONSTRAINTS
               </h2>
               <ul className="space-y-2">
-                {question.constraints.map((constraint, idx) => (
-                  <li
-                    key={idx}
-                    className="flex items-start gap-2 text-sm text-gray-700"
-                  >
-                    <span className="text-gray-400 mt-0.5">•</span>
-                    <span>{constraint}</span>
-                  </li>
-                ))}
+                {question.constraints && question.constraints.length > 0 ? (
+                  question.constraints.map((constraint, idx) => (
+                    <li
+                      key={idx}
+                      className="flex items-start gap-2 text-sm text-gray-700"
+                    >
+                      <span className="text-gray-400 mt-0.5">•</span>
+                      <span>{String(constraint)}</span>
+                    </li>
+                  ))
+                ) : (
+                  <li className="text-sm text-gray-500">No constraints specified</li>
+                )}
               </ul>
             </div>
 

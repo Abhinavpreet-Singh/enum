@@ -1,23 +1,50 @@
+"use client";
+
 import Sidebar from "@/components/dashboard/sidebar";
 import ProblemTabs from "@/components/dsa/problem-tabs";
 import CodeEditor from "@/components/dsa/code-editor";
-import { questions } from "@/data/dsa-questions";
+import { Question, fetchQuestions } from "@/data/dsa-questions";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 
-interface WorkspacePageProps {
-  params: Promise<{
-    id: string;
-  }>;
-}
+export default function WorkspacePage() {
+  const params = useParams();
+  const id = params.id as string;
+  const [question, setQuestion] = useState<Question | null>(null);
+  const [loading, setLoading] = useState(true);
 
-export default async function WorkspacePage({ params }: WorkspacePageProps) {
-  const { id } = await params;
-  const question = questions.find((q) => q.id === id);
+  useEffect(() => {
+    const loadQuestion = async () => {
+      setLoading(true);
+      const allQuestions = await fetchQuestions();
+      const foundQuestion = allQuestions.find((q) => q.id === id);
+      setQuestion(foundQuestion || null);
+      setLoading(false);
+    };
+    loadQuestion();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="font-mono text-sm text-gray-500">Loading question...</div>
+      </div>
+    );
+  }
 
   if (!question) {
-    notFound();
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="font-mono text-sm text-gray-500 mb-4">Question not found</div>
+          <Link href="/dashboard/dsa-arena" className="text-black underline font-mono text-sm">
+            Go back to questions
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (

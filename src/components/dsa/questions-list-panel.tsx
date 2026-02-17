@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import Link from "next/link";
-import { questions } from "@/data/dsa-questions";
+import { Question, fetchQuestions } from "@/data/dsa-questions";
 
 interface QuestionsListPanelProps {
   currentId: string;
@@ -13,6 +13,15 @@ export default function QuestionsListPanel({
   currentId,
 }: QuestionsListPanelProps) {
   const [isOpen, setIsOpen] = useState(true);
+  const [questions, setQuestions] = useState<Question[]>([]);
+
+  useEffect(() => {
+    const loadQuestions = async () => {
+      const fetchedQuestions = await fetchQuestions();
+      setQuestions(fetchedQuestions);
+    };
+    loadQuestions();
+  }, []);
 
   return (
     <div className="bg-white border-b border-gray-300">

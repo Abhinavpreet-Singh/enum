@@ -40,7 +40,7 @@ export default function HeroSection() {
 
         {/* Launch Environment Button */}
         <Link
-          href="/start"
+          href={!!localStorage.getItem("accessToken")==false ? "/start" : "/dashboard"}
           className="px-6 md:px-12 py-2 md:py-3 bg-black text-white font-mono text-xs md:text-sm tracking-[0.15em] hover:bg-gray-900 transition-colors whitespace-nowrap"
         >
           LAUNCH ENVIRONMENT
