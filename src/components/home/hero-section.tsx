@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export default function HeroSection() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+  const [isAuthenticated] = useState(() => {
     if (typeof window === "undefined") return false;
     const token = localStorage.getItem("accessToken");
     return !!token;

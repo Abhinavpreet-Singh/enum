@@ -1,11 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Moon, Play, Check, Copy, Settings } from "lucide-react";
 import Editor from "@monaco-editor/react";
 
 interface CodeEditorProps {
-  initialCode: string;
+  initialCode: {
+    python?: string;
+    java?: string;
+    c?: string;
+    cpp?: string;
+  };
 }
 
 const languageOptions = [
@@ -17,9 +22,20 @@ const languageOptions = [
 
 const RUN_API_URL = "/api/run";
 
+type Language = "python" | "java" | "c" | "cpp";
+
 export default function CodeEditor({ initialCode }: CodeEditorProps) {
-  const [code, setCode] = useState(initialCode);
-  const [language, setLanguage] = useState("python");
+  const [language, setLanguage] = useState<Language>("python");
+  const [code, setCode] = useState(
+    initialCode.python || initialCode.java || initialCode.c || initialCode.cpp || ""
+  );
+  // Store user's code for each language
+  const [userCode, setUserCode] = useState<Record<Language, string>>({
+    python: initialCode.python || "",
+    java: initialCode.java || "",
+    c: initialCode.c || "",
+    cpp: initialCode.cpp || "",
+  });
   const [isRunning, setIsRunning] = useState(false);
   const [consoleOutput, setConsoleOutput] = useState("");
   const [testResults, setTestResults] = useState<
@@ -28,6 +44,24 @@ export default function CodeEditor({ initialCode }: CodeEditorProps) {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [consoleHeight, setConsoleHeight] = useState(192); // pixels
   const [isResizing, setIsResizing] = useState(false);
+
+  // Update code when language changes
+  useEffect(() => {
+    // Load code for the new language
+    const newCode = userCode[language] || initialCode[language] || "";
+    setCode(newCode);
+  }, [language, userCode, initialCode]);
+
+  // Handle code changes in the editor
+  const handleCodeChange = (value: string | undefined) => {
+    const newCode = value || "";
+    setCode(newCode);
+    // Update the stored code for the current language
+    setUserCode((prev) => ({
+      ...prev,
+      [language]: newCode,
+    }));
+  };
 
   const handleConsoleResize = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -106,7 +140,7 @@ export default function CodeEditor({ initialCode }: CodeEditorProps) {
         <div>
           <select
             value={language}
-            onChange={(e) => setLanguage(e.target.value)}
+            onChange={(e) => setLanguage(e.target.value as Language)}
             className="px-2 py-1 bg-gray-50 text-gray-700 rounded text-xs"
           >
             {languageOptions.map((option) => (
@@ -164,7 +198,7 @@ export default function CodeEditor({ initialCode }: CodeEditorProps) {
           language={language === "cpp" ? "cpp" : language}
           theme={isDarkMode ? "vs-dark" : "vs-light"}
           value={code}
-          onChange={(value) => setCode(value || "")}
+          onChange={handleCodeChange}
           options={{
             fontSize: 14,
             fontFamily: "'Fira Code', 'Consolas', 'Monaco', monospace",

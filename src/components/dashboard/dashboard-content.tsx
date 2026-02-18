@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, Clock, ChevronRight } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 interface DashboardContentProps {
   userName?: string;
@@ -10,7 +10,7 @@ interface DashboardContentProps {
 export default function DashboardContent({
   userName,
 }: DashboardContentProps) {
-  const [displayName, setDisplayName] = useState(
+  const [displayName] = useState(
     () => userName || (typeof window !== "undefined" ? localStorage.getItem("Name") || "Guest" : "Guest")
   );
   return (

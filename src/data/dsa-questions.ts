@@ -13,7 +13,12 @@ export interface Question {
     explanation: string;
   }[];
   constraints: string[];
-  initialCode: string;
+  initialCode: {
+    python?: string;
+    java?: string;
+    c?: string;
+    cpp?: string;
+  };
 }
 
 // Backend question interface
@@ -25,6 +30,12 @@ interface BackendQuestion {
   testcases: Array<{ input: string; output: string }>;
   constraints: string;
   topic: string;
+  initialCode?: Array<{
+    python?: string;
+    java?: string;
+    c?: string;
+    cpp?: string;
+  }>;
 }
 
 let questions: Question[] = [];
@@ -45,6 +56,72 @@ export const fetchQuestions = async (): Promise<Question[]> => {
           constraintsArray = q.constraints.map(c => String(c));
         }
 
+        // Parse initialCode from backend
+        let initialCodeObj: {
+          python?: string;
+          java?: string;
+          c?: string;
+          cpp?: string;
+        } = {};
+
+        if (Array.isArray(q.initialCode) && q.initialCode.length > 0) {
+          // Merge all objects in the array
+          q.initialCode.forEach((codeObj) => {
+            initialCodeObj = { ...initialCodeObj, ...codeObj };
+          });
+        }
+
+        // Fallback to default templates if not provided
+        if (!initialCodeObj.python && !initialCodeObj.java && !initialCodeObj.c && !initialCodeObj.cpp) {
+          initialCodeObj = {
+            python: `# Read input
+import sys
+
+def solve():
+    data = sys.stdin.read().strip().split()
+    pass
+
+if __name__ == "__main__":
+    solve()
+`,
+            java: `import java.util.*;
+
+public class Main {
+    public static void solve(Scanner sc) {
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        solve(sc);
+        sc.close();
+    }
+}`,
+            c: `#include <stdio.h>
+
+void solve() {
+}
+
+int main() {
+    solve();
+    return 0;
+}
+`,
+            cpp: `#include <bits/stdc++.h>
+using namespace std;
+
+void solve() {
+}
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(NULL);
+    solve();
+    return 0;
+}
+`
+          };
+        }
+
         return {
           id: q._id,
           title: q.title || "Untitled",
@@ -57,7 +134,7 @@ export const fetchQuestions = async (): Promise<Question[]> => {
             explanation: index === 0 ? "Example test case" : `Test case ${index + 1}`
           })) : [],
           constraints: constraintsArray,
-          initialCode: `function solution() {\n  // Your code here\n  \n}`
+          initialCode: initialCodeObj
         };
       });
     }
