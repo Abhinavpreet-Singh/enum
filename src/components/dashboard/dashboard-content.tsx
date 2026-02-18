@@ -1,20 +1,24 @@
 "use client";
 
 import { ArrowRight, Clock, ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface DashboardContentProps {
   userName?: string;
 }
 
 export default function DashboardContent({
-  userName = localStorage.getItem("Name") || "Guest",
+  userName,
 }: DashboardContentProps) {
+  const [displayName, setDisplayName] = useState(
+    () => userName || (typeof window !== "undefined" ? localStorage.getItem("Name") || "Guest" : "Guest")
+  );
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
       <div>
         <h1 className="text-3xl md:text-4xl font-bold text-black mb-2">
-          Welcome back, {userName}.
+          Welcome back, {displayName}.
         </h1>
 
         {/* Progress Bar */}
