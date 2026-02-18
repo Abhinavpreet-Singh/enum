@@ -15,7 +15,7 @@ const difficultyColors = {
 
 export default function QuestionDetail({ question }: QuestionDetailProps) {
   return (
-    <div className="h-full overflow-auto bg-white">
+    <div className="h-full overflow-auto bg-white dark-scrollbar">
       {/* Header */}
       <div className="sticky top-0 bg-white border-b border-gray-200 p-6">
         <div className="flex items-start justify-between mb-4">

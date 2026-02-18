@@ -29,14 +29,24 @@ body {
   scroll-behavior: smooth;
 }
 
+/* Clean border styling */
+.border,
+.border-b,
+.border-t,
+.border-l,
+.border-r {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
 .font-display {
   font-family: var(--font-geist-sans);
   letter-spacing: -0.02em;
 }
 
-/* Custom scrollbar for webkit browsers */
+/* Custom sleek scrollbar for webkit browsers */
 ::-webkit-scrollbar {
-  width: 10px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -44,10 +54,68 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+/* Dark scrollbar for certain containers */
+.dark-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.dark-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+/* Monaco Editor scrollbar styling */
+.monaco-scrollable-element > .scrollbar > .slider {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border-radius: 3px !important;
+}
+
+.monaco-scrollable-element > .scrollbar > .slider:hover {
+  background: rgba(0, 0, 0, 0.4) !important;
+}
+
+.monaco-scrollable-element > .scrollbar {
+  width: 6px !important;
+  height: 6px !important;
+}
+
+.monaco-scrollable-element .vertical {
+  width: 6px !important;
+}
+
+.monaco-scrollable-element .horizontal {
+  height: 6px !important;
+}
+
+/* Additional Monaco scrollbar specificity */
+.monaco-editor .scrollbar.vertical .slider,
+.monaco-editor .decorationsOverviewRuler {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border-radius: 3px !important;
+}
+
+.monaco-editor .scrollbar.horizontal .slider {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border-radius: 3px !important;
+}
+
+/* Prevent text selection during resize */
+.resize-active * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
 }

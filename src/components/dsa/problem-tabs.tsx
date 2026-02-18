@@ -22,7 +22,7 @@ export default function ProblemTabs({ question }: ProblemTabsProps) {
   return (
     <div className="h-full flex flex-col bg-white">
       {/* Tabs */}
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b">
         <button
           onClick={() => setActiveTab("description")}
           className={`px-4 py-3 font-mono text-sm tracking-wider transition-colors border-b-2 ${
@@ -66,7 +66,7 @@ export default function ProblemTabs({ question }: ProblemTabsProps) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="flex-1 overflow-auto p-6 space-y-6 dark-scrollbar">
         {activeTab === "description" && (
           <>
             {/* Title & Metadata */}
@@ -117,7 +117,8 @@ export default function ProblemTabs({ question }: ProblemTabsProps) {
                       className="border border-gray-300 rounded-lg p-4 bg-gray-50"
                     >
                       <p className="font-mono text-xs text-gray-600 mb-2">
-                        <span className="font-bold">Input:</span> {String(example.input)}
+                        <span className="font-bold">Input:</span>{" "}
+                        {String(example.input)}
                       </p>
                       <p className="font-mono text-xs text-gray-600 mb-2">
                         <span className="font-bold">Output:</span>{" "}
@@ -152,7 +153,9 @@ export default function ProblemTabs({ question }: ProblemTabsProps) {
                     </li>
                   ))
                 ) : (
-                  <li className="text-sm text-gray-500">No constraints specified</li>
+                  <li className="text-sm text-gray-500">
+                    No constraints specified
+                  </li>
                 )}
               </ul>
             </div>
