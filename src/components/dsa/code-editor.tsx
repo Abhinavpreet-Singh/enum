@@ -26,15 +26,13 @@ type Language = "python" | "java" | "c" | "cpp";
 
 export default function CodeEditor({ initialCode }: CodeEditorProps) {
   const [language, setLanguage] = useState<Language>("python");
-  const [code, setCode] = useState(
-    initialCode.python || initialCode.java || initialCode.c || initialCode.cpp || ""
-  );
+  const [code, setCode] = useState("");
   // Store user's code for each language
   const [userCode, setUserCode] = useState<Record<Language, string>>({
-    python: initialCode.python || "",
-    java: initialCode.java || "",
-    c: initialCode.c || "",
-    cpp: initialCode.cpp || "",
+    python: "",
+    java: "",
+    c: "",
+    cpp: "",
   });
   const [isRunning, setIsRunning] = useState(false);
   const [consoleOutput, setConsoleOutput] = useState("");
@@ -45,12 +43,24 @@ export default function CodeEditor({ initialCode }: CodeEditorProps) {
   const [consoleHeight, setConsoleHeight] = useState(192); // pixels
   const [isResizing, setIsResizing] = useState(false);
 
+  // Initialize code from initialCode only once
+  useEffect(() => {
+    const initialUserCode: Record<Language, string> = {
+      python: initialCode.python || "",
+      java: initialCode.java || "",
+      c: initialCode.c || "",
+      cpp: initialCode.cpp || "",
+    };
+    setUserCode(initialUserCode);
+    // Set the initial code for the default language
+    setCode(initialUserCode.python || initialUserCode.java || initialUserCode.c || initialUserCode.cpp || "");
+  }, []); // Empty dependency array - run only once
+
   // Update code when language changes
   useEffect(() => {
-    // Load code for the new language
-    const newCode = userCode[language] || initialCode[language] || "";
-    setCode(newCode);
-  }, [language, userCode, initialCode]);
+    // Load code for the new language from user's stored code
+    setCode(userCode[language]);
+  }, [language, userCode]);
 
   // Handle code changes in the editor
   const handleCodeChange = (value: string | undefined) => {

@@ -10,12 +10,32 @@ export default function Header() {
 
  const handleLogout = async() => {
   try {
-    const response = await axios.post(`${proxy}/api/v1/users/logout`, {}, { withCredentials: true });
-    console.log(response)
+    const token = localStorage.getItem('accessToken');
+    console.log('Token found:', token ? 'Yes' : 'No');
+    console.log('Token value:', token);
+    
+    const response = await axios.post(
+      `${proxy}/api/v1/users/logout`, 
+      {}, 
+      { 
+        withCredentials: true,
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
+    console.log('Logout response:', response)
     localStorage.clear();
     window.location.href = '/login';
   } catch (error) {
     console.error('Logout error:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
+    }
+    // Clear local storage even if logout fails
+    localStorage.clear();
+    window.location.href = '/login';
   }
  }
   return (

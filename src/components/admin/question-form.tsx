@@ -88,6 +88,8 @@ export default function QuestionForm() {
                 message: "Question posted successfully!",
             });
 
+            alert("Question Posted Successfully");  
+
             // Reset form after successful submission
             setFormData({
                 title: "",
