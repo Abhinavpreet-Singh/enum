@@ -124,10 +124,6 @@ export default function ProblemTabs({ question }: ProblemTabsProps) {
                         <span className="font-bold">Output:</span>{" "}
                         {String(example.output)}
                       </p>
-                      <p className="font-mono text-xs text-gray-500">
-                        <span className="font-bold">Explanation:</span>{" "}
-                        {String(example.explanation)}
-                      </p>
                     </div>
                   ))
                 ) : (

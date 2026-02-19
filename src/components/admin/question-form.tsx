@@ -67,7 +67,7 @@ export default function QuestionForm() {
         setSubmitStatus({ type: null, message: "" });
 
         try {
-            await axios.post(`${proxy}/api/v1/admin/adminPostQuestion`,
+            const response = await axios.post(`${proxy}/api/v1/admin/adminPostQuestion`,
                 {
                     title: formData.title,
                     desc: formData.desc,
@@ -83,28 +83,32 @@ export default function QuestionForm() {
                     },
                 })
 
-            setSubmitStatus({
-                type: "success",
-                message: "Question posted successfully!",
-            });
+            console.log("Response:", response.data)
+            console.log("Status:", response.status)
+            
+            if (response.status === 201) {
+                setSubmitStatus({
+                    type: "success",
+                    message: "Question posted successfully!",
+                });
 
-            alert("Question Posted Successfully");  
-
-            // Reset form after successful submission
-            setFormData({
-                title: "",
-                desc: "",
-                level: "Easy",
-                constraints: "",
-                topic: "",
-            });
-            setTestcases([{ input: "", output: "" }]);
+                // Reset form after successful submission
+                setFormData({
+                    title: "",
+                    desc: "",
+                    level: "Easy",
+                    constraints: "",
+                    topic: "",
+                });
+                setTestcases([{ input: "", output: "" }]);
+            }
 
         } catch (error) {
+            console.error("Error posting question:", error);
             setSubmitStatus({
                 type: "error",
-                message: error instanceof Error 
-                    ? `Failed to post question: ${error.message}` 
+                message: error instanceof Error
+                    ? `Failed to post question: ${error.message}`
                     : "Failed to post question. Please try again.",
             });
         }
