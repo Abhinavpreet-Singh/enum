@@ -97,13 +97,13 @@ export default function EditQuestionModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitStatus({ type: null, message: "" });
+    // setSubmitStatus({ type: null, message: "" });
     setLoading(true);
 
     try {
       // Note: You'll need to implement this endpoint in your backend
       const response = await axios.put(
-        `${proxy}/api/v1/admin/updateQuestion/${question?.id}`,
+        `${proxy}/api/v1/admin/editQuestion/${question?.id}`,
         {
           title: formData.title,
           desc: formData.desc,

@@ -47,6 +47,7 @@ export default function AuthForm() {
             });
 
             localStorage.setItem("Name", response.data.data.username);
+            localStorage.setItem("id", response.data.data._id);
             localStorage.setItem("accessToken", response.data.accessToken);
             
             console.log("✅ Success:", response.data);

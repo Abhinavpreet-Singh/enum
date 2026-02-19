@@ -48,7 +48,7 @@ export default function QuestionDetail({ question }: QuestionDetailProps) {
                     <p className="text-sm text-gray-700 leading-relaxed">
                         {question.description}
                     </p>
-                </div>
+                </div>56
 
                 {/* Examples */}
                 <div>

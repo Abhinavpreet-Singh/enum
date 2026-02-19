@@ -16,6 +16,7 @@ export default function WorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [leftPanelWidth, setLeftPanelWidth] = useState(40); // percentage
   const [isResizing, setIsResizing] = useState(false);
+  const [refreshSolutions, setRefreshSolutions] = useState(0);
 
   useEffect(() => {
     const loadQuestion = async () => {
@@ -27,6 +28,10 @@ export default function WorkspacePage() {
     };
     loadQuestion();
   }, [id]);
+
+  const handleSolutionPublished = () => {
+    setRefreshSolutions((prev) => prev + 1);
+  };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -129,7 +134,7 @@ export default function WorkspacePage() {
             className="overflow-auto dark-scrollbar"
             style={{ width: `${leftPanelWidth}%` }}
           >
-            <ProblemTabs question={question} />
+            <ProblemTabs question={question} refreshSolutions={refreshSolutions} />
           </div>
 
           {/* Vertical Resize Handle */}
@@ -143,7 +148,12 @@ export default function WorkspacePage() {
 
           {/* Right Panel - Code Editor & Console */}
           <div className="overflow-hidden flex-1">
-            <CodeEditor initialCode={question.initialCode} />
+            <CodeEditor 
+              initialCode={question.initialCode} 
+              testCases={question.examples}
+              questionId={question.id}
+              onSolutionPublished={handleSolutionPublished}
+            />
           </div>
         </div>
       </main>
