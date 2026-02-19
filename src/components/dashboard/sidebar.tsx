@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import axios from "axios";
+import { proxy } from "@/app/proxy";
 import {
   LayoutDashboard,
   Code,
@@ -59,10 +61,36 @@ export default function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(initialCollapsed);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const sidebarWidth = collapsed ? "lg:w-16" : "lg:w-52";
   const mainPadding = collapsed ? "px-3" : "px-6";
   const userName =
     typeof window !== "undefined" ? localStorage.getItem("Name") : null;
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+
+      await axios.post(
+        `${proxy}/api/v1/users/logout`,
+        {},
+        {
+          withCredentials: true,
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      localStorage.clear();
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Clear local storage even if logout fails
+      localStorage.clear();
+      window.location.href = "/login";
+    }
+  };
 
   const isActiveRoute = (item: (typeof navItems)[0]) => {
     if (item.matchExact) {
@@ -169,17 +197,38 @@ export default function Sidebar({
             {!collapsed && "Settings"}
           </Link>
           <button
-            onClick={() => {
-              // TODO: Implement sign out
-              console.log("Sign out");
-            }}
+            onClick={handleLogout}
+            disabled={isLoggingOut}
             title="Sign Out"
             className={`w-full flex items-center ${
               collapsed ? "justify-center px-2" : "gap-3 px-3"
-            } py-2.5 text-gray-600 hover:bg-gray-100 rounded-md font-mono text-sm tracking-wide transition-colors`}
+            } py-2.5 text-gray-600 hover:bg-gray-100 rounded-md font-mono text-sm tracking-wide transition-colors disabled:opacity-70 disabled:cursor-not-allowed`}
           >
-            <LogOut className="w-4 h-4" />
-            {!collapsed && "Sign Out"}
+            {isLoggingOut ? (
+              <svg
+                className="animate-spin h-4 w-4"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+            ) : (
+              <LogOut className="w-4 h-4" />
+            )}
+            {!collapsed && (isLoggingOut ? "Logging Out..." : "Sign Out")}
           </button>
         </div>
       </aside>
