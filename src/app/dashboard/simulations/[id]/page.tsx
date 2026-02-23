@@ -1,19 +1,104 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { getSimulationById } from "@/data/simulations";
+import { useEffect, useState } from "react";
 import SimulationWorkspace from "@/components/simulations/simulation-workspace";
+import SimulationContainer from "@/components/simulations/SimulationContainer";
 import ProtectedRoute from "@/components/auth/protected-route";
 import Sidebar from "@/components/dashboard/sidebar";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import axios from "axios";
+import { proxy } from "@/app/proxy";
+import type { Simulation } from "@/data/simulations";
+
+/** Categories that use the backend coding simulation environment */
+const BACKEND_CATEGORIES = new Set(["backend", "fullstack", "devops"]);
 
 export default function SimulationDetailPage() {
   const params = useParams();
   const id = params?.id as string;
-  const simulation = getSimulationById(id);
+  const [simulation, setSimulation] = useState<Simulation | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  if (!simulation) {
+  useEffect(() => {
+    const fetchSimulation = async () => {
+      try {
+        const response = await axios.get(
+          `${proxy}/api/v1/simulations/getSimulation/${id}`
+        );
+        const data = response.data.data;
+
+        // Convert MongoDB document to Simulation interface format
+        // The solution field comes as a Map from MongoDB, convert to plain object
+        const solutionObj: Record<string, string> = {};
+        if (data.solution) {
+          if (data.solution instanceof Map) {
+            data.solution.forEach((value: string, key: string) => {
+              solutionObj[key] = value;
+            });
+          } else if (typeof data.solution === "object") {
+            Object.entries(data.solution).forEach(([key, value]) => {
+              solutionObj[key] = value as string;
+            });
+          }
+        }
+
+        const sim: Simulation = {
+          id: data._id,
+          title: data.title,
+          category: data.category,
+          difficulty: data.difficulty,
+          description: data.description,
+          incident: data.incident,
+          steps: data.steps || [],
+          initialFiles: (data.initialFiles || []).map((f: Record<string, string>) => ({
+            name: f.name || "",
+            path: f.path || "",
+            content: f.content || "",
+            language: f.language || "javascript",
+            cloudinaryUrl: f.cloudinaryUrl || "",
+            cloudinaryPublicId: f.cloudinaryPublicId || "",
+          })),
+          solution: solutionObj,
+          hints: data.hints || [],
+          estimatedTime: data.estimatedTime,
+          tags: data.tags || [],
+          xpReward: data.xpReward,
+          entryFile: data.entryFile || "index.js",
+          expectedOutput: data.expectedOutput || "",
+        };
+
+        setSimulation(sim);
+      } catch (err) {
+        console.error("Error fetching simulation:", err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchSimulation();
+    }
+  }, [id]);
+
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <Sidebar collapsed={true} />
+          <div className="flex items-center gap-2 lg:ml-16">
+            <Loader2 className="w-6 h-6 animate-spin text-gray-500" />
+            <span className="text-gray-500 font-mono text-sm">Loading simulation...</span>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  if (error || !simulation) {
     return (
       <ProtectedRoute>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -38,12 +123,18 @@ export default function SimulationDetailPage() {
     );
   }
 
+  const useBackendWorkspace = BACKEND_CATEGORIES.has(simulation.category);
+
   return (
     <ProtectedRoute>
       <div className="flex h-screen">
         <Sidebar collapsed={true} />
         <div className="flex-1 lg:ml-16">
-          <SimulationWorkspace simulation={simulation} />
+          {useBackendWorkspace ? (
+            <SimulationContainer simulation={simulation} />
+          ) : (
+            <SimulationWorkspace simulation={simulation} />
+          )}
         </div>
       </div>
     </ProtectedRoute>

@@ -1,4 +1,4 @@
-let useLocalPath = false;
+let useLocalPath = true;
 
 const LOCAL_PROXY = "http://localhost:8000";
 const REMOTE_PROXY = "https://enum-backend.onrender.com"

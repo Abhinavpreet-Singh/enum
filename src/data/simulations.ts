@@ -3,6 +3,10 @@ export interface SimulationFile {
   path: string;
   content: string;
   language: string;
+  /** Cloudinary raw file URL — when present, content is loaded from here */
+  cloudinaryUrl?: string;
+  /** Cloudinary public ID for management */
+  cloudinaryPublicId?: string;
 }
 
 export interface SimulationStep {
@@ -23,6 +27,10 @@ export interface Simulation {
   estimatedTime: number; // in minutes
   tags: string[];
   xpReward: number;
+  /** Which file to execute (defaults to "index.js") */
+  entryFile?: string;
+  /** Optional expected stdout for auto-grading */
+  expectedOutput?: string;
 }
 
 export const simulations: Simulation[] = [

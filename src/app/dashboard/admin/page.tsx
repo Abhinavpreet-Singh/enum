@@ -5,23 +5,36 @@ import Sidebar from "@/components/dashboard/sidebar";
 import QuestionForm from "@/components/admin/question-form";
 import QuestionsManager from "@/components/admin/questions-manager";
 import EditQuestionModal from "@/components/admin/edit-question-modal";
+import SimulationForm from "@/components/admin/simulation-form";
+import SimulationsManager from "@/components/admin/simulations-manager";
+import EditSimulationModal from "@/components/admin/edit-simulation-modal";
+import type { SimulationListItem } from "@/components/admin/simulations-manager";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { Question } from "@/data/dsa-questions";
-import { Plus, List, BarChart3 } from "lucide-react";
+import { Plus, List, BarChart3, Bug } from "lucide-react";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
 
 export default function AdminPage() {
-    const [activeTab, setActiveTab] = useState<"create" | "manage" | "stats">("create");
+    const [activeTab, setActiveTab] = useState<"create" | "manage" | "stats" | "sim-create" | "sim-manage">("create");
     const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+    const [editingSimulation, setEditingSimulation] = useState<SimulationListItem | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
 
     const handleEdit = (question: Question) => {
         setEditingQuestion(question);
     };
 
+    const handleEditSimulation = (simulation: SimulationListItem) => {
+        setEditingSimulation(simulation);
+    };
+
     const handleCloseModal = () => {
         setEditingQuestion(null);
+    };
+
+    const handleCloseSimulationModal = () => {
+        setEditingSimulation(null);
     };
 
     const handleSuccess = () => {
@@ -43,13 +56,18 @@ export default function AdminPage() {
                                 Admin Panel
                             </h1>
                             <p className="font-mono text-sm text-gray-600 tracking-wide">
-                                MANAGE DSA QUESTIONS
+                                MANAGE DSA QUESTIONS & SIMULATIONS
                             </p>
+                        </div>
+
+                        {/* Section Labels */}
+                        <div className="mb-2">
+                            <span className="font-mono text-xs text-gray-400 tracking-widest">DSA QUESTIONS</span>
                         </div>
 
                         {/* Tabs */}
                         <div className="mb-6 border-b border-gray-200">
-                            <div className="flex gap-1">
+                            <div className="flex gap-1 flex-wrap">
                                 <button
                                     onClick={() => setActiveTab("create")}
                                     className={`flex items-center gap-2 px-6 py-3 font-mono text-sm tracking-wide transition-all ${activeTab === "create"
@@ -58,7 +76,7 @@ export default function AdminPage() {
                                         }`}
                                 >
                                     <Plus className="w-4 h-4" />
-                                    CREATE NEW
+                                    CREATE QUESTION
                                 </button>
                                 <button
                                     onClick={() => setActiveTab("manage")}
@@ -70,6 +88,32 @@ export default function AdminPage() {
                                     <List className="w-4 h-4" />
                                     MANAGE QUESTIONS
                                 </button>
+
+                                <div className="w-px bg-gray-300 mx-2 my-1" />
+
+                                <button
+                                    onClick={() => setActiveTab("sim-create")}
+                                    className={`flex items-center gap-2 px-6 py-3 font-mono text-sm tracking-wide transition-all ${activeTab === "sim-create"
+                                            ? "border-b-2 border-black text-black"
+                                            : "text-gray-500 hover:text-gray-700"
+                                        }`}
+                                >
+                                    <Bug className="w-4 h-4" />
+                                    CREATE SIMULATION
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab("sim-manage")}
+                                    className={`flex items-center gap-2 px-6 py-3 font-mono text-sm tracking-wide transition-all ${activeTab === "sim-manage"
+                                            ? "border-b-2 border-black text-black"
+                                            : "text-gray-500 hover:text-gray-700"
+                                        }`}
+                                >
+                                    <List className="w-4 h-4" />
+                                    MANAGE SIMULATIONS
+                                </button>
+
+                                <div className="w-px bg-gray-300 mx-2 my-1" />
+
                                 <button
                                     onClick={() => setActiveTab("stats")}
                                     className={`flex items-center gap-2 px-6 py-3 font-mono text-sm tracking-wide transition-all ${activeTab === "stats"
@@ -88,15 +132,28 @@ export default function AdminPage() {
                         {activeTab === "manage" && (
                             <QuestionsManager key={refreshKey} onEdit={handleEdit} />
                         )}
+                        {activeTab === "sim-create" && <SimulationForm />}
+                        {activeTab === "sim-manage" && (
+                            <SimulationsManager key={`sim-${refreshKey}`} onEdit={handleEditSimulation} />
+                        )}
                         {activeTab === "stats" && <AdminStats />}
                     </div>
                 </main>
 
-                {/* Edit Modal */}
+                {/* Edit Question Modal */}
                 {editingQuestion && (
                     <EditQuestionModal
                         question={editingQuestion}
                         onClose={handleCloseModal}
+                        onSuccess={handleSuccess}
+                    />
+                )}
+
+                {/* Edit Simulation Modal */}
+                {editingSimulation && (
+                    <EditSimulationModal
+                        simulation={editingSimulation}
+                        onClose={handleCloseSimulationModal}
                         onSuccess={handleSuccess}
                     />
                 )}
@@ -113,8 +170,10 @@ function AdminStats() {
         const handleTotalQues = async () => {
             try {
                 const response = await axios.get(`${proxy}/api/v1/questions/getQuestion`)
-        
-                setTotalQues(response.data.data.length);
+
+                const simulations = await axios.get(`${proxy}/api/v1/simulations/getSimulations`)
+
+                setTotalQues(response.data.data.length+simulations.data.data.length);
             } catch (error) {
                 console.log(error);
             }
