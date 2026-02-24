@@ -2,7 +2,7 @@
 
 A modern, interactive learning platform designed to teach developers how to identify, diagnose, and fix real-world production bugs through hands-on simulations. ENUM360 bridges the gap between theoretical programming knowledge and practical debugging skills.
 
-## 🎯 Problem We're Solving
+## 🎯 Problem We're Solving 
 
 Most programming courses teach syntax and algorithms, but they don't prepare developers for the reality of production environments:
 
