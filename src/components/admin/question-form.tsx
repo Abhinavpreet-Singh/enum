@@ -4,10 +4,18 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { proxy } from "@/app/proxy";
 import axios from "axios";
+
 interface Testcase {
-    input: string;
-    output: string;
+    input: string[];   // Array of input values (one per parameter line)
+    expectedOutput: string;
 }
+
+interface Parameter {
+    name: string;
+    type: string;
+}
+
+const SUPPORTED_TYPES = ["int", "float", "string", "bool", "int[]", "string[]", "float[]"];
 
 export default function QuestionForm() {
     const [formData, setFormData] = useState({
@@ -16,10 +24,16 @@ export default function QuestionForm() {
         level: "Easy" as "Easy" | "Medium" | "Hard",
         constraints: "",
         topic: "",
+        functionName: "",
+        returnType: "int",
     });
 
+    const [parameters, setParameters] = useState<Parameter[]>([
+        { name: "", type: "int" },
+    ]);
+
     const [testcases, setTestcases] = useState<Testcase[]>([
-        { input: "", output: "" },
+        { input: [""], expectedOutput: "" },
     ]);
 
     const [submitStatus, setSubmitStatus] = useState<{
@@ -39,21 +53,64 @@ export default function QuestionForm() {
         }));
     };
 
-    const handleTestcaseChange = (
+    // ── Parameter handlers ──
+    const addParameter = () => {
+        setParameters([...parameters, { name: "", type: "int" }]);
+        // Add an empty input slot to each testcase
+        setTestcases(testcases.map(tc => ({
+            ...tc,
+            input: [...tc.input, ""]
+        })));
+    };
+
+    const removeParameter = (index: number) => {
+        if (parameters.length > 1) {
+            setParameters(parameters.filter((_, i) => i !== index));
+            // Remove corresponding input slot from each testcase
+            setTestcases(testcases.map(tc => ({
+                ...tc,
+                input: tc.input.filter((_, i) => i !== index)
+            })));
+        }
+    };
+
+    const handleParameterChange = (
         index: number,
-        field: keyof Testcase,
+        field: keyof Parameter,
         value: string
     ) => {
-        const updatedTestcases = [...testcases];
-        updatedTestcases[index] = {
-            ...updatedTestcases[index],
-            [field]: value,
+        const updated = [...parameters];
+        updated[index] = { ...updated[index], [field]: value };
+        setParameters(updated);
+    };
+
+    // ── Testcase handlers ──
+    const handleTestcaseInputChange = (
+        tcIndex: number,
+        paramIndex: number,
+        value: string
+    ) => {
+        const updated = [...testcases];
+        updated[tcIndex] = {
+            ...updated[tcIndex],
+            input: updated[tcIndex].input.map((v, i) =>
+                i === paramIndex ? value : v
+            ),
         };
-        setTestcases(updatedTestcases);
+        setTestcases(updated);
+    };
+
+    const handleTestcaseOutputChange = (index: number, value: string) => {
+        const updated = [...testcases];
+        updated[index] = { ...updated[index], expectedOutput: value };
+        setTestcases(updated);
     };
 
     const addTestcase = () => {
-        setTestcases([...testcases, { input: "", output: "" }]);
+        setTestcases([
+            ...testcases,
+            { input: parameters.map(() => ""), expectedOutput: "" },
+        ]);
     };
 
     const removeTestcase = (index: number) => {
@@ -62,9 +119,32 @@ export default function QuestionForm() {
         }
     };
 
+    // Format a single testcase's input array for the backend.
+    // For array-type params the admin enters space-separated values only;
+    // this helper prepends the element count and a real newline.
+    const formatTestcases = (tcs: Testcase[]) =>
+        tcs.map(tc => ({
+            input: tc.input.map((val, i) => {
+                const type = parameters[i]?.type || "";
+                if (type.endsWith("[]")) {
+                    const trimmed = val.trim();
+                    if (!trimmed) return "0\n"; // empty array
+                    const elements = trimmed.split(/\s+/);
+                    return `${elements.length}\n${trimmed}`;
+                }
+                return val;
+            }),
+            expectedOutput: tc.expectedOutput,
+        }));
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitStatus({ type: null, message: "" });
+
+        if (!formData.functionName.trim()) {
+            setSubmitStatus({ type: "error", message: "Function name is required" });
+            return;
+        }
 
         try {
             const response = await axios.post(`${proxy}/api/v1/admin/adminPostQuestion`,
@@ -74,7 +154,11 @@ export default function QuestionForm() {
                     level: formData.level,
                     constraints: formData.constraints,
                     topic: formData.topic,
-                    testcases
+                    functionName: formData.functionName,
+                    parameterNames: parameters.map(p => p.name || `param${parameters.indexOf(p)}`),
+                    parameterTypes: parameters.map(p => p.type),
+                    returnType: formData.returnType,
+                    testcases: formatTestcases(testcases)
                 },
                 {
                     headers: {
@@ -99,8 +183,11 @@ export default function QuestionForm() {
                     level: "Easy",
                     constraints: "",
                     topic: "",
+                    functionName: "",
+                    returnType: "int",
                 });
-                setTestcases([{ input: "", output: "" }]);
+                setParameters([{ name: "", type: "int" }]);
+                setTestcases([{ input: [""], expectedOutput: "" }]);
             }
 
         } catch (error) {
@@ -232,7 +319,107 @@ export default function QuestionForm() {
                     />
                 </div>
 
-                {/* Testcases */}
+                {/* ═══ Function Signature Section ═══ */}
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h3 className="font-mono text-sm text-blue-900 font-bold mb-4 tracking-wide">
+                        FUNCTION SIGNATURE (LeetCode-style)
+                    </h3>
+
+                    {/* Function Name & Return Type */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label className="block text-xs text-gray-700 mb-1 font-mono">
+                                FUNCTION NAME *
+                            </label>
+                            <input
+                                type="text"
+                                name="functionName"
+                                value={formData.functionName}
+                                onChange={handleInputChange}
+                                required
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm bg-white"
+                                placeholder="e.g., twoSum"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-700 mb-1 font-mono">
+                                RETURN TYPE *
+                            </label>
+                            <select
+                                name="returnType"
+                                value={formData.returnType}
+                                onChange={handleInputChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm bg-white"
+                            >
+                                {[...SUPPORTED_TYPES, "void"].map((t) => (
+                                    <option key={t} value={t}>{t}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Parameters */}
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-xs text-gray-700 font-mono">
+                                PARAMETERS
+                            </label>
+                            <button
+                                type="button"
+                                onClick={addParameter}
+                                className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white font-mono text-xs hover:bg-blue-700 transition-colors rounded-md"
+                            >
+                                <Plus className="w-3 h-3" />
+                                ADD PARAM
+                            </button>
+                        </div>
+                        <div className="space-y-2">
+                            {parameters.map((param, index) => (
+                                <div key={index} className="flex items-center gap-2">
+                                    <select
+                                        value={param.type}
+                                        onChange={(e) => handleParameterChange(index, "type", e.target.value)}
+                                        className="px-2 py-2 border border-gray-300 rounded-md text-sm bg-white min-w-[120px]"
+                                    >
+                                        {SUPPORTED_TYPES.map(t => (
+                                            <option key={t} value={t}>{t}</option>
+                                        ))}
+                                    </select>
+                                    <input
+                                        type="text"
+                                        value={param.name}
+                                        onChange={(e) => handleParameterChange(index, "name", e.target.value)}
+                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+                                        placeholder={`param${index} (name)`}
+                                    />
+                                    {parameters.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => removeParameter(index)}
+                                            className="p-1 text-red-500 hover:text-red-700"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Preview of function signature */}
+                    {formData.functionName && (
+                        <div className="mt-4 p-3 bg-gray-800 rounded-md">
+                            <p className="font-mono text-xs text-gray-400 mb-1">Preview (Python):</p>
+                            <code className="font-mono text-sm text-green-400">
+                                def {formData.functionName}({parameters.map((p, i) =>
+                                    `${p.name || `param${i}`}: ${p.type}`
+                                ).join(", ")}) -&gt; {formData.returnType}
+                            </code>
+                        </div>
+                    )}
+                </div>
+
+                {/* ═══ Test Cases Section ═══ */}
                 <div className="mb-6">
                     <div className="flex items-center justify-between mb-4">
                         <label className="block font-mono text-sm text-gray-700 tracking-wide">
@@ -249,19 +436,19 @@ export default function QuestionForm() {
                     </div>
 
                     <div className="space-y-4">
-                        {testcases.map((testcase, index) => (
+                        {testcases.map((testcase, tcIndex) => (
                             <div
-                                key={index}
+                                key={tcIndex}
                                 className="p-4 border border-gray-200 rounded-md bg-gray-50"
                             >
                                 <div className="flex items-center justify-between mb-3">
                                     <span className="font-mono text-xs text-gray-600">
-                                        TESTCASE #{index + 1}
+                                        TESTCASE #{tcIndex + 1}
                                     </span>
                                     {testcases.length > 1 && (
                                         <button
                                             type="button"
-                                            onClick={() => removeTestcase(index)}
+                                            onClick={() => removeTestcase(tcIndex)}
                                             className="text-red-600 hover:text-red-700 transition-colors"
                                             title="Remove testcase"
                                         >
@@ -270,34 +457,47 @@ export default function QuestionForm() {
                                     )}
                                 </div>
 
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="block text-xs text-gray-600 mb-1">
-                                            Input
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={testcase.input}
-                                            onChange={(e) =>
-                                                handleTestcaseChange(index, "input", e.target.value)
-                                            }
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-sm bg-white"
-                                            placeholder="e.g., [2, 7, 11, 15], target = 9"
-                                        />
-                                    </div>
+                                <div className="space-y-2">
+                                    {/* One input field per parameter */}
+                                    {parameters.map((param, paramIndex) => (
+                                        <div key={paramIndex}>
+                                            <label className="block text-xs text-gray-500 mb-1">
+                                                {param.name || `param${paramIndex}`} ({param.type})
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={testcase.input[paramIndex] || ""}
+                                                onChange={(e) =>
+                                                    handleTestcaseInputChange(tcIndex, paramIndex, e.target.value)
+                                                }
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-sm bg-white"
+                                                placeholder={
+                                                    param.type.endsWith("[]")
+                                                        ? "Space-separated values, e.g.: 2 7 11 15"
+                                                        : `e.g., ${param.type === "string" ? "hello" : param.type === "bool" ? "true" : "42"}`
+                                                }
+                                            />
+                                            {param.type.endsWith("[]") && (
+                                                <p className="text-[10px] text-gray-400 mt-0.5">
+                                                    Enter values only — count is auto-calculated. Leave blank for empty array.
+                                                </p>
+                                            )}
+                                        </div>
+                                    ))}
 
-                                    <div>
-                                        <label className="block text-xs text-gray-600 mb-1">
-                                            Output
+                                    {/* Expected output */}
+                                    <div className="mt-2 pt-2 border-t border-gray-200">
+                                        <label className="block text-xs text-gray-500 mb-1">
+                                            Expected Output
                                         </label>
                                         <input
                                             type="text"
-                                            value={testcase.output}
+                                            value={testcase.expectedOutput}
                                             onChange={(e) =>
-                                                handleTestcaseChange(index, "output", e.target.value)
+                                                handleTestcaseOutputChange(tcIndex, e.target.value)
                                             }
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-sm bg-white"
-                                            placeholder="e.g., [0, 1]"
+                                            placeholder="e.g., 9"
                                         />
                                     </div>
                                 </div>

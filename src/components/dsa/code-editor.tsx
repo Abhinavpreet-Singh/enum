@@ -20,6 +20,7 @@ import PublishSolutionModal from "./publish-solution-modal";
 interface TestCase {
   input: string;
   output: string;
+  expectedOutput?: string;
 }
 
 interface TestCaseResult {
@@ -49,7 +50,7 @@ const languageOptions = [
   { label: "C++", value: "cpp" },
 ];
 
-const RUN_API_URL = "/api/run";
+const JUDGE_API_URL = "/api/judge";
 
 type Language = "python" | "java" | "c" | "cpp";
 type BottomTab = "testcase" | "result";
@@ -98,7 +99,7 @@ export default function CodeEditor({
   // Merge original + custom test cases for display
   const allTestCases = [...testCases, ...customTestCases];
 
-  // Initialize code
+  // Initialize code with function templates
   useEffect(() => {
     const initialUserCode: Record<Language, string> = {
       python: initialCode.python || "",
@@ -156,81 +157,77 @@ export default function CodeEditor({
     document.addEventListener("mouseup", onUp);
   };
 
-  // ---------- Normalize output for comparison ----------
-  const normalizeOutput = (str: string): string => {
-    let s = str.trim();
-    // Strip surrounding double quotes
-    if (s.startsWith('"') && s.endsWith('"')) {
-      s = s.slice(1, -1);
-    }
-    // Strip surrounding single quotes
-    if (s.startsWith("'") && s.endsWith("'")) {
-      s = s.slice(1, -1);
-    }
-    return s;
-  };
-
-  // ---------- Execute single test case ----------
-  const executeCode = async (
-    input: string
-  ): Promise<{ output: string; error?: string }> => {
+  // ---------- Judge API call ----------
+  const runJudge = async (
+    mode: "run" | "submit"
+  ): Promise<{
+    results: TestCaseResult[];
+    allPassed: boolean;
+    passedCount: number;
+    totalCount: number;
+    error?: string;
+  }> => {
     try {
-      const response = await fetch(RUN_API_URL, {
+      const response = await fetch(JUDGE_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ language, code, input }),
+        body: JSON.stringify({
+          questionId,
+          language,
+          userCode: code,
+          mode,
+        }),
       });
+
       const data = await response.json();
 
-      if (data.error && !data.output && !data.stdout) {
+      if (!response.ok) {
         return {
-          output: "",
-          error: data.message || data.error || "Runtime error",
+          results: [],
+          allPassed: false,
+          passedCount: 0,
+          totalCount: 0,
+          error: data.message || data.error || "Judge error",
         };
       }
 
-      const output =
-        data?.output ?? data?.stdout ?? data?.result ?? "";
-      return { output: String(output).trim() };
+      // Map judge results to our format
+      const results: TestCaseResult[] = (data.results || []).map(
+        (r: any) => ({
+          input: Array.isArray(r.input)
+            ? r.input.join("\n")
+            : String(r.input || ""),
+          expectedOutput: r.expected || r.expectedOutput || "",
+          actualOutput: r.error
+            ? `Error: ${r.error}`
+            : r.output || r.actualOutput || "(no output)",
+          passed: r.passed,
+          error: r.error,
+        })
+      );
+
+      return {
+        results,
+        allPassed: data.allPassed,
+        passedCount: data.passedCount || results.filter((r) => r.passed).length,
+        totalCount: data.totalCount || results.length,
+      };
     } catch (err) {
       return {
-        output: "",
+        results: [],
+        allPassed: false,
+        passedCount: 0,
+        totalCount: 0,
         error: err instanceof Error ? err.message : "Execution failed",
       };
     }
   };
 
-  // ---------- RUN: Run against visible test cases (first 3 + custom) ----------
+  // ---------- RUN: Run against first 3 test cases ----------
   const handleRun = async () => {
-    if (allTestCases.length === 0) {
-      // No test cases, just run the code with no input
-      setIsRunning(true);
-      setBottomTab("result");
-      setOverallVerdict("running");
-      setTestResults([]);
-
-      const result = await executeCode("");
-      const testResult: TestCaseResult = {
-        input: "(no input)",
-        expectedOutput: "(no expected output)",
-        actualOutput: result.output || result.error || "(no output)",
-        passed: false,
-        error: result.error,
-      };
-      setTestResults([testResult]);
-      setActiveResultIdx(0);
-      setOverallVerdict(result.error ? "error" : "accepted");
-      setPassedCount(0);
-      setTotalCount(0);
-      setIsRunning(false);
+    if (!questionId) {
       return;
     }
-
-    // Run against visible test cases (up to first 3 from original + all custom)
-    const casesToRun = [
-      ...testCases.slice(0, 3),
-      ...customTestCases,
-    ];
 
     setIsRunning(true);
     setBottomTab("result");
@@ -240,39 +237,35 @@ export default function CodeEditor({
     setRuntime(null);
 
     const startTime = Date.now();
-    const results: TestCaseResult[] = [];
 
-    for (let i = 0; i < casesToRun.length; i++) {
-      const tc = casesToRun[i];
-      const result = await executeCode(tc.input);
-      const expectedNorm = normalizeOutput(tc.output);
-      const actualNorm = normalizeOutput(result.output || "");
-      const passed = !result.error && actualNorm === expectedNorm;
-
-      results.push({
-        input: tc.input,
-        expectedOutput: tc.output,
-        actualOutput: result.error
-          ? `Error: ${result.error}`
-          : result.output || "(no output)",
-        passed,
-        error: result.error,
-      });
-
-      // Update results progressively
-      setTestResults([...results]);
-    }
-
+    const judgeResult = await runJudge("run");
     const elapsed = Date.now() - startTime;
     setRuntime(elapsed);
 
-    const passed = results.filter((r) => r.passed).length;
-    setPassedCount(passed);
-    setTotalCount(results.length);
+    if (judgeResult.error && judgeResult.results.length === 0) {
+      // Complete failure - show error
+      const errorResult: TestCaseResult = {
+        input: "(all test cases)",
+        expectedOutput: "",
+        actualOutput: `Error: ${judgeResult.error}`,
+        passed: false,
+        error: judgeResult.error,
+      };
+      setTestResults([errorResult]);
+      setOverallVerdict("error");
+      setPassedCount(0);
+      setTotalCount(0);
+      setIsRunning(false);
+      return;
+    }
 
-    if (results.every((r) => r.passed)) {
+    setTestResults(judgeResult.results);
+    setPassedCount(judgeResult.passedCount);
+    setTotalCount(judgeResult.totalCount);
+
+    if (judgeResult.allPassed) {
       setOverallVerdict("accepted");
-    } else if (results.some((r) => r.error)) {
+    } else if (judgeResult.results.some((r) => r.error)) {
       setOverallVerdict("error");
     } else {
       setOverallVerdict("wrong_answer");
@@ -283,7 +276,7 @@ export default function CodeEditor({
 
   // ---------- SUBMIT: Run against ALL test cases ----------
   const handleSubmit = async () => {
-    if (testCases.length === 0) {
+    if (!questionId) {
       handleRun();
       return;
     }
@@ -296,53 +289,34 @@ export default function CodeEditor({
     setRuntime(null);
 
     const startTime = Date.now();
-    const results: TestCaseResult[] = [];
 
-    for (let i = 0; i < testCases.length; i++) {
-      const tc = testCases[i];
-      const result = await executeCode(tc.input);
-      const expectedNorm = normalizeOutput(tc.output);
-      const actualNorm = normalizeOutput(result.output || "");
-      const passed = !result.error && actualNorm === expectedNorm;
-
-      results.push({
-        input: tc.input,
-        expectedOutput: tc.output,
-        actualOutput: result.error
-          ? `Error: ${result.error}`
-          : result.output || "(no output)",
-        passed,
-        error: result.error,
-      });
-
-      setTestResults([...results]);
-
-      // Early exit on first failure for faster feedback
-      if (!passed) {
-        // Still run the rest but mark remaining as not-run
-        for (let j = i + 1; j < testCases.length; j++) {
-          results.push({
-            input: testCases[j].input,
-            expectedOutput: testCases[j].output,
-            actualOutput: "(not executed)",
-            passed: false,
-          });
-        }
-        setTestResults([...results]);
-        break;
-      }
-    }
-
+    const judgeResult = await runJudge("submit");
     const elapsed = Date.now() - startTime;
     setRuntime(elapsed);
 
-    const passed = results.filter((r) => r.passed).length;
-    setPassedCount(passed);
-    setTotalCount(testCases.length);
+    if (judgeResult.error && judgeResult.results.length === 0) {
+      const errorResult: TestCaseResult = {
+        input: "(all test cases)",
+        expectedOutput: "",
+        actualOutput: `Error: ${judgeResult.error}`,
+        passed: false,
+        error: judgeResult.error,
+      };
+      setTestResults([errorResult]);
+      setOverallVerdict("error");
+      setPassedCount(0);
+      setTotalCount(0);
+      setIsSubmitting(false);
+      return;
+    }
 
-    if (results.every((r) => r.passed)) {
+    setTestResults(judgeResult.results);
+    setPassedCount(judgeResult.passedCount);
+    setTotalCount(judgeResult.totalCount);
+
+    if (judgeResult.allPassed) {
       setOverallVerdict("accepted");
-    } else if (results.some((r) => r.error)) {
+    } else if (judgeResult.results.some((r) => r.error)) {
       setOverallVerdict("error");
     } else {
       setOverallVerdict("wrong_answer");

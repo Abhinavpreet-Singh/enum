@@ -7,9 +7,15 @@ export interface Question {
   difficulty: "Easy" | "Medium" | "Hard";
   category: string;
   description: string;
+  // Function metadata for LeetCode-style
+  functionName: string;
+  parameterNames: string[];
+  parameterTypes: string[];
+  returnType: string;
   examples: {
-    input: string;
+    input: string[] | string;
     output: string;
+    expectedOutput?: string;
   }[];
   constraints: string[];
   initialCode: {
@@ -26,9 +32,13 @@ interface BackendQuestion {
   title: string;
   desc: string;
   level: "Easy" | "Medium" | "Hard";
-  testcases: Array<{ input: string; output: string }>;
+  testcases: Array<{ input: string[] | string; output?: string; expectedOutput?: string }>;
   constraints: string;
   topic: string;
+  functionName?: string;
+  parameterNames?: string[];
+  parameterTypes?: string[];
+  returnType?: string;
   initialCode?: Array<{
     python?: string;
     java?: string;
@@ -55,7 +65,7 @@ export const fetchQuestions = async (): Promise<Question[]> => {
           constraintsArray = q.constraints.map(c => String(c));
         }
 
-        // Parse initialCode from backend
+        // Parse initialCode from backend (auto-generated or manual)
         let initialCodeObj: {
           python?: string;
           java?: string;
@@ -70,56 +80,18 @@ export const fetchQuestions = async (): Promise<Question[]> => {
           });
         }
 
-        // Fallback to default templates if not provided
-        if (!initialCodeObj.python && !initialCodeObj.java && !initialCodeObj.c && !initialCodeObj.cpp) {
-          initialCodeObj = {
-            python: `# Read input
-import sys
-
-def solve():
-    data = sys.stdin.read().strip().split()
-    pass
-
-if __name__ == "__main__":
-    solve()
-`,
-            java: `import java.util.*;
-
-public class Main {
-    public static void solve(Scanner sc) {
-    }
-
-    public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
-        solve(sc);
-        sc.close();
-    }
-}`,
-            c: `#include <stdio.h>
-
-void solve() {
-}
-
-int main() {
-    solve();
-    return 0;
-}
-`,
-            cpp: `#include <bits/stdc++.h>
-using namespace std;
-
-void solve() {
-}
-
-int main() {
-    ios::sync_with_stdio(false);
-    cin.tie(NULL);
-    solve();
-    return 0;
-}
-`
+        // Map testcases - support both old and new format
+        const examples = Array.isArray(q.testcases) ? q.testcases.map((tc) => {
+          const input = tc.input;
+          const expectedOutput = tc.expectedOutput || tc.output || "";
+          // For display, format input nicely
+          const displayInput = Array.isArray(input) ? input.join("\n") : String(input || "");
+          return {
+            input: displayInput,
+            output: String(expectedOutput),
+            expectedOutput: String(expectedOutput),
           };
-        }
+        }) : [];
 
         return {
           id: q._id,
@@ -127,11 +99,11 @@ int main() {
           difficulty: q.level || "Easy",
           category: q.topic || "General",
           description: q.desc || "",
-          examples: Array.isArray(q.testcases) ? q.testcases.map((tc, index) => ({
-            input: String(tc.input || ""),
-            output: String(tc.output || ""),
-            explanation: index === 0 ? "Example test case" : `Test case ${index + 1}`
-          })) : [],
+          functionName: q.functionName || "",
+          parameterNames: q.parameterNames || [],
+          parameterTypes: q.parameterTypes || [],
+          returnType: q.returnType || "int",
+          examples,
           constraints: constraintsArray,
           initialCode: initialCodeObj
         };
