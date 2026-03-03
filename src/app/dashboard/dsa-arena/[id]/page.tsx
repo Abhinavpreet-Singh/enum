@@ -155,7 +155,10 @@ export default function WorkspacePage() {
           <div className="overflow-hidden flex-1">
             <CodeEditor 
               initialCode={question.initialCode} 
-              testCases={question.examples}
+              testCases={question.examples.map((tc) => ({
+                ...tc,
+                input: Array.isArray(tc.input) ? tc.input.join("\n") : tc.input,
+              }))}
               questionId={question.id}
               onSolutionPublished={handleSolutionPublished}
               onSubmitSuccess={handleSubmitSuccess}
