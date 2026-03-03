@@ -188,14 +188,6 @@ See src/data/simulations.ts for examples.
 - Category breakdown
 - Future: Leaderboards, badges
 
-## 🛠️ Development
-
-`ash
-npm run lint     # Run linter
-npm run build    # Build for production
-npm start        # Start prod server
-`
-
 ## 🐛 Known Limitations
 
 1. Sandpack: Limited npm packages
