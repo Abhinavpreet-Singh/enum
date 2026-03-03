@@ -13,9 +13,11 @@ import {
   CircleCheck,
   CircleX,
   Loader2,
+  Brain,
 } from "lucide-react";
 import Editor from "@monaco-editor/react";
 import PublishSolutionModal from "./publish-solution-modal";
+import ComplexityAnalysisModal from "./complexity-analysis-modal";
 
 interface TestCase {
   input: string;
@@ -41,6 +43,7 @@ interface CodeEditorProps {
   testCases?: TestCase[];
   questionId?: string;
   onSolutionPublished?: () => void;
+  onSubmitSuccess?: () => void;
 }
 
 const languageOptions = [
@@ -67,6 +70,7 @@ export default function CodeEditor({
   testCases = [],
   questionId,
   onSolutionPublished,
+  onSubmitSuccess,
 }: CodeEditorProps) {
   const [language, setLanguage] = useState<Language>("python");
   const [code, setCode] = useState("");
@@ -82,6 +86,7 @@ export default function CodeEditor({
   const [consoleHeight, setConsoleHeight] = useState(240);
   const [isResizing, setIsResizing] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
+  const [showComplexityModal, setShowComplexityModal] = useState(false);
 
   // Bottom panel state
   const [bottomTab, setBottomTab] = useState<BottomTab>("testcase");
@@ -316,6 +321,30 @@ export default function CodeEditor({
 
     if (judgeResult.allPassed) {
       setOverallVerdict("accepted");
+
+      // Save the accepted submission to the backend
+      try {
+        const token = localStorage.getItem("accessToken");
+        await fetch("/api/submissions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            questionId,
+            code,
+            language,
+            passedCount: judgeResult.passedCount,
+            totalCount: judgeResult.totalCount,
+            runtime: elapsed,
+          }),
+        });
+        // Notify parent to refresh submissions tab
+        if (onSubmitSuccess) onSubmitSuccess();
+      } catch {
+        // Submission save failed silently — verdict already shown
+      }
     } else if (judgeResult.results.some((r) => r.error)) {
       setOverallVerdict("error");
     } else {
@@ -438,6 +467,17 @@ export default function CodeEditor({
             )}
             SUBMIT
           </button>
+
+          {/* ANALYZE TIME COMPLEXITY — only visible after all test cases pass */}
+          {questionId && overallVerdict === "accepted" && (
+            <button
+              onClick={() => setShowComplexityModal(true)}
+              className="px-4 py-1.5 bg-purple-600 text-white text-xs rounded flex items-center gap-2 hover:bg-purple-700 transition-colors shadow-sm"
+            >
+              <Brain className="w-4 h-4" />
+              ANALYZE COMPLEXITY
+            </button>
+          )}
 
           {/* PUBLISH */}
           {questionId && (
@@ -837,6 +877,16 @@ export default function CodeEditor({
               onSolutionPublished();
             }
           }}
+        />
+      )}
+
+      {/* Complexity Analysis Modal */}
+      {showComplexityModal && questionId && (
+        <ComplexityAnalysisModal
+          code={code}
+          language={language}
+          questionId={questionId}
+          onClose={() => setShowComplexityModal(false)}
         />
       )}
     </div>

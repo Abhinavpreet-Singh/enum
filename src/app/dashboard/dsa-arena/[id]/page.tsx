@@ -17,6 +17,7 @@ export default function WorkspacePage() {
   const [leftPanelWidth, setLeftPanelWidth] = useState(40); // percentage
   const [isResizing, setIsResizing] = useState(false);
   const [refreshSolutions, setRefreshSolutions] = useState(0);
+  const [refreshSubmissions, setRefreshSubmissions] = useState(0);
 
   useEffect(() => {
     const loadQuestion = async () => {
@@ -31,6 +32,10 @@ export default function WorkspacePage() {
 
   const handleSolutionPublished = () => {
     setRefreshSolutions((prev) => prev + 1);
+  };
+
+  const handleSubmitSuccess = () => {
+    setRefreshSubmissions((prev) => prev + 1);
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -134,7 +139,7 @@ export default function WorkspacePage() {
             className="overflow-auto dark-scrollbar"
             style={{ width: `${leftPanelWidth}%` }}
           >
-            <ProblemTabs question={question} refreshSolutions={refreshSolutions} />
+            <ProblemTabs question={question} refreshSolutions={refreshSolutions} refreshSubmissions={refreshSubmissions} />
           </div>
 
           {/* Vertical Resize Handle */}
@@ -153,6 +158,7 @@ export default function WorkspacePage() {
               testCases={question.examples}
               questionId={question.id}
               onSolutionPublished={handleSolutionPublished}
+              onSubmitSuccess={handleSubmitSuccess}
             />
           </div>
         </div>

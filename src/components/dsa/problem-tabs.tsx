@@ -4,10 +4,12 @@ import { useState } from "react";
 import { Question } from "@/data/dsa-questions";
 import { Clock, AlertCircle } from "lucide-react";
 import SolutionsList from "./solutions-list";
+import SubmissionsList from "./submissions-list";
 
 interface ProblemTabsProps {
     question: Question;
     refreshSolutions?: number;
+    refreshSubmissions?: number;
 }
 
 type TabType = "description" | "editorial" | "solutions" | "submissions";
@@ -18,7 +20,7 @@ const difficultyColors = {
     Hard: "text-red-600 bg-red-50",
 };
 
-export default function ProblemTabs({ question, refreshSolutions }: ProblemTabsProps) {
+export default function ProblemTabs({ question, refreshSolutions, refreshSubmissions }: ProblemTabsProps) {
     const [activeTab, setActiveTab] = useState<TabType>("description");
 
     return (
@@ -182,9 +184,7 @@ export default function ProblemTabs({ question, refreshSolutions }: ProblemTabsP
                 )}
 
                 {activeTab === "submissions" && (
-                    <div className="text-gray-600 text-center py-8">
-                        <p className="font-mono text-sm">Coming soon...</p>
-                    </div>
+                    <SubmissionsList questionId={question.id} refreshKey={refreshSubmissions} />
                 )}
             </div>
         </div>
