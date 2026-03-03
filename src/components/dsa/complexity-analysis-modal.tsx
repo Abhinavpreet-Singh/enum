@@ -96,12 +96,6 @@ export default function ComplexityAnalysisModal({
     }
   };
 
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.8) return "text-green-600 bg-green-50 border-green-200";
-    if (confidence >= 0.6) return "text-yellow-600 bg-yellow-50 border-yellow-200";
-    return "text-red-600 bg-red-50 border-red-200";
-  };
-
   const getConfidenceLabel = (confidence: number) => {
     if (confidence >= 0.8) return "Very High";
     if (confidence >= 0.6) return "High";
@@ -123,16 +117,14 @@ export default function ComplexityAnalysisModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-purple-50 to-blue-50">
+        <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Brain className="w-5 h-5 text-purple-600" />
-            </div>
+            <Brain className="w-5 h-5 text-black" />
             <div>
-              <h2 className="text-lg font-bold text-gray-900">
-                AI Complexity Analysis
+              <h2 className="text-lg font-bold text-black">
+                Complexity Analysis
               </h2>
               <p className="text-xs text-gray-500 font-mono">
                 Powered by static analysis + ML
@@ -141,9 +133,9 @@ export default function ComplexityAnalysisModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -152,10 +144,10 @@ export default function ComplexityAnalysisModal({
           {/* Initial state — show analyze button */}
           {!loading && !result && !error && (
             <div className="text-center py-12">
-              <div className="inline-flex p-4 bg-purple-50 rounded-full mb-4">
-                <Brain className="w-10 h-10 text-purple-500" />
+              <div className="inline-flex p-4 bg-gray-100 rounded-full mb-4">
+                <Brain className="w-10 h-10 text-black" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+              <h3 className="text-lg font-semibold text-black mb-2">
                 Analyze Your Solution
               </h3>
               <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
@@ -164,7 +156,7 @@ export default function ComplexityAnalysisModal({
               </p>
               <button
                 onClick={analyzeComplexity}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors shadow-lg shadow-purple-200"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
               >
                 <Zap className="w-5 h-5" />
                 Analyze Time Complexity
@@ -175,7 +167,7 @@ export default function ComplexityAnalysisModal({
           {/* Loading */}
           {loading && (
             <div className="text-center py-16">
-              <Loader2 className="w-10 h-10 animate-spin text-purple-500 mx-auto mb-4" />
+              <Loader2 className="w-10 h-10 animate-spin text-black mx-auto mb-4" />
               <p className="text-sm text-gray-600 font-medium">
                 Analyzing your code...
               </p>
@@ -188,16 +180,16 @@ export default function ComplexityAnalysisModal({
           {/* Error */}
           {error && (
             <div className="text-center py-12">
-              <div className="inline-flex p-3 bg-red-50 rounded-full mb-4">
-                <AlertTriangle className="w-8 h-8 text-red-500" />
+              <div className="inline-flex p-3 bg-gray-100 rounded-full mb-4">
+                <AlertTriangle className="w-8 h-8 text-black" />
               </div>
-              <h3 className="text-lg font-semibold text-red-700 mb-2">
+              <h3 className="text-lg font-semibold text-black mb-2">
                 Analysis Failed
               </h3>
               <p className="text-sm text-gray-600 mb-4">{error}</p>
               <button
                 onClick={analyzeComplexity}
-                className="inline-flex items-center gap-2 px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                className="inline-flex items-center gap-2 px-5 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-sm"
               >
                 Try Again
               </button>
@@ -210,72 +202,67 @@ export default function ComplexityAnalysisModal({
               {/* Complexity Cards */}
               <div className="grid grid-cols-2 gap-4">
                 {/* Time Complexity */}
-                <div className="border border-purple-200 rounded-xl p-4 bg-purple-50/50">
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                   <div className="flex items-center gap-2 mb-2">
-                    <Clock className="w-4 h-4 text-purple-600" />
-                    <span className="font-mono text-xs text-purple-600 tracking-wider">
+                    <Clock className="w-4 h-4 text-gray-500" />
+                    <span className="font-mono text-xs text-gray-500 tracking-[0.15em]">
                       TIME COMPLEXITY
                     </span>
                   </div>
-                  <p className="text-2xl font-bold text-purple-900 font-mono">
+                  <p className="text-2xl font-bold text-black font-mono">
                     {formatComplexity(result.timeComplexity)}
                   </p>
                   {result.explanation.growthDescription && (
-                    <p className="text-xs text-purple-600 mt-1">
+                    <p className="text-xs text-gray-500 mt-1">
                       {result.explanation.growthDescription}
                     </p>
                   )}
                 </div>
 
                 {/* Space Complexity */}
-                <div className="border border-blue-200 rounded-xl p-4 bg-blue-50/50">
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                   <div className="flex items-center gap-2 mb-2">
-                    <HardDrive className="w-4 h-4 text-blue-600" />
-                    <span className="font-mono text-xs text-blue-600 tracking-wider">
+                    <HardDrive className="w-4 h-4 text-gray-500" />
+                    <span className="font-mono text-xs text-gray-500 tracking-[0.15em]">
                       SPACE COMPLEXITY
                     </span>
                   </div>
-                  <p className="text-2xl font-bold text-blue-900 font-mono">
+                  <p className="text-2xl font-bold text-black font-mono">
                     {formatComplexity(result.spaceComplexity)}
                   </p>
                 </div>
               </div>
 
               {/* Confidence */}
-              <div
-                className={`flex items-center justify-between p-3 rounded-lg border ${getConfidenceColor(
-                  result.confidence
-                )}`}
-              >
+              <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-gray-50">
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4" />
-                  <span className="text-sm font-medium">
-                    Confidence: {getConfidenceLabel(result.confidence)}
+                  <TrendingUp className="w-4 h-4 text-gray-500" />
+                  <span className="font-mono text-xs text-gray-500 tracking-[0.15em]">
+                    CONFIDENCE: {getConfidenceLabel(result.confidence).toUpperCase()}
                   </span>
                 </div>
-                <span className="font-mono text-sm font-bold">
+                <span className="font-mono text-sm font-bold text-black">
                   {(result.confidence * 100).toFixed(0)}%
                 </span>
               </div>
 
               {/* ML Prediction Badge */}
               {result.mlPrediction && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">
-                  <Brain className="w-4 h-4 text-gray-500" />
-                  <span className="text-xs text-gray-600">
-                    ML Prediction:{" "}
-                    <span className="font-mono font-bold">
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                  <Brain className="w-4 h-4 text-gray-400" />
+                  <span className="font-mono text-xs text-gray-500">
+                    ML PREDICTION:{" "}
+                    <span className="font-bold text-black">
                       {formatComplexity(result.mlPrediction.prediction)}
                     </span>{" "}
-                    ({(result.mlPrediction.confidence * 100).toFixed(0)}%
-                    confidence)
+                    ({(result.mlPrediction.confidence * 100).toFixed(0)}%)
                   </span>
                 </div>
               )}
 
               {/* Simple Explanation */}
-              <div className="border border-gray-200 rounded-xl p-4">
-                <h4 className="font-mono text-xs tracking-wider text-gray-500 mb-3">
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h4 className="font-mono text-xs tracking-[0.2em] text-gray-500 mb-3">
                   EXPLANATION
                 </h4>
                 <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
@@ -284,12 +271,12 @@ export default function ComplexityAnalysisModal({
               </div>
 
               {/* Technical Explanation (Collapsible) */}
-              <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
                 <button
                   onClick={() => setShowTechnical(!showTechnical)}
                   className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
                 >
-                  <span className="font-mono text-xs tracking-wider text-gray-500">
+                  <span className="font-mono text-xs tracking-[0.2em] text-gray-500">
                     TECHNICAL DETAILS
                   </span>
                   {showTechnical ? (
@@ -319,20 +306,14 @@ export default function ComplexityAnalysisModal({
 
               {/* Optimization Suggestions */}
               {result.explanation.optimizationSuggestion && (
-                <div
-                  className={`border rounded-xl p-4 ${
-                    result.explanation.isOptimal
-                      ? "border-green-200 bg-green-50/50"
-                      : "border-yellow-200 bg-yellow-50/50"
-                  }`}
-                >
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                   <div className="flex items-center gap-2 mb-2">
                     {result.explanation.isOptimal ? (
-                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      <CheckCircle2 className="w-4 h-4 text-black" />
                     ) : (
-                      <Zap className="w-4 h-4 text-yellow-600" />
+                      <Zap className="w-4 h-4 text-black" />
                     )}
-                    <span className="font-mono text-xs tracking-wider text-gray-500">
+                    <span className="font-mono text-xs tracking-[0.2em] text-gray-500">
                       {result.explanation.isOptimal
                         ? "OPTIMAL SOLUTION"
                         : "OPTIMIZATION SUGGESTIONS"}
@@ -349,16 +330,16 @@ export default function ComplexityAnalysisModal({
                 result.explanation.memoryRisk) && (
                 <div className="space-y-3">
                   {result.explanation.tleRisk && (
-                    <div className="flex items-start gap-3 p-3 border border-orange-200 rounded-lg bg-orange-50/50">
-                      <AlertTriangle className="w-4 h-4 text-orange-500 mt-0.5 shrink-0" />
+                    <div className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                      <AlertTriangle className="w-4 h-4 text-black mt-0.5 shrink-0" />
                       <p className="text-sm text-gray-700">
                         {result.explanation.tleRisk}
                       </p>
                     </div>
                   )}
                   {result.explanation.memoryRisk && (
-                    <div className="flex items-start gap-3 p-3 border border-orange-200 rounded-lg bg-orange-50/50">
-                      <HardDrive className="w-4 h-4 text-orange-500 mt-0.5 shrink-0" />
+                    <div className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                      <HardDrive className="w-4 h-4 text-black mt-0.5 shrink-0" />
                       <p className="text-sm text-gray-700">
                         {result.explanation.memoryRisk}
                       </p>
@@ -404,7 +385,7 @@ export default function ComplexityAnalysisModal({
         <div className="border-t px-6 py-3 bg-gray-50 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+            className="px-4 py-1.5 bg-gray-100 text-black text-xs rounded flex items-center gap-2 hover:bg-gray-200 transition-colors"
           >
             Close
           </button>

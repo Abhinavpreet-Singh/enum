@@ -472,7 +472,7 @@ export default function CodeEditor({
           {questionId && overallVerdict === "accepted" && (
             <button
               onClick={() => setShowComplexityModal(true)}
-              className="px-4 py-1.5 bg-purple-600 text-white text-xs rounded flex items-center gap-2 hover:bg-purple-700 transition-colors shadow-sm"
+              className="px-4 py-1.5 bg-black text-white text-xs rounded flex items-center gap-2 hover:bg-gray-800 transition-colors"
             >
               <Brain className="w-4 h-4" />
               ANALYZE COMPLEXITY
