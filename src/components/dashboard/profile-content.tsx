@@ -132,13 +132,40 @@ export default function ProfileContent() {
   const [fetchedEmail, setFetchedEmail] = useState<string>("");
 
   useEffect(() => {
-    const userId = localStorage.getItem("id");
-    if (!userId) return;
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
     axios
-      .get(`${proxy}/api/v1/users/getUserById/${userId}`)
+      .get(`${proxy}/api/v1/users/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       .then((res) => {
-        const email = res?.data?.data?.email;
-        if (email) setFetchedEmail(email);
+        const data = res?.data?.data;
+        if (!data) return;
+        if (data.email) setFetchedEmail(data.email);
+        setProfile((p) => ({
+          ...p,
+          name:
+            data.displayName ||
+            localStorage.getItem("displayName") ||
+            localStorage.getItem("Name") ||
+            "Guest",
+          bio: data.bio || "",
+          college: data.college || "",
+          role: data.role || "Student",
+          location: data.location || "",
+          resume: data.resume || "",
+          skills: data.skills || [],
+          links: {
+            github: data.links?.github || "",
+            linkedin: data.links?.linkedin || "",
+            website: data.links?.website || "",
+          },
+          // Use Cloudinary URL if present, fall back to localStorage cache
+          avatar: data.avatar || localStorage.getItem("userAvatar") || null,
+        }));
+        if (data.certs && data.certs.length > 0) {
+          setCerts(data.certs);
+        }
       })
       .catch(() => {});
   }, []);
@@ -223,20 +250,77 @@ export default function ProfileContent() {
     };
   });
 
+  async function persistProfile(data: ProfileData) {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+    try {
+      await axios.put(
+        `${proxy}/api/v1/users/profile`,
+        {
+          displayName: data.name,
+          bio: data.bio,
+          college: data.college,
+          role: data.role,
+          location: data.location,
+          resume: data.resume,
+          skills: data.skills,
+          links: data.links,
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+    } catch {
+      /* silently fail */
+    }
+  }
+
+  async function persistCerts(updatedCerts: Cert[]) {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+    try {
+      await axios.put(
+        `${proxy}/api/v1/users/profile`,
+        { certs: updatedCerts },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+    } catch {
+      /* silently fail */
+    }
+  }
+
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Optimistic local preview
     const reader = new FileReader();
     reader.onload = (ev) => {
       const src = ev.target?.result as string;
       setProfile((p) => ({ ...p, avatar: src }));
       setDraft((d) => ({ ...d, avatar: src }));
-      if (typeof window !== "undefined") {
-        localStorage.setItem("userAvatar", src);
-        window.dispatchEvent(new Event("userAvatarChanged"));
-      }
+      localStorage.setItem("userAvatar", src);
+      window.dispatchEvent(new Event("userAvatarChanged"));
     };
     reader.readAsDataURL(file);
+
+    // Upload to Cloudinary via backend
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+    const formData = new FormData();
+    formData.append("avatar", file);
+    axios
+      .post(`${proxy}/api/v1/users/avatar`, formData, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        const url = res?.data?.data?.avatar;
+        if (url) {
+          setProfile((p) => ({ ...p, avatar: url }));
+          setDraft((d) => ({ ...d, avatar: url }));
+          localStorage.setItem("userAvatar", url);
+          window.dispatchEvent(new Event("userAvatarChanged"));
+        }
+      })
+      .catch(() => {});
   }
 
   function startEdit(section: string) {
@@ -247,6 +331,7 @@ export default function ProfileContent() {
   function saveSection() {
     setProfile(draft);
     setEditingSection(null);
+    persistProfile(draft);
   }
 
   function cancelSection() {
@@ -254,20 +339,39 @@ export default function ProfileContent() {
     setEditingSection(null);
   }
 
+  function saveName(n: string) {
+    const trimmed = n.trim();
+    if (!trimmed) return;
+    setProfile((p) => ({ ...p, name: trimmed }));
+    setDraft((d) => ({ ...d, name: trimmed }));
+    localStorage.setItem("displayName", trimmed);
+    window.dispatchEvent(
+      new CustomEvent("userNameChanged", { detail: trimmed }),
+    );
+    persistProfile({ ...profile, name: trimmed });
+    setEditingName(false);
+  }
+
   function addSkill() {
     const s = newSkill.trim();
     if (!s || profile.skills.includes(s)) return;
-    setProfile((p) => ({ ...p, skills: [...p.skills, s] }));
+    const newSkills = [...profile.skills, s];
+    setProfile((p) => ({ ...p, skills: newSkills }));
+    persistProfile({ ...profile, skills: newSkills });
     setNewSkill("");
   }
 
   function removeSkill(skill: string) {
-    setProfile((p) => ({ ...p, skills: p.skills.filter((x) => x !== skill) }));
+    const newSkills = profile.skills.filter((x) => x !== skill);
+    setProfile((p) => ({ ...p, skills: newSkills }));
+    persistProfile({ ...profile, skills: newSkills });
   }
 
   function submitCert() {
     if (!newCert.name.trim()) return;
-    setCerts((c) => [...c, { ...newCert, done: false }]);
+    const updated = [...certs, { ...newCert, done: false }];
+    setCerts(updated);
+    persistCerts(updated);
     setNewCert({ name: "", issuer: "", date: "" });
     setAddingCert(false);
   }
@@ -384,36 +488,12 @@ export default function ProfileContent() {
                         value={draftName}
                         onChange={(e) => setDraftName(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            const n = draftName.trim();
-                            if (n) {
-                              setProfile((p) => ({ ...p, name: n }));
-                              setDraft((d) => ({ ...d, name: n }));
-                              localStorage.setItem("displayName", n);
-                              window.dispatchEvent(
-                                new CustomEvent("userNameChanged", {
-                                  detail: n,
-                                }),
-                              );
-                            }
-                            setEditingName(false);
-                          }
+                          if (e.key === "Enter") saveName(draftName);
                           if (e.key === "Escape") setEditingName(false);
                         }}
                       />
                       <button
-                        onClick={() => {
-                          const n = draftName.trim();
-                          if (n) {
-                            setProfile((p) => ({ ...p, name: n }));
-                            setDraft((d) => ({ ...d, name: n }));
-                            localStorage.setItem("displayName", n);
-                            window.dispatchEvent(
-                              new CustomEvent("userNameChanged", { detail: n }),
-                            );
-                          }
-                          setEditingName(false);
-                        }}
+                        onClick={() => saveName(draftName)}
                         className="p-0.5 rounded bg-black text-white hover:bg-gray-800 transition-colors"
                       >
                         <Save className="w-3 h-3" />
@@ -746,9 +826,11 @@ export default function ProfileContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() =>
-                        setCerts((prev) => prev.filter((_, j) => j !== i))
-                      }
+                      onClick={() => {
+                        const updated = certs.filter((_, j) => j !== i);
+                        setCerts(updated);
+                        persistCerts(updated);
+                      }}
                       className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-black transition-all mt-0.5"
                     >
                       <Trash2 className="w-3 h-3" />
