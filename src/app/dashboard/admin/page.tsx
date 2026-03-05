@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Sidebar from "@/components/dashboard/sidebar";
 import QuestionForm from "@/components/admin/question-form";
 import QuestionsManager from "@/components/admin/questions-manager";
 import EditQuestionModal from "@/components/admin/edit-question-modal";
@@ -9,7 +8,6 @@ import SimulationForm from "@/components/admin/simulation-form";
 import SimulationsManager from "@/components/admin/simulations-manager";
 import EditSimulationModal from "@/components/admin/edit-simulation-modal";
 import type { SimulationListItem } from "@/components/admin/simulations-manager";
-import ProtectedRoute from "@/components/auth/protected-route";
 import { Question } from "@/data/dsa-questions";
 import { Plus, List, BarChart3, Bug } from "lucide-react";
 import axios from "axios";
@@ -42,123 +40,115 @@ export default function AdminPage() {
     };
 
     return (
-        <ProtectedRoute>
-            <div className="min-h-screen bg-gray-50">
-                {/* Sidebar */}
-                <Sidebar />
+        <>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* Header */}
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-black mb-2">
+                        Admin Panel
+                    </h1>
+                    <p className="font-mono text-sm text-gray-600 tracking-wide">
+                        MANAGE DSA QUESTIONS & SIMULATIONS
+                    </p>
+                </div>
 
-                {/* Main Content */}
-                <main className="lg:ml-52 pb-20 lg:pb-0">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                        {/* Header */}
-                        <div className="mb-8">
-                            <h1 className="text-3xl font-bold text-black mb-2">
-                                Admin Panel
-                            </h1>
-                            <p className="font-mono text-sm text-gray-600 tracking-wide">
-                                MANAGE DSA QUESTIONS & SIMULATIONS
-                            </p>
-                        </div>
+                {/* Section Labels */}
+                <div className="mb-2">
+                    <span className="font-mono text-xs text-gray-400 tracking-widest">DSA QUESTIONS</span>
+                </div>
 
-                        {/* Section Labels */}
-                        <div className="mb-2">
-                            <span className="font-mono text-xs text-gray-400 tracking-widest">DSA QUESTIONS</span>
-                        </div>
+                {/* Tabs */}
+                <div className="mb-6 border-b border-gray-200">
+                    <div className="flex gap-1 flex-wrap">
+                        <button
+                            onClick={() => setActiveTab("create")}
+                            className={`flex items-center gap-2 px-6 py-3 font-mono text-sm tracking-wide transition-all ${activeTab === "create"
+                                ? "border-b-2 border-black text-black"
+                                : "text-gray-500 hover:text-gray-700"
+                                }`}
+                        >
+                            <Plus className="w-4 h-4" />
+                            CREATE QUESTION
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("manage")}
+                            className={`flex items-center gap-2 px-6 py-3 font-mono text-sm tracking-wide transition-all ${activeTab === "manage"
+                                ? "border-b-2 border-black text-black"
+                                : "text-gray-500 hover:text-gray-700"
+                                }`}
+                        >
+                            <List className="w-4 h-4" />
+                            MANAGE QUESTIONS
+                        </button>
 
-                        {/* Tabs */}
-                        <div className="mb-6 border-b border-gray-200">
-                            <div className="flex gap-1 flex-wrap">
-                                <button
-                                    onClick={() => setActiveTab("create")}
-                                    className={`flex items-center gap-2 px-6 py-3 font-mono text-sm tracking-wide transition-all ${activeTab === "create"
-                                            ? "border-b-2 border-black text-black"
-                                            : "text-gray-500 hover:text-gray-700"
-                                        }`}
-                                >
-                                    <Plus className="w-4 h-4" />
-                                    CREATE QUESTION
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab("manage")}
-                                    className={`flex items-center gap-2 px-6 py-3 font-mono text-sm tracking-wide transition-all ${activeTab === "manage"
-                                            ? "border-b-2 border-black text-black"
-                                            : "text-gray-500 hover:text-gray-700"
-                                        }`}
-                                >
-                                    <List className="w-4 h-4" />
-                                    MANAGE QUESTIONS
-                                </button>
+                        <div className="w-px bg-gray-300 mx-2 my-1" />
 
-                                <div className="w-px bg-gray-300 mx-2 my-1" />
+                        <button
+                            onClick={() => setActiveTab("sim-create")}
+                            className={`flex items-center gap-2 px-6 py-3 font-mono text-sm tracking-wide transition-all ${activeTab === "sim-create"
+                                ? "border-b-2 border-black text-black"
+                                : "text-gray-500 hover:text-gray-700"
+                                }`}
+                        >
+                            <Bug className="w-4 h-4" />
+                            CREATE SIMULATION
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("sim-manage")}
+                            className={`flex items-center gap-2 px-6 py-3 font-mono text-sm tracking-wide transition-all ${activeTab === "sim-manage"
+                                ? "border-b-2 border-black text-black"
+                                : "text-gray-500 hover:text-gray-700"
+                                }`}
+                        >
+                            <List className="w-4 h-4" />
+                            MANAGE SIMULATIONS
+                        </button>
 
-                                <button
-                                    onClick={() => setActiveTab("sim-create")}
-                                    className={`flex items-center gap-2 px-6 py-3 font-mono text-sm tracking-wide transition-all ${activeTab === "sim-create"
-                                            ? "border-b-2 border-black text-black"
-                                            : "text-gray-500 hover:text-gray-700"
-                                        }`}
-                                >
-                                    <Bug className="w-4 h-4" />
-                                    CREATE SIMULATION
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab("sim-manage")}
-                                    className={`flex items-center gap-2 px-6 py-3 font-mono text-sm tracking-wide transition-all ${activeTab === "sim-manage"
-                                            ? "border-b-2 border-black text-black"
-                                            : "text-gray-500 hover:text-gray-700"
-                                        }`}
-                                >
-                                    <List className="w-4 h-4" />
-                                    MANAGE SIMULATIONS
-                                </button>
+                        <div className="w-px bg-gray-300 mx-2 my-1" />
 
-                                <div className="w-px bg-gray-300 mx-2 my-1" />
-
-                                <button
-                                    onClick={() => setActiveTab("stats")}
-                                    className={`flex items-center gap-2 px-6 py-3 font-mono text-sm tracking-wide transition-all ${activeTab === "stats"
-                                            ? "border-b-2 border-black text-black"
-                                            : "text-gray-500 hover:text-gray-700"
-                                        }`}
-                                >
-                                    <BarChart3 className="w-4 h-4" />
-                                    STATISTICS
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Tab Content */}
-                        {activeTab === "create" && <QuestionForm />}
-                        {activeTab === "manage" && (
-                            <QuestionsManager key={refreshKey} onEdit={handleEdit} />
-                        )}
-                        {activeTab === "sim-create" && <SimulationForm />}
-                        {activeTab === "sim-manage" && (
-                            <SimulationsManager key={`sim-${refreshKey}`} onEdit={handleEditSimulation} />
-                        )}
-                        {activeTab === "stats" && <AdminStats />}
+                        <button
+                            onClick={() => setActiveTab("stats")}
+                            className={`flex items-center gap-2 px-6 py-3 font-mono text-sm tracking-wide transition-all ${activeTab === "stats"
+                                ? "border-b-2 border-black text-black"
+                                : "text-gray-500 hover:text-gray-700"
+                                }`}
+                        >
+                            <BarChart3 className="w-4 h-4" />
+                            STATISTICS
+                        </button>
                     </div>
-                </main>
+                </div>
 
-                {/* Edit Question Modal */}
-                {editingQuestion && (
-                    <EditQuestionModal
-                        question={editingQuestion}
-                        onClose={handleCloseModal}
-                        onSuccess={handleSuccess}
-                    />
+                {/* Tab Content */}
+                {activeTab === "create" && <QuestionForm />}
+                {activeTab === "manage" && (
+                    <QuestionsManager key={refreshKey} onEdit={handleEdit} />
                 )}
-
-                {/* Edit Simulation Modal */}
-                {editingSimulation && (
-                    <EditSimulationModal
-                        simulation={editingSimulation}
-                        onClose={handleCloseSimulationModal}
-                        onSuccess={handleSuccess}
-                    />
+                {activeTab === "sim-create" && <SimulationForm />}
+                {activeTab === "sim-manage" && (
+                    <SimulationsManager key={`sim-${refreshKey}`} onEdit={handleEditSimulation} />
                 )}
+                {activeTab === "stats" && <AdminStats />}
             </div>
-        </ProtectedRoute>
+
+            {/* Edit Question Modal */}
+            {editingQuestion && (
+                <EditQuestionModal
+                    question={editingQuestion}
+                    onClose={handleCloseModal}
+                    onSuccess={handleSuccess}
+                />
+            )}
+
+            {/* Edit Simulation Modal */}
+            {editingSimulation && (
+                <EditSimulationModal
+                    simulation={editingSimulation}
+                    onClose={handleCloseSimulationModal}
+                    onSuccess={handleSuccess}
+                />
+            )}
+        </>
     );
 }
 
@@ -170,10 +160,8 @@ function AdminStats() {
         const handleTotalQues = async () => {
             try {
                 const response = await axios.get(`${proxy}/api/v1/questions/getQuestion`)
-
                 const simulations = await axios.get(`${proxy}/api/v1/simulations/getSimulations`)
-
-                setTotalQues(response.data.data.length+simulations.data.data.length);
+                setTotalQues(response.data.data.length + simulations.data.data.length);
             } catch (error) {
                 console.log(error);
             }

@@ -14,127 +14,124 @@ import {
     Settings,
     LogOut,
     Shield,
-    ChevronLeft,
-    ChevronRight,
+    Menu,
 } from "lucide-react";
 
+// Sidebar dimensions (in px)
+const COLLAPSED_W = 72;
+const EXPANDED_W = 248;
 
 interface SidebarProps {
-    collapsed?: boolean;
+    pinned?: boolean;
+    onTogglePin?: () => void;
 }
 
-export default function Sidebar({
-    collapsed: initialCollapsed = false,
-}: SidebarProps) {
+export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
     const pathname = usePathname();
     const [navItems, setNavItems] = useState([
-    {
-        icon: LayoutDashboard,
-        label: "Dashboard",
-        href: "/dashboard",
-        matchExact: true,
-    },
-    {
-        icon: Code,
-        label: "Simulations",
-        href: "/dashboard/simulations",
-        matchExact: false,
-    },
-    {
-        icon: Radio,
-        label: "Tracks",
-        href: "/dashboard/tracks",
-        matchExact: false,
-    },
-    {
-        icon: Target,
-        label: "DSA Arena",
-        href: "/dashboard/dsa-arena",
-        matchExact: false,
-    },
-    {
-        icon: Trophy,
-        label: "Leaderboard",
-        href: "/dashboard/leaderboard",
-        matchExact: false,
-    },
-])
-    const [collapsed, setCollapsed] = useState(initialCollapsed);
+        {
+            icon: LayoutDashboard,
+            label: "Dashboard",
+            href: "/dashboard",
+            matchExact: true,
+        },
+        {
+            icon: Code,
+            label: "Simulations",
+            href: "/dashboard/simulations",
+            matchExact: false,
+        },
+        {
+            icon: Radio,
+            label: "Tracks",
+            href: "/dashboard/tracks",
+            matchExact: false,
+        },
+        {
+            icon: Target,
+            label: "DSA Arena",
+            href: "/dashboard/dsa-arena",
+            matchExact: false,
+        },
+        {
+            icon: Trophy,
+            label: "Leaderboard",
+            href: "/dashboard/leaderboard",
+            matchExact: false,
+        },
+    ]);
+    const [hovered, setHovered] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
-    const [error, seterror] = useState("")
     const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const sidebarWidth = collapsed ? "lg:w-16" : "lg:w-52";
-    const mainPadding = collapsed ? "px-3" : "px-6";
+
+    const expanded = pinned || hovered;
+
     const userName =
         typeof window !== "undefined" ? localStorage.getItem("Name") : null;
 
     useEffect(() => {
-    const adminPrev = async () => {
-        try {
-            const userId = localStorage.getItem("id");
+        const adminPrev = async () => {
+            try {
+                const userId = localStorage.getItem("id");
+                if (!userId) return;
 
-            if (!userId) return;
+                const [adminRes, userRes] = await Promise.all([
+                    axios.get(`${proxy}/api/v1/admin/getAdminPrev`),
+                    axios.get(`${proxy}/api/v1/users/getUserById/${userId}`),
+                ]);
 
-            const [adminRes, userRes] = await Promise.all([
-                axios.get(`${proxy}/api/v1/admin/getAdminPrev`),
-                axios.get(`${proxy}/api/v1/users/getUserById/${userId}`)
-            ]);
+                const adminEmail = String(adminRes?.data?.data?.email);
+                const userEmail = userRes?.data?.data?.email;
 
-            console.log(String(adminRes.data.data.email));
-
-            const adminEmail = String(adminRes?.data?.data?.email);
-            const userEmail = userRes?.data?.data?.email;
-
-            if (adminEmail === userEmail) {
-                setIsAdmin(true);
-
-                setNavItems(prev => {
-                    if (prev.some(item => item.href === "/dashboard/admin")) return prev;
-                    return [...prev, { icon: Shield, label: "Admin", href: "/dashboard/admin", matchExact: false }];
-                });
-            } else {
+                if (adminEmail === userEmail) {
+                    setIsAdmin(true);
+                    setNavItems((prev) => {
+                        if (prev.some((item) => item.href === "/dashboard/admin"))
+                            return prev;
+                        return [
+                            ...prev,
+                            {
+                                icon: Shield,
+                                label: "Admin",
+                                href: "/dashboard/admin",
+                                matchExact: false,
+                            },
+                        ];
+                    });
+                } else {
+                    setIsAdmin(false);
+                }
+            } catch (error) {
+                console.log(error);
                 setIsAdmin(false);
             }
-
-        } catch (error) {
-            console.log(error);
-            setIsAdmin(false);
-        }
-    };
-
-    adminPrev();
-}, []);
-
+        };
+        adminPrev();
+    }, []);
 
     const handleLogout = async () => {
         setIsLoggingOut(true);
         try {
             const token = localStorage.getItem("accessToken");
-
             await axios.post(
                 `${proxy}/api/v1/users/logout`,
                 {},
                 {
                     withCredentials: true,
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
+                    headers: { Authorization: `Bearer ${token}` },
                 },
             );
             localStorage.clear();
             window.location.href = "/login";
         } catch (error) {
             console.error("Logout error:", error);
-            // Clear local storage even if logout fails
             localStorage.clear();
             window.location.href = "/login";
         }
     };
 
     const isActiveRoute = (item: (typeof navItems)[0]) => {
-        if (item.matchExact) {
-            return pathname === item.href;
-        }
+        if (item.matchExact) return pathname === item.href;
         return pathname.startsWith(item.href);
     };
 
@@ -142,132 +139,162 @@ export default function Sidebar({
         <>
             {/* Desktop Sidebar */}
             <aside
-                className={`hidden lg:flex lg:flex-col lg:fixed lg:left-0 lg:top-0 lg:h-screen ${sidebarWidth} bg-white border-r border-gray-200 transition-all duration-300 ease-in-out`}
+                onMouseLeave={() => setHovered(false)}
+                style={{ width: expanded ? EXPANDED_W : COLLAPSED_W }}
+                className={`hidden lg:flex lg:flex-col lg:fixed lg:left-0 lg:top-0 lg:h-screen bg-white border-r border-gray-100 transition-[width] duration-300 ease-in-out overflow-hidden ${pinned ? "z-40" : "z-50"
+                    }`}
             >
-                {/* Logo & Toggle */}
-                <div
-                    className={`${mainPadding} py-6 border-b border-gray-200 flex items-center justify-between`}
-                >
-                    <Link href="/" className="flex items-center">
-                        <span className="font-bold text-xl tracking-tight">
-                            {collapsed ? "E" : "ENUM"}
-                        </span>
-                    </Link>
-                    {!collapsed && (
-                        <button
-                            onClick={() => setCollapsed(!collapsed)}
-                            className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                            title="Collapse sidebar"
-                        >
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-                    )}
-                    {collapsed && (
-                        <button
-                            onClick={() => setCollapsed(!collapsed)}
-                            className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors mx-auto"
-                            title="Expand sidebar"
-                        >
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
-                    )}
+                {/* ── Header: Hamburger toggle (click only) ── */}
+                <div className="px-4 h-16 flex items-center gap-3 border-b border-gray-100">
+                    <button
+                        onClick={() => {
+                            if (pinned) setHovered(false);
+                            onTogglePin?.();
+                        }}
+                        className={`p-2 rounded-lg transition-all duration-200 shrink-0 ${pinned
+                            ? "bg-black text-white shadow-sm"
+                            : "text-gray-400 hover:bg-gray-50 hover:text-gray-700"
+                            }`}
+                        title={pinned ? "Unpin sidebar" : "Pin sidebar open"}
+                    >
+                        <Menu className="w-5 h-5" />
+                    </button>
+                    <span
+                        className={`font-bold text-lg tracking-tight whitespace-nowrap transition-opacity duration-200 ${expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
+                            }`}
+                    >
+                        <Link href="/" className="text-gray-900 hover:text-black">
+                            ENUM
+                        </Link>
+                    </span>
                 </div>
 
-                {/* Navigation */}
-                <nav className="flex-1 p-3 space-y-1">
-                    {navItems.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = isActiveRoute(item);
-                        return (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                title={item.label}
-                                className={`flex items-center ${collapsed ? "justify-center px-2" : "gap-3 px-3"
-                                    } py-2.5 rounded-md font-mono text-sm tracking-wide transition-all duration-200 ${isActive
-                                        ? "bg-black text-white"
-                                        : "text-gray-600 hover:bg-gray-100"
+                {/* ── Hoverable body: nav + profile + actions ── */}
+                <div
+                    className="flex flex-col flex-1 min-h-0"
+                    onMouseEnter={() => setHovered(true)}
+                >
+                    {/* Navigation */}
+                    <nav className="flex-1 px-3 py-4 space-y-1">
+                        {navItems.map((item) => {
+                            const Icon = item.icon;
+                            const isActive = isActiveRoute(item);
+                            return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    title={item.label}
+                                    className={`group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-lg font-mono text-sm tracking-wide transition-all duration-150 whitespace-nowrap ${isActive
+                                        ? "bg-gray-50 text-black font-medium"
+                                        : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
+                                        }`}
+                                >
+                                    {/* Active indicator bar */}
+                                    {isActive && (
+                                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-black rounded-r-full" />
+                                    )}
+                                    <Icon
+                                        className={`w-[18px] h-[18px] shrink-0 ${isActive ? "text-black" : ""
+                                            }`}
+                                    />
+                                    <span
+                                        className={`transition-opacity duration-200 ${expanded
+                                            ? "opacity-100"
+                                            : "opacity-0 w-0 overflow-hidden"
+                                            }`}
+                                    >
+                                        {item.label}
+                                    </span>
+                                </Link>
+                            );
+                        })}
+                    </nav>
+
+                    {/* Separator */}
+                    <div className="mx-4 border-t border-gray-100" />
+
+                    {/* User Profile */}
+                    <div className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full shrink-0" />
+                            <div
+                                className={`min-w-0 transition-opacity duration-200 ${expanded
+                                    ? "opacity-100"
+                                    : "opacity-0 w-0 overflow-hidden"
                                     }`}
                             >
-                                <Icon className="w-4 h-4" />
-                                <span
-                                    className={`${collapsed ? "hidden" : "block"
-                                        } transition-opacity duration-200`}
-                                >
-                                    {item.label}
-                                </span>
-                            </Link>
-                        );
-                    })}
-                </nav>
-
-                {/* User Profile */}
-                <div className={`${mainPadding} py-4 border-t border-gray-200`}>
-                    <div
-                        className={`flex items-center ${collapsed ? "justify-center" : "gap-3"
-                            } mb-3`}
-                    >
-                        <div className="w-10 h-10 bg-purple-500 rounded-full shrink-0" />
-                        {!collapsed && (
-                            <div className="min-w-0">
-                                <p className="font-bold text-black text-sm truncate">
+                                <p className="font-semibold text-gray-900 text-sm truncate whitespace-nowrap">
                                     {userName || "Guest"}
                                 </p>
-                                <p className="text-xs text-gray-500">Pro Member</p>
+                                <p className="text-xs text-gray-400 whitespace-nowrap">
+                                    Pro Member
+                                </p>
                             </div>
-                        )}
+                        </div>
                     </div>
-                </div>
 
-                {/* Bottom Actions */}
-                <div className={`${mainPadding} pb-4 space-y-1`}>
-                    <Link
-                        href="/dashboard/settings"
-                        title="Settings"
-                        className={`flex items-center ${collapsed ? "justify-center px-2" : "gap-3 px-3"
-                            } py-2.5 text-gray-600 hover:bg-gray-100 rounded-md font-mono text-sm tracking-wide transition-colors`}
-                    >
-                        <Settings className="w-4 h-4" />
-                        {!collapsed && "Settings"}
-                    </Link>
-                    <button
-                        onClick={handleLogout}
-                        disabled={isLoggingOut}
-                        title="Sign Out"
-                        className={`w-full flex items-center ${collapsed ? "justify-center px-2" : "gap-3 px-3"
-                            } py-2.5 text-gray-600 hover:bg-gray-100 rounded-md font-mono text-sm tracking-wide transition-colors disabled:opacity-70 disabled:cursor-not-allowed`}
-                    >
-                        {isLoggingOut ? (
-                            <svg
-                                className="animate-spin h-4 w-4"
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
+                    {/* Bottom Actions */}
+                    <div className="px-3 pb-4 space-y-0.5">
+                        <Link
+                            href="/dashboard/settings"
+                            title="Settings"
+                            className="flex items-center gap-3 pl-4 pr-3 py-2.5 text-gray-500 hover:bg-gray-50 hover:text-gray-800 rounded-lg font-mono text-sm tracking-wide transition-colors whitespace-nowrap"
+                        >
+                            <Settings className="w-[18px] h-[18px] shrink-0" />
+                            <span
+                                className={`transition-opacity duration-200 ${expanded
+                                    ? "opacity-100"
+                                    : "opacity-0 w-0 overflow-hidden"
+                                    }`}
                             >
-                                <circle
-                                    className="opacity-25"
-                                    cx="12"
-                                    cy="12"
-                                    r="10"
-                                    stroke="currentColor"
-                                    strokeWidth="4"
-                                ></circle>
-                                <path
-                                    className="opacity-75"
-                                    fill="currentColor"
-                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                ></path>
-                            </svg>
-                        ) : (
-                            <LogOut className="w-4 h-4" />
-                        )}
-                        {!collapsed && (isLoggingOut ? "Logging Out..." : "Sign Out")}
-                    </button>
+                                Settings
+                            </span>
+                        </Link>
+                        <button
+                            onClick={handleLogout}
+                            disabled={isLoggingOut}
+                            title="Sign Out"
+                            className="w-full flex items-center gap-3 pl-4 pr-3 py-2.5 text-gray-500 hover:bg-gray-50 hover:text-gray-800 rounded-lg font-mono text-sm tracking-wide transition-colors disabled:opacity-70 disabled:cursor-not-allowed whitespace-nowrap"
+                        >
+                            {isLoggingOut ? (
+                                <svg
+                                    className="animate-spin h-[18px] w-[18px] shrink-0"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                    />
+                                    <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                    />
+                                </svg>
+                            ) : (
+                                <LogOut className="w-[18px] h-[18px] shrink-0" />
+                            )}
+                            <span
+                                className={`transition-opacity duration-200 ${expanded
+                                    ? "opacity-100"
+                                    : "opacity-0 w-0 overflow-hidden"
+                                    }`}
+                            >
+                                {isLoggingOut ? "Logging Out..." : "Sign Out"}
+                            </span>
+                        </button>
+                    </div>
                 </div>
             </aside>
 
             {/* Mobile Bottom Dock */}
-            <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+            <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50">
                 <div className="flex justify-around items-center px-2 py-3">
                     {navItems.map((item) => {
                         const Icon = item.icon;
@@ -276,9 +303,12 @@ export default function Sidebar({
                             <Link
                                 key={item.href}
                                 href={item.href}
-                                className={`flex flex-col items-center gap-1 px-3 py-1 rounded-md transition-colors ${isActive ? "text-black" : "text-gray-400"
+                                className={`relative flex flex-col items-center gap-1 px-3 py-1 rounded-md transition-colors ${isActive ? "text-black" : "text-gray-400"
                                     }`}
                             >
+                                {isActive && (
+                                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-[3px] bg-black rounded-full" />
+                                )}
                                 <Icon className="w-5 h-5" />
                                 <span className="font-mono text-[10px] tracking-wide">
                                     {item.label}

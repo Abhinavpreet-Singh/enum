@@ -1,6 +1,5 @@
 "use client";
 
-import Sidebar from "@/components/dashboard/sidebar";
 import ProblemTabs from "@/components/dsa/problem-tabs";
 import CodeEditor from "@/components/dsa/code-editor";
 import { Question, fetchQuestions } from "@/data/dsa-questions";
@@ -76,7 +75,7 @@ export default function WorkspacePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="font-mono text-sm text-gray-500">
           Loading question...
         </div>
@@ -86,7 +85,7 @@ export default function WorkspacePage() {
 
   if (!question) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="font-mono text-sm text-gray-500 mb-4">
             Question not found
@@ -103,69 +102,62 @@ export default function WorkspacePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar collapsed />
-
-      {/* Main Workspace */}
-      <main className="lg:ml-16">
-        {/* Header */}
-        <div className="bg-white border-b px-6 py-4 flex items-center gap-4">
-          <Link
-            href="/dashboard/dsa-arena"
-            className="text-gray-600 hover:text-black transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </Link>
-          <h1 className="text-lg font-bold text-black">{question.title}</h1>
-          <div className="ml-auto flex items-center gap-2">
-            <span
-              className={`text-xs px-2 py-1 rounded font-mono ${
-                question.difficulty === "Easy"
-                  ? "bg-green-50 text-green-600"
-                  : question.difficulty === "Medium"
-                    ? "bg-yellow-50 text-yellow-600"
-                    : "bg-red-50 text-red-600"
+    <>
+      {/* Header */}
+      <div className="bg-white border-b px-6 py-4 flex items-center gap-4">
+        <Link
+          href="/dashboard/dsa-arena"
+          className="text-gray-600 hover:text-black transition-colors"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </Link>
+        <h1 className="text-lg font-bold text-black">{question.title}</h1>
+        <div className="ml-auto flex items-center gap-2">
+          <span
+            className={`text-xs px-2 py-1 rounded font-mono ${question.difficulty === "Easy"
+                ? "bg-green-50 text-green-600"
+                : question.difficulty === "Medium"
+                  ? "bg-yellow-50 text-yellow-600"
+                  : "bg-red-50 text-red-600"
               }`}
-            >
-              {question.difficulty}
-            </span>
-          </div>
-        </div>
-
-        {/* Content Grid */}
-        <div className="flex h-[calc(100vh-80px)] relative">
-          {/* Left Panel - Problem */}
-          <div
-            className="overflow-auto dark-scrollbar"
-            style={{ width: `${leftPanelWidth}%` }}
           >
-            <ProblemTabs question={question} refreshSolutions={refreshSolutions} refreshSubmissions={refreshSubmissions} />
-          </div>
-
-          {/* Vertical Resize Handle */}
-          <div
-            onMouseDown={handleMouseDown}
-            className={`w-1 cursor-col-resize shrink-0 ${
-              isResizing ? "bg-black" : "bg-transparent hover:bg-gray-300"
-            }`}
-            style={{ minWidth: "1px" }}
-          />
-
-          {/* Right Panel - Code Editor & Console */}
-          <div className="overflow-hidden flex-1">
-            <CodeEditor 
-              initialCode={question.initialCode} 
-              testCases={question.examples.map((tc) => ({
-                ...tc,
-                input: Array.isArray(tc.input) ? tc.input.join("\n") : tc.input,
-              }))}
-              questionId={question.id}
-              onSolutionPublished={handleSolutionPublished}
-              onSubmitSuccess={handleSubmitSuccess}
-            />
-          </div>
+            {question.difficulty}
+          </span>
         </div>
-      </main>
-    </div>
+      </div>
+
+      {/* Content Grid */}
+      <div className="flex h-[calc(100vh-80px)] relative">
+        {/* Left Panel - Problem */}
+        <div
+          className="overflow-auto dark-scrollbar"
+          style={{ width: `${leftPanelWidth}%` }}
+        >
+          <ProblemTabs question={question} refreshSolutions={refreshSolutions} refreshSubmissions={refreshSubmissions} />
+        </div>
+
+        {/* Vertical Resize Handle */}
+        <div
+          onMouseDown={handleMouseDown}
+          className={`w-1 cursor-col-resize shrink-0 ${isResizing ? "bg-black" : "bg-transparent hover:bg-gray-300"
+            }`}
+          style={{ minWidth: "1px" }}
+        />
+
+        {/* Right Panel - Code Editor & Console */}
+        <div className="overflow-hidden flex-1">
+          <CodeEditor
+            initialCode={question.initialCode}
+            testCases={question.examples.map((tc) => ({
+              ...tc,
+              input: Array.isArray(tc.input) ? tc.input.join("\n") : tc.input,
+            }))}
+            questionId={question.id}
+            onSolutionPublished={handleSolutionPublished}
+            onSubmitSuccess={handleSubmitSuccess}
+          />
+        </div>
+      </div>
+    </>
   );
 }
