@@ -102,6 +102,29 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
     };
   }, []);
 
+  // Hydrate display name + avatar from backend on every dashboard mount
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+    axios
+      .get(`${proxy}/api/v1/users/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        const data = res?.data?.data;
+        if (!data) return;
+        if (data.displayName) {
+          localStorage.setItem("displayName", data.displayName);
+          setUserName(data.displayName);
+        }
+        if (data.avatar) {
+          localStorage.setItem("userAvatar", data.avatar);
+          setSidebarAvatar(data.avatar);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     const adminPrev = async () => {
       try {
@@ -261,14 +284,23 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
             }}
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full shrink-0 overflow-hidden bg-linear-to-br from-purple-500 to-indigo-500">
-                {sidebarAvatar && (
+              {/* Avatar — image or dark-gradient initials fallback */}
+              <div className="w-9 h-9 rounded-full shrink-0 overflow-hidden bg-linear-to-br from-gray-700 to-gray-900 flex items-center justify-center">
+                {sidebarAvatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={sidebarAvatar}
                     alt="avatar"
                     className="w-full h-full object-cover"
                   />
+                ) : (
+                  <span className="text-white text-xs font-bold tracking-wide select-none">
+                    {(userName || "G")
+                      .split(" ")
+                      .slice(0, 2)
+                      .map((w) => w[0]?.toUpperCase())
+                      .join("")}
+                  </span>
                 )}
               </div>
               <div
@@ -277,6 +309,9 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
                 }`}
               >
                 <p className="font-semibold text-gray-900 text-sm truncate whitespace-nowrap">
+                  Profile
+                </p>
+                <p className="font-mono text-[10px] text-gray-400 truncate whitespace-nowrap">
                   {userName || "Guest"}
                 </p>
               </div>

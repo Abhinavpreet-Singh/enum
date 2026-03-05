@@ -163,6 +163,17 @@ export default function ProfileContent() {
           // Use Cloudinary URL if present, fall back to localStorage cache
           avatar: data.avatar || localStorage.getItem("userAvatar") || null,
         }));
+        // Keep localStorage in sync so sidebar + dashboard update immediately
+        if (data.displayName) {
+          localStorage.setItem("displayName", data.displayName);
+          window.dispatchEvent(
+            new CustomEvent("userNameChanged", { detail: data.displayName }),
+          );
+        }
+        if (data.avatar) {
+          localStorage.setItem("userAvatar", data.avatar);
+          window.dispatchEvent(new Event("userAvatarChanged"));
+        }
         if (data.certs && data.certs.length > 0) {
           setCerts(data.certs);
         }
