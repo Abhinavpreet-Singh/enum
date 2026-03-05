@@ -65,11 +65,42 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
 
   const expanded = pinned || hovered;
 
-  const userName =
-    typeof window !== "undefined" ? localStorage.getItem("Name") : null;
-  const [sidebarAvatar] = useState<string | null>(() =>
+  const [userName, setUserName] = useState<string | null>(() =>
+    typeof window !== "undefined"
+      ? localStorage.getItem("displayName") || localStorage.getItem("Name")
+      : null,
+  );
+  const [sidebarAvatar, setSidebarAvatar] = useState<string | null>(() =>
     typeof window !== "undefined" ? localStorage.getItem("userAvatar") : null,
   );
+
+  // Keep avatar in sync when updated on the profile page (same-tab or cross-tab)
+  useEffect(() => {
+    const syncAvatar = () =>
+      setSidebarAvatar(localStorage.getItem("userAvatar"));
+    const syncName = (e: Event) => {
+      const newName =
+        (e as CustomEvent<string>).detail ||
+        localStorage.getItem("displayName") ||
+        localStorage.getItem("Name") ||
+        "Guest";
+      setUserName(newName);
+    };
+    const syncNameStorage = (e: StorageEvent) => {
+      if (e.key === "displayName")
+        setUserName(e.newValue || localStorage.getItem("Name") || "Guest");
+    };
+    window.addEventListener("userAvatarChanged", syncAvatar);
+    window.addEventListener("storage", syncAvatar);
+    window.addEventListener("userNameChanged", syncName);
+    window.addEventListener("storage", syncNameStorage);
+    return () => {
+      window.removeEventListener("userAvatarChanged", syncAvatar);
+      window.removeEventListener("storage", syncAvatar);
+      window.removeEventListener("userNameChanged", syncName);
+      window.removeEventListener("storage", syncNameStorage);
+    };
+  }, []);
 
   useEffect(() => {
     const adminPrev = async () => {
@@ -247,9 +278,6 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
               >
                 <p className="font-semibold text-gray-900 text-sm truncate whitespace-nowrap">
                   {userName || "Guest"}
-                </p>
-                <p className="text-xs text-gray-400 whitespace-nowrap">
-                  Pro Member
                 </p>
               </div>
             </div>

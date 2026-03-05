@@ -35,7 +35,9 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
   const [displayName, setDisplayName] = useState<string>(
     () =>
       (typeof window !== "undefined" &&
-        (userName || localStorage.getItem("Name"))) ||
+        (userName ||
+          localStorage.getItem("displayName") ||
+          localStorage.getItem("Name"))) ||
       "Guest",
   );
   const [stats, setStats] = useState<UserStats>({
@@ -69,7 +71,11 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const name = userName || localStorage.getItem("Name") || "Guest";
+      const name =
+        userName ||
+        localStorage.getItem("displayName") ||
+        localStorage.getItem("Name") ||
+        "Guest";
       if (name !== displayName) setDisplayName(name);
 
       const token = localStorage.getItem("accessToken");
@@ -85,6 +91,24 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
         }
       }
     }
+
+    const handleNameChanged = (e: Event) => {
+      const newName =
+        (e as CustomEvent<string>).detail ||
+        localStorage.getItem("Name") ||
+        "Guest";
+      setDisplayName(newName);
+    };
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "displayName")
+        setDisplayName(e.newValue || localStorage.getItem("Name") || "Guest");
+    };
+    window.addEventListener("userNameChanged", handleNameChanged);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("userNameChanged", handleNameChanged);
+      window.removeEventListener("storage", handleStorage);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userName]);
 

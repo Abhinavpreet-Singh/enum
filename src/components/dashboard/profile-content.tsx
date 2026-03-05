@@ -1,6 +1,8 @@
 ﻿"use client";
 
 import { useState, useRef, useEffect } from "react";
+import axios from "axios";
+import { proxy } from "@/app/proxy";
 import Link from "next/link";
 import useAuth from "@/hooks/useAuth";
 import {
@@ -119,16 +121,34 @@ export default function ProfileContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   // null = no section editing; string = which section is being edited
   const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [draftName, setDraftName] = useState("");
 
-  const registeredEmail =
+  const registeredUsername =
     typeof window !== "undefined"
-      ? localStorage.getItem("email") || localStorage.getItem("Name") || "guest"
+      ? localStorage.getItem("Name") || "guest"
       : "guest";
 
-  const [profile, setProfile] = useState<ProfileData>({
+  const [fetchedEmail, setFetchedEmail] = useState<string>("");
+
+  useEffect(() => {
+    const userId = localStorage.getItem("id");
+    if (!userId) return;
+    axios
+      .get(`${proxy}/api/v1/users/getUserById/${userId}`)
+      .then((res) => {
+        const email = res?.data?.data?.email;
+        if (email) setFetchedEmail(email);
+      })
+      .catch(() => {});
+  }, []);
+
+  const [profile, setProfile] = useState<ProfileData>(() => ({
     name:
       typeof window !== "undefined"
-        ? localStorage.getItem("Name") || "Guest"
+        ? localStorage.getItem("displayName") ||
+          localStorage.getItem("Name") ||
+          "Guest"
         : "Guest",
     bio: "",
     college: "",
@@ -141,7 +161,7 @@ export default function ProfileContent() {
       typeof window !== "undefined"
         ? localStorage.getItem("userAvatar") || null
         : null,
-  });
+  }));
 
   const [draft, setDraft] = useState<ProfileData>(profile);
 
@@ -213,6 +233,7 @@ export default function ProfileContent() {
       setDraft((d) => ({ ...d, avatar: src }));
       if (typeof window !== "undefined") {
         localStorage.setItem("userAvatar", src);
+        window.dispatchEvent(new Event("userAvatarChanged"));
       }
     };
     reader.readAsDataURL(file);
@@ -353,17 +374,84 @@ export default function ProfileContent() {
                   className="hidden"
                 />
 
-                {/* Name + registered email (read-only) */}
+                {/* Name + username + email (read-only) */}
                 <div className="text-center">
-                  <h2 className="text-xl font-bold text-black">
-                    {profile.name}
-                  </h2>
-                  <div className="flex items-center justify-center gap-1 mt-0.5">
-                    <Mail className="w-3 h-3 text-gray-300" />
-                    <span className="font-mono text-xs text-gray-400">
-                      {registeredEmail}
-                    </span>
-                  </div>
+                  {editingName ? (
+                    <div className="flex items-center justify-center gap-1.5">
+                      <input
+                        autoFocus
+                        className="text-center text-xl font-bold text-black border-b-2 border-black outline-none bg-transparent w-40"
+                        value={draftName}
+                        onChange={(e) => setDraftName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            const n = draftName.trim();
+                            if (n) {
+                              setProfile((p) => ({ ...p, name: n }));
+                              setDraft((d) => ({ ...d, name: n }));
+                              localStorage.setItem("displayName", n);
+                              window.dispatchEvent(
+                                new CustomEvent("userNameChanged", {
+                                  detail: n,
+                                }),
+                              );
+                            }
+                            setEditingName(false);
+                          }
+                          if (e.key === "Escape") setEditingName(false);
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          const n = draftName.trim();
+                          if (n) {
+                            setProfile((p) => ({ ...p, name: n }));
+                            setDraft((d) => ({ ...d, name: n }));
+                            localStorage.setItem("displayName", n);
+                            window.dispatchEvent(
+                              new CustomEvent("userNameChanged", { detail: n }),
+                            );
+                          }
+                          setEditingName(false);
+                        }}
+                        className="p-0.5 rounded bg-black text-white hover:bg-gray-800 transition-colors"
+                      >
+                        <Save className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => setEditingName(false)}
+                        className="p-0.5 rounded border border-gray-300 text-gray-500 hover:border-black transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative inline-flex items-center justify-center group">
+                      <h2 className="text-xl font-bold text-black">
+                        {profile.name}
+                      </h2>
+                      <button
+                        onClick={() => {
+                          setDraftName(profile.name);
+                          setEditingName(true);
+                        }}
+                        className="absolute -right-6 opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 rounded border border-gray-200 flex items-center justify-center text-gray-400 hover:border-black hover:text-black"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                  <p className="font-mono text-xs text-gray-500 mt-0.5">
+                    @{registeredUsername}
+                  </p>
+                  {fetchedEmail && (
+                    <div className="flex items-center justify-center gap-1 mt-1">
+                      <Mail className="w-3 h-3 text-gray-300" />
+                      <span className="font-mono text-xs text-gray-400">
+                        {fetchedEmail}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -377,19 +465,6 @@ export default function ProfileContent() {
                 </div>
                 {editingSection === "identity" ? (
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] text-gray-300 w-4 text-center shrink-0">
-                        N
-                      </span>
-                      <input
-                        className="flex-1 font-mono text-xs border-b border-gray-200 focus:border-black outline-none pb-0.5 bg-transparent text-gray-700"
-                        value={draft.name}
-                        onChange={(e) =>
-                          setDraft((d) => ({ ...d, name: e.target.value }))
-                        }
-                        placeholder="Display name"
-                      />
-                    </div>
                     <div className="flex items-center gap-2">
                       <Building2 className="w-4 h-4 text-gray-300 shrink-0" />
                       <input
