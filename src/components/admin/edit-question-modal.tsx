@@ -16,7 +16,15 @@ interface Parameter {
   type: string;
 }
 
-const SUPPORTED_TYPES = ["int", "float", "string", "bool", "int[]", "string[]", "float[]"];
+const SUPPORTED_TYPES = [
+  "int",
+  "float",
+  "string",
+  "bool",
+  "int[]",
+  "string[]",
+  "float[]",
+];
 
 interface EditQuestionModalProps {
   question: Question | null;
@@ -70,23 +78,27 @@ export default function EditQuestionModal({
       const paramTypes = question.parameterTypes || [];
       const paramNames = question.parameterNames || [];
       if (paramTypes.length > 0) {
-        setParameters(paramTypes.map((type, i) => ({
-          name: paramNames[i] || `param${i}`,
-          type
-        })));
+        setParameters(
+          paramTypes.map((type, i) => ({
+            name: paramNames[i] || `param${i}`,
+            type,
+          })),
+        );
       }
 
       // Parse testcases - handle both old and new format
       const parsedTestcases = question.examples.map((ex) => {
         let input: string[];
-        if (Array.isArray((ex as any).input)) {
-          input = (ex as any).input;
+        const exRaw = ex as Record<string, unknown>;
+        if (Array.isArray(exRaw.input)) {
+          input = exRaw.input as string[];
         } else if (typeof ex.input === "string") {
           input = ex.input.split("\n").filter((s: string) => s.trim() !== "");
         } else {
           input = [String(ex.input)];
         }
-        const expectedOutput = (ex as any).expectedOutput || ex.output || "";
+        const expectedOutput =
+          (exRaw.expectedOutput as string) || ex.output || "";
 
         // For array-type params, strip the count prefix so admin sees just values
         const pTypes = question.parameterTypes || [];
@@ -102,14 +114,18 @@ export default function EditQuestionModal({
         return { input: displayInput, expectedOutput };
       });
 
-      setTestcases(parsedTestcases.length > 0 ? parsedTestcases : [{ input: [""], expectedOutput: "" }]);
+      setTestcases(
+        parsedTestcases.length > 0
+          ? parsedTestcases
+          : [{ input: [""], expectedOutput: "" }],
+      );
     }
   }, [question]);
 
   const handleInputChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -121,26 +137,30 @@ export default function EditQuestionModal({
   // ── Parameter handlers ──
   const addParameter = () => {
     setParameters([...parameters, { name: "", type: "int" }]);
-    setTestcases(testcases.map(tc => ({
-      ...tc,
-      input: [...tc.input, ""]
-    })));
+    setTestcases(
+      testcases.map((tc) => ({
+        ...tc,
+        input: [...tc.input, ""],
+      })),
+    );
   };
 
   const removeParameter = (index: number) => {
     if (parameters.length > 1) {
       setParameters(parameters.filter((_, i) => i !== index));
-      setTestcases(testcases.map(tc => ({
-        ...tc,
-        input: tc.input.filter((_, i) => i !== index)
-      })));
+      setTestcases(
+        testcases.map((tc) => ({
+          ...tc,
+          input: tc.input.filter((_, i) => i !== index),
+        })),
+      );
     }
   };
 
   const handleParameterChange = (
     index: number,
     field: keyof Parameter,
-    value: string
+    value: string,
   ) => {
     const updated = [...parameters];
     updated[index] = { ...updated[index], [field]: value };
@@ -151,13 +171,13 @@ export default function EditQuestionModal({
   const handleTestcaseInputChange = (
     tcIndex: number,
     paramIndex: number,
-    value: string
+    value: string,
   ) => {
     const updated = [...testcases];
     updated[tcIndex] = {
       ...updated[tcIndex],
       input: updated[tcIndex].input.map((v, i) =>
-        i === paramIndex ? value : v
+        i === paramIndex ? value : v,
       ),
     };
     setTestcases(updated);
@@ -186,7 +206,7 @@ export default function EditQuestionModal({
   // For array-type params the admin enters space-separated values only;
   // this helper prepends the element count and a real newline.
   const formatTestcases = (tcs: Testcase[]) =>
-    tcs.map(tc => ({
+    tcs.map((tc) => ({
       input: tc.input.map((val, i) => {
         const type = parameters[i]?.type || "";
         if (type.endsWith("[]")) {
@@ -214,8 +234,10 @@ export default function EditQuestionModal({
           constraints: formData.constraints,
           topic: formData.topic,
           functionName: formData.functionName,
-          parameterNames: parameters.map(p => p.name || `param${parameters.indexOf(p)}`),
-          parameterTypes: parameters.map(p => p.type),
+          parameterNames: parameters.map(
+            (p) => p.name || `param${parameters.indexOf(p)}`,
+          ),
+          parameterTypes: parameters.map((p) => p.type),
           returnType: formData.returnType,
           testcases: formatTestcases(testcases),
         },
@@ -224,7 +246,7 @@ export default function EditQuestionModal({
             "Content-Type": "application/json",
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
           },
-        }
+        },
       );
 
       console.log("Update Response:", response.data);
@@ -274,7 +296,10 @@ export default function EditQuestionModal({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <form
+          onSubmit={handleSubmit}
+          className="p-6 max-h-[calc(100vh-200px)] overflow-y-auto"
+        >
           {/* Status Message */}
           {submitStatus.type && (
             <div
@@ -416,7 +441,9 @@ export default function EditQuestionModal({
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm bg-white"
                 >
                   {[...SUPPORTED_TYPES, "void"].map((t) => (
-                    <option key={t} value={t}>{t}</option>
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -425,7 +452,9 @@ export default function EditQuestionModal({
             {/* Parameters */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-xs text-gray-700 font-mono">PARAMETERS</label>
+                <label className="block text-xs text-gray-700 font-mono">
+                  PARAMETERS
+                </label>
                 <button
                   type="button"
                   onClick={addParameter}
@@ -439,17 +468,23 @@ export default function EditQuestionModal({
                   <div key={index} className="flex items-center gap-2">
                     <select
                       value={param.type}
-                      onChange={(e) => handleParameterChange(index, "type", e.target.value)}
-                      className="px-2 py-2 border border-gray-300 rounded-md text-sm bg-white min-w-[120px]"
+                      onChange={(e) =>
+                        handleParameterChange(index, "type", e.target.value)
+                      }
+                      className="px-2 py-2 border border-gray-300 rounded-md text-sm bg-white min-w-30"
                     >
-                      {SUPPORTED_TYPES.map(t => (
-                        <option key={t} value={t}>{t}</option>
+                      {SUPPORTED_TYPES.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
                       ))}
                     </select>
                     <input
                       type="text"
                       value={param.name}
-                      onChange={(e) => handleParameterChange(index, "name", e.target.value)}
+                      onChange={(e) =>
+                        handleParameterChange(index, "name", e.target.value)
+                      }
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
                       placeholder={`param${index}`}
                     />
@@ -514,7 +549,11 @@ export default function EditQuestionModal({
                           type="text"
                           value={testcase.input[paramIndex] || ""}
                           onChange={(e) =>
-                            handleTestcaseInputChange(tcIndex, paramIndex, e.target.value)
+                            handleTestcaseInputChange(
+                              tcIndex,
+                              paramIndex,
+                              e.target.value,
+                            )
                           }
                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
                           placeholder={
@@ -525,17 +564,22 @@ export default function EditQuestionModal({
                         />
                         {param.type.endsWith("[]") && (
                           <p className="text-[10px] text-gray-400 mt-0.5">
-                            Enter values only — count is auto-calculated. Leave blank for empty array.
+                            Enter values only — count is auto-calculated. Leave
+                            blank for empty array.
                           </p>
                         )}
                       </div>
                     ))}
                     <div className="mt-2 pt-2 border-t border-gray-200">
-                      <label className="block text-xs text-gray-500 mb-1">Expected Output</label>
+                      <label className="block text-xs text-gray-500 mb-1">
+                        Expected Output
+                      </label>
                       <input
                         type="text"
                         value={testcase.expectedOutput}
-                        onChange={(e) => handleTestcaseOutputChange(tcIndex, e.target.value)}
+                        onChange={(e) =>
+                          handleTestcaseOutputChange(tcIndex, e.target.value)
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
                       />
                     </div>

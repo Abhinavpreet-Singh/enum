@@ -83,7 +83,7 @@ export default function CodeEditor({
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [consoleHeight, setConsoleHeight] = useState(240);
+  const [consoleHeight, setConsoleHeight] = useState(280);
   const [isResizing, setIsResizing] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [showComplexityModal, setShowComplexityModal] = useState(false);
@@ -118,7 +118,7 @@ export default function CodeEditor({
         initialUserCode.java ||
         initialUserCode.c ||
         initialUserCode.cpp ||
-        ""
+        "",
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -164,7 +164,7 @@ export default function CodeEditor({
 
   // ---------- Judge API call ----------
   const runJudge = async (
-    mode: "run" | "submit"
+    mode: "run" | "submit",
   ): Promise<{
     results: TestCaseResult[];
     allPassed: boolean;
@@ -198,7 +198,7 @@ export default function CodeEditor({
 
       // Map judge results to our format
       const results: TestCaseResult[] = (data.results || []).map(
-        (r: any) => ({
+        (r: Record<string, unknown>) => ({
           input: Array.isArray(r.input)
             ? r.input.join("\n")
             : String(r.input || ""),
@@ -208,7 +208,7 @@ export default function CodeEditor({
             : r.output || r.actualOutput || "(no output)",
           passed: r.passed,
           error: r.error,
-        })
+        }),
       );
 
       return {
@@ -368,10 +368,10 @@ export default function CodeEditor({
   const updateCustomTestCase = (
     customIdx: number,
     field: "input" | "output",
-    value: string
+    value: string,
   ) => {
     setCustomTestCases((prev) =>
-      prev.map((tc, i) => (i === customIdx ? { ...tc, [field]: value } : tc))
+      prev.map((tc, i) => (i === customIdx ? { ...tc, [field]: value } : tc)),
     );
   };
 
@@ -561,9 +561,7 @@ export default function CodeEditor({
             {overallVerdict !== "idle" && overallVerdict !== "running" && (
               <span
                 className={`inline-block w-2 h-2 rounded-full ${
-                  overallVerdict === "accepted"
-                    ? "bg-green-500"
-                    : "bg-red-500"
+                  overallVerdict === "accepted" ? "bg-green-500" : "bg-red-500"
                 }`}
               />
             )}
@@ -665,7 +663,7 @@ export default function CodeEditor({
                               updateCustomTestCase(
                                 activeTestCaseIdx - testCases.length,
                                 "input",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
@@ -695,7 +693,7 @@ export default function CodeEditor({
                               updateCustomTestCase(
                                 activeTestCaseIdx - testCases.length,
                                 "output",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"

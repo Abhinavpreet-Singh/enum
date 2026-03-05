@@ -3,17 +3,16 @@
 import ProblemTabs from "@/components/dsa/problem-tabs";
 import CodeEditor from "@/components/dsa/code-editor";
 import { Question, fetchQuestions } from "@/data/dsa-questions";
-import { ChevronLeft } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 
 export default function WorkspacePage() {
   const params = useParams();
   const id = params.id as string;
   const [question, setQuestion] = useState<Question | null>(null);
   const [loading, setLoading] = useState(true);
-  const [leftPanelWidth, setLeftPanelWidth] = useState(40); // percentage
+  const [leftPanelWidth, setLeftPanelWidth] = useState(50); // percentage
   const [isResizing, setIsResizing] = useState(false);
   const [refreshSolutions, setRefreshSolutions] = useState(0);
   const [refreshSubmissions, setRefreshSubmissions] = useState(0);
@@ -36,6 +35,14 @@ export default function WorkspacePage() {
   const handleSubmitSuccess = () => {
     setRefreshSubmissions((prev) => prev + 1);
   };
+
+  // Lock page-level scroll — only individual panels scroll internally
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -103,44 +110,26 @@ export default function WorkspacePage() {
 
   return (
     <>
-      {/* Header */}
-      <div className="bg-white border-b px-6 py-4 flex items-center gap-4">
-        <Link
-          href="/dashboard/dsa-arena"
-          className="text-gray-600 hover:text-black transition-colors"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </Link>
-        <h1 className="text-lg font-bold text-black">{question.title}</h1>
-        <div className="ml-auto flex items-center gap-2">
-          <span
-            className={`text-xs px-2 py-1 rounded font-mono ${question.difficulty === "Easy"
-                ? "bg-green-50 text-green-600"
-                : question.difficulty === "Medium"
-                  ? "bg-yellow-50 text-yellow-600"
-                  : "bg-red-50 text-red-600"
-              }`}
-          >
-            {question.difficulty}
-          </span>
-        </div>
-      </div>
-
-      {/* Content Grid */}
-      <div className="flex h-[calc(100vh-80px)] relative">
+      {/* Content Grid — height compensates for zoom:110% on parent layout (100vh/1.1 = visually fills viewport exactly) */}
+      <div className="flex h-[calc(100vh/1.1)] overflow-hidden relative">
         {/* Left Panel - Problem */}
         <div
-          className="overflow-auto dark-scrollbar"
+          className="h-full overflow-hidden"
           style={{ width: `${leftPanelWidth}%` }}
         >
-          <ProblemTabs question={question} refreshSolutions={refreshSolutions} refreshSubmissions={refreshSubmissions} />
+          <ProblemTabs
+            question={question}
+            refreshSolutions={refreshSolutions}
+            refreshSubmissions={refreshSubmissions}
+          />
         </div>
 
         {/* Vertical Resize Handle */}
         <div
           onMouseDown={handleMouseDown}
-          className={`w-1 cursor-col-resize shrink-0 ${isResizing ? "bg-black" : "bg-transparent hover:bg-gray-300"
-            }`}
+          className={`w-1 cursor-col-resize shrink-0 ${
+            isResizing ? "bg-black" : "bg-transparent hover:bg-gray-300"
+          }`}
           style={{ minWidth: "1px" }}
         />
 
