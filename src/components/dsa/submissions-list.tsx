@@ -7,7 +7,13 @@ interface Submission {
   _id: string;
   code: string;
   language: string;
-  verdict: "accepted" | "wrong_answer" | "runtime_error" | "compile_error";
+  verdict:
+    | "accepted"
+    | "wrong_answer"
+    | "runtime_error"
+    | "compile_error"
+    | "error"
+    | "partial";
   passedCount: number;
   totalCount: number;
   runtime: number | null;
@@ -31,6 +37,8 @@ const verdictLabel: Record<string, string> = {
   wrong_answer: "Wrong Answer",
   runtime_error: "Runtime Error",
   compile_error: "Compile Error",
+  error: "Runtime Error",
+  partial: "Partial",
 };
 
 const verdictColor: Record<string, string> = {
@@ -38,6 +46,8 @@ const verdictColor: Record<string, string> = {
   wrong_answer: "text-red-600",
   runtime_error: "text-red-600",
   compile_error: "text-red-600",
+  error: "text-red-600",
+  partial: "text-yellow-600",
 };
 
 export default function SubmissionsList({
@@ -65,12 +75,9 @@ export default function SubmissionsList({
         return;
       }
 
-      const response = await fetch(
-        `/api/submissions/my/${questionId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const response = await fetch(`/api/submissions/my/${questionId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -95,7 +102,7 @@ export default function SubmissionsList({
     const date = new Date(dateString);
     const now = new Date();
     const diffInHours = Math.floor(
-      (now.getTime() - date.getTime()) / (1000 * 60 * 60)
+      (now.getTime() - date.getTime()) / (1000 * 60 * 60),
     );
     if (diffInHours < 1) return "Just now";
     if (diffInHours < 24) return `${diffInHours}h ago`;

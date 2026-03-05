@@ -6,7 +6,6 @@ import {
   Play,
   Check,
   Copy,
-  Settings,
   Upload,
   X,
   Plus,
@@ -65,6 +64,13 @@ type OverallVerdict =
   | "error"
   | "partial";
 
+interface SubmitResultData {
+  verdict: OverallVerdict;
+  passedCount: number;
+  totalCount: number;
+  runtime: number;
+}
+
 export default function CodeEditor({
   initialCode,
   testCases = [],
@@ -87,6 +93,16 @@ export default function CodeEditor({
   const [isResizing, setIsResizing] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [showComplexityModal, setShowComplexityModal] = useState(false);
+  const [wasSubmission, setWasSubmission] = useState(false);
+
+  // Submit overlay state
+  const [showSubmitOverlay, setShowSubmitOverlay] = useState(false);
+  const [submitPhase, setSubmitPhase] = useState<"evaluating" | "done">(
+    "evaluating",
+  );
+  const [submitResultData, setSubmitResultData] =
+    useState<SubmitResultData | null>(null);
+  const [submitBarWidth, setSubmitBarWidth] = useState(0);
 
   // Bottom panel state
   const [bottomTab, setBottomTab] = useState<BottomTab>("testcase");
@@ -126,6 +142,25 @@ export default function CodeEditor({
   useEffect(() => {
     setCode(userCode[language]);
   }, [language, userCode]);
+
+  // Animate progress bar after submit result appears
+  useEffect(() => {
+    if (submitPhase === "done" && submitResultData) {
+      const t = setTimeout(() => {
+        setSubmitBarWidth(
+          submitResultData.totalCount > 0
+            ? Math.round(
+                (submitResultData.passedCount / submitResultData.totalCount) *
+                  100,
+              )
+            : 0,
+        );
+      }, 80);
+      return () => clearTimeout(t);
+    } else {
+      setSubmitBarWidth(0);
+    }
+  }, [submitPhase, submitResultData]);
 
   const handleCodeChange = (value: string | undefined) => {
     const newCode = value || "";
@@ -240,6 +275,7 @@ export default function CodeEditor({
     setTestResults([]);
     setActiveResultIdx(0);
     setRuntime(null);
+    setWasSubmission(false);
 
     const startTime = Date.now();
 
@@ -287,71 +323,60 @@ export default function CodeEditor({
     }
 
     setIsSubmitting(true);
-    setBottomTab("result");
-    setOverallVerdict("running");
-    setTestResults([]);
-    setActiveResultIdx(0);
-    setRuntime(null);
+    setShowSubmitOverlay(true);
+    setSubmitPhase("evaluating");
+    setSubmitResultData(null);
+    setWasSubmission(true);
 
     const startTime = Date.now();
-
     const judgeResult = await runJudge("submit");
     const elapsed = Date.now() - startTime;
-    setRuntime(elapsed);
 
+    // Determine verdict
+    let verdict: OverallVerdict;
     if (judgeResult.error && judgeResult.results.length === 0) {
-      const errorResult: TestCaseResult = {
-        input: "(all test cases)",
-        expectedOutput: "",
-        actualOutput: `Error: ${judgeResult.error}`,
-        passed: false,
-        error: judgeResult.error,
-      };
-      setTestResults([errorResult]);
-      setOverallVerdict("error");
-      setPassedCount(0);
-      setTotalCount(0);
-      setIsSubmitting(false);
-      return;
-    }
-
-    setTestResults(judgeResult.results);
-    setPassedCount(judgeResult.passedCount);
-    setTotalCount(judgeResult.totalCount);
-
-    if (judgeResult.allPassed) {
-      setOverallVerdict("accepted");
-
-      // Save the accepted submission to the backend
-      try {
-        const token = localStorage.getItem("accessToken");
-        await fetch("/api/submissions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
-            questionId,
-            code,
-            language,
-            passedCount: judgeResult.passedCount,
-            totalCount: judgeResult.totalCount,
-            runtime: elapsed,
-          }),
-        });
-        // Notify parent to refresh submissions tab
-        if (onSubmitSuccess) onSubmitSuccess();
-      } catch {
-        // Submission save failed silently — verdict already shown
-      }
+      verdict = "error";
+    } else if (judgeResult.allPassed) {
+      verdict = "accepted";
     } else if (judgeResult.results.some((r) => r.error)) {
-      setOverallVerdict("error");
+      verdict = "error";
     } else {
-      setOverallVerdict("wrong_answer");
+      verdict = "wrong_answer";
     }
 
+    // Show result in overlay
+    setSubmitResultData({
+      verdict,
+      passedCount: judgeResult.passedCount,
+      totalCount: judgeResult.totalCount,
+      runtime: elapsed,
+    });
+    setSubmitPhase("done");
     setIsSubmitting(false);
+
+    // Save all submissions to backend (accepted AND failed)
+    try {
+      const token = localStorage.getItem("accessToken");
+      await fetch("/api/submissions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          questionId,
+          code,
+          language,
+          verdict,
+          passedCount: judgeResult.passedCount,
+          totalCount: judgeResult.totalCount,
+          runtime: elapsed,
+        }),
+      });
+      if (onSubmitSuccess) onSubmitSuccess();
+    } catch {
+      // Silent — verdict already shown in overlay
+    }
   };
 
   // ---------- Custom test case helpers ----------
@@ -429,9 +454,6 @@ export default function CodeEditor({
           >
             <Moon className="w-4 h-4" />
           </button>
-          <button className="p-2 hover:bg-gray-100 rounded" title="Settings">
-            <Settings className="w-4 h-4" />
-          </button>
           <button
             onClick={() => navigator.clipboard.writeText(code)}
             className="p-2 hover:bg-gray-100 rounded"
@@ -467,17 +489,6 @@ export default function CodeEditor({
             )}
             SUBMIT
           </button>
-
-          {/* ANALYZE TIME COMPLEXITY — only visible after all test cases pass */}
-          {questionId && overallVerdict === "accepted" && (
-            <button
-              onClick={() => setShowComplexityModal(true)}
-              className="px-4 py-1.5 bg-black text-white text-xs rounded flex items-center gap-2 hover:bg-gray-800 transition-colors"
-            >
-              <Brain className="w-4 h-4" />
-              ANALYZE COMPLEXITY
-            </button>
-          )}
 
           {/* PUBLISH */}
           {questionId && (
@@ -780,6 +791,21 @@ export default function CodeEditor({
                           </div>
                         )}
                       </div>
+
+                      {/* Analyze Complexity — only after a real submission that passed */}
+                      {overallVerdict === "accepted" &&
+                        questionId &&
+                        wasSubmission && (
+                          <div className="mt-3 pt-3 border-t border-green-200">
+                            <button
+                              onClick={() => setShowComplexityModal(true)}
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg text-xs font-mono font-bold hover:bg-gray-800 transition-colors shadow-sm"
+                            >
+                              <Brain className="w-4 h-4 text-purple-400" />
+                              <span>Analyze Time Complexity</span>
+                            </button>
+                          </div>
+                        )}
                     </div>
                   )}
 
@@ -862,6 +888,142 @@ export default function CodeEditor({
           )}
         </div>
       </div>
+
+      {/* ═══════ Submit Overlay ═══════ */}
+      {showSubmitOverlay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            {submitPhase === "evaluating" ? (
+              /* ── Evaluating state ── */
+              <div className="p-14 flex flex-col items-center gap-5">
+                <div className="relative w-16 h-16">
+                  <div className="absolute inset-0 rounded-full border-4 border-gray-100" />
+                  <div className="absolute inset-0 rounded-full border-4 border-t-black border-r-transparent border-b-transparent border-l-transparent animate-spin" />
+                </div>
+                <div className="text-center">
+                  <p className="text-base font-bold text-gray-900 font-mono">
+                    Evaluating your solution
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1 font-mono">
+                    Running against all test cases...
+                  </p>
+                </div>
+              </div>
+            ) : submitResultData ? (
+              /* ── Result state ── */
+              <>
+                {/* Top accent bar */}
+                <div
+                  className={`h-1.5 w-full ${
+                    submitResultData.verdict === "accepted"
+                      ? "bg-green-500"
+                      : "bg-red-500"
+                  }`}
+                />
+
+                <div className="p-8">
+                  {/* Verdict header */}
+                  <div className="flex items-center gap-4 mb-6">
+                    {submitResultData.verdict === "accepted" ? (
+                      <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                        <CircleCheck className="w-8 h-8 text-green-600" />
+                      </div>
+                    ) : (
+                      <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                        <CircleX className="w-8 h-8 text-red-600" />
+                      </div>
+                    )}
+                    <div>
+                      <h2
+                        className={`text-2xl font-bold font-mono ${
+                          submitResultData.verdict === "accepted"
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {verdictConfig[submitResultData.verdict].label}
+                      </h2>
+                      {submitResultData.totalCount > 0 && (
+                        <p className="text-sm text-gray-500 font-mono mt-0.5">
+                          {submitResultData.passedCount} /{" "}
+                          {submitResultData.totalCount} test cases passed
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Animated progress bar */}
+                  {submitResultData.totalCount > 0 && (
+                    <div className="mb-6">
+                      <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-[width] duration-700 ease-out ${
+                            submitResultData.verdict === "accepted"
+                              ? "bg-green-500"
+                              : "bg-red-400"
+                          }`}
+                          style={{ width: `${submitBarWidth}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-1.5">
+                        <span className="font-mono text-xs text-gray-400">
+                          0
+                        </span>
+                        <span className="font-mono text-xs text-gray-400">
+                          {submitResultData.totalCount} total
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Stats */}
+                  <div className="flex items-center gap-4 mb-6 p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="font-mono text-xs text-gray-400 tracking-wider">
+                        RUNTIME
+                      </p>
+                      <p className="font-mono text-sm font-bold text-gray-800">
+                        {submitResultData.runtime}ms
+                      </p>
+                    </div>
+                    <div className="w-px h-8 bg-gray-200" />
+                    <div>
+                      <p className="font-mono text-xs text-gray-400 tracking-wider">
+                        LANGUAGE
+                      </p>
+                      <p className="font-mono text-sm font-bold text-gray-800">
+                        {language.toUpperCase()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-3">
+                    {submitResultData.verdict === "accepted" && questionId && (
+                      <button
+                        onClick={() => {
+                          setShowSubmitOverlay(false);
+                          setShowComplexityModal(true);
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg text-xs font-mono font-bold hover:bg-gray-800 transition-colors"
+                      >
+                        <Brain className="w-4 h-4 text-purple-400" />
+                        Analyze Complexity
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setShowSubmitOverlay(false)}
+                      className="ml-auto px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-xs font-mono font-bold hover:bg-gray-200 transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       {/* Publish Solution Modal */}
       {showPublishModal && questionId && (

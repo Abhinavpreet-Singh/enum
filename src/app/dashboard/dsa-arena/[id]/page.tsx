@@ -16,6 +16,9 @@ export default function WorkspacePage() {
   const [isResizing, setIsResizing] = useState(false);
   const [refreshSolutions, setRefreshSolutions] = useState(0);
   const [refreshSubmissions, setRefreshSubmissions] = useState(0);
+  const [leftPanelTab, setLeftPanelTab] = useState<
+    "description" | "submissions" | "solutions"
+  >("description");
 
   useEffect(() => {
     const loadQuestion = async () => {
@@ -34,6 +37,7 @@ export default function WorkspacePage() {
 
   const handleSubmitSuccess = () => {
     setRefreshSubmissions((prev) => prev + 1);
+    setLeftPanelTab("submissions");
   };
 
   // Lock page-level scroll — only individual panels scroll internally
@@ -121,6 +125,8 @@ export default function WorkspacePage() {
             question={question}
             refreshSolutions={refreshSolutions}
             refreshSubmissions={refreshSubmissions}
+            activeTab={leftPanelTab}
+            onTabChange={setLeftPanelTab}
           />
         </div>
 

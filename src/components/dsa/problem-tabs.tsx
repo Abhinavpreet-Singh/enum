@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Question } from "@/data/dsa-questions";
 import { Clock, AlertCircle } from "lucide-react";
 import SolutionsList from "./solutions-list";
@@ -10,6 +9,8 @@ interface ProblemTabsProps {
   question: Question;
   refreshSolutions?: number;
   refreshSubmissions?: number;
+  activeTab: TabType;
+  onTabChange: (tab: TabType) => void;
 }
 
 type TabType = "description" | "submissions" | "solutions";
@@ -24,15 +25,15 @@ export default function ProblemTabs({
   question,
   refreshSolutions,
   refreshSubmissions,
+  activeTab,
+  onTabChange,
 }: ProblemTabsProps) {
-  const [activeTab, setActiveTab] = useState<TabType>("description");
-
   return (
     <div className="h-full flex flex-col bg-white">
       {/* Tabs */}
       <div className="flex border-b">
         <button
-          onClick={() => setActiveTab("description")}
+          onClick={() => onTabChange("description")}
           className={`px-4 py-3 font-mono text-sm tracking-wider transition-colors border-b-2 ${
             activeTab === "description"
               ? "text-black border-b-black"
@@ -42,7 +43,7 @@ export default function ProblemTabs({
           Description
         </button>
         <button
-          onClick={() => setActiveTab("submissions")}
+          onClick={() => onTabChange("submissions")}
           className={`px-4 py-3 font-mono text-sm tracking-wider transition-colors border-b-2 ${
             activeTab === "submissions"
               ? "text-black border-b-black"
@@ -52,7 +53,7 @@ export default function ProblemTabs({
           Submissions
         </button>
         <button
-          onClick={() => setActiveTab("solutions")}
+          onClick={() => onTabChange("solutions")}
           className={`px-4 py-3 font-mono text-sm tracking-wider transition-colors border-b-2 ${
             activeTab === "solutions"
               ? "text-black border-b-black"
