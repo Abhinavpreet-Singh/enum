@@ -67,6 +67,9 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
 
   const userName =
     typeof window !== "undefined" ? localStorage.getItem("Name") : null;
+  const [sidebarAvatar] = useState<string | null>(() =>
+    typeof window !== "undefined" ? localStorage.getItem("userAvatar") : null,
+  );
 
   useEffect(() => {
     const adminPrev = async () => {
@@ -195,10 +198,10 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
                 >
                   {/* Active indicator bar */}
                   {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-black rounded-r-full" />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.75 h-5 bg-black rounded-r-full" />
                   )}
                   <Icon
-                    className={`w-[18px] h-[18px] shrink-0 ${
+                    className={`w-4.5 h-4.5 shrink-0 ${
                       isActive ? "text-black" : ""
                     }`}
                   />
@@ -227,7 +230,16 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
             }}
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full shrink-0" />
+              <div className="w-9 h-9 rounded-full shrink-0 overflow-hidden bg-linear-to-br from-purple-500 to-indigo-500">
+                {sidebarAvatar && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={sidebarAvatar}
+                    alt="avatar"
+                    className="w-full h-full object-cover"
+                  />
+                )}
+              </div>
               <div
                 className={`min-w-0 transition-opacity duration-200 ${
                   expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
@@ -253,7 +265,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
               }}
               className="flex items-center gap-3 pl-4 pr-3 py-2.5 text-gray-500 hover:bg-gray-50 hover:text-gray-800 rounded-lg font-mono text-sm tracking-wide transition-colors whitespace-nowrap"
             >
-              <Settings className="w-[18px] h-[18px] shrink-0" />
+              <Settings className="w-4.5 h-4.5 shrink-0" />
               <span
                 className={`transition-opacity duration-200 ${
                   expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
@@ -270,7 +282,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
             >
               {isLoggingOut ? (
                 <svg
-                  className="animate-spin h-[18px] w-[18px] shrink-0"
+                  className="animate-spin h-4.5 w-4.5 shrink-0"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
@@ -290,7 +302,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
                   />
                 </svg>
               ) : (
-                <LogOut className="w-[18px] h-[18px] shrink-0" />
+                <LogOut className="w-4.5 h-4.5 shrink-0" />
               )}
               <span
                 className={`transition-opacity duration-200 ${
@@ -319,7 +331,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
                 }`}
               >
                 {isActive && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-[3px] bg-black rounded-full" />
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-0.75 bg-black rounded-full" />
                 )}
                 <Icon className="w-5 h-5" />
                 <span className="font-mono text-[10px] tracking-wide">

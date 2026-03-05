@@ -1,10 +1,9 @@
 ﻿"use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import useAuth from "@/hooks/useAuth";
 import {
-  ArrowLeft,
   Edit3,
   Github,
   Linkedin,
@@ -12,7 +11,6 @@ import {
   Trophy,
   Code2,
   PlayCircle,
-  CheckCircle,
   Star,
   Camera,
   ExternalLink,
@@ -20,18 +18,31 @@ import {
   Save,
   GraduationCap,
   Building2,
-  Zap,
-  TrendingUp,
+  Plus,
+  Trash2,
+  MapPin,
+  Mail,
+  FileText,
+  Flame,
 } from "lucide-react";
 
 interface ProfileData {
   name: string;
-  username: string;
   bio: string;
   college: string;
   role: string;
+  location: string;
+  resume: string;
+  skills: string[];
   links: { github: string; linkedin: string; website: string };
   avatar: string | null;
+}
+
+interface Cert {
+  name: string;
+  issuer: string;
+  date: string;
+  done: boolean;
 }
 
 interface UserStats {
@@ -39,7 +50,6 @@ interface UserStats {
   totalSimulations: number;
   longestStreak: number;
   currentStreak: number;
-  totalBugsFixed: number;
   globalRank: number | null;
 }
 
@@ -94,95 +104,77 @@ const MONTHS = [
   "Feb",
 ];
 
-const BADGES = [
-  {
-    id: 1,
-    name: "First Blood",
-    icon: "⚡",
-    desc: "Solved first problem",
-    unlocked: true,
-  },
-  {
-    id: 2,
-    name: "Week Warrior",
-    icon: "📅",
-    desc: "7-day streak maintained",
-    unlocked: true,
-  },
-  {
-    id: 3,
-    name: "Bug Hunter",
-    icon: "🐛",
-    desc: "Fixed 10 production bugs",
-    unlocked: true,
-  },
-  {
-    id: 4,
-    name: "Century",
-    icon: "💯",
-    desc: "Solved 100 problems",
-    unlocked: false,
-  },
-  {
-    id: 5,
-    name: "Sim Master",
-    icon: "🖥️",
-    desc: "Completed 20 simulations",
-    unlocked: false,
-  },
-  {
-    id: 6,
-    name: "Top 10",
-    icon: "🏆",
-    desc: "Ranked in global top 10",
-    unlocked: false,
-  },
-];
-
-const CERTS = [
-  {
-    name: "DSA Fundamentals",
-    issuer: "Enum Platform",
-    date: "Jan 2026",
-    done: true,
-  },
-  {
-    name: "System Debugging",
-    issuer: "Enum Platform",
-    date: "Feb 2026",
-    done: true,
-  },
-  {
-    name: "Production Mastery",
-    issuer: "Enum Platform",
-    date: "--",
-    done: false,
-  },
+const STREAK_BADGES = [
+  { day: 1, label: "Day 1", unlocked: true },
+  { day: 7, label: "Day 7", unlocked: true },
+  { day: 25, label: "Day 25", unlocked: true },
+  { day: 50, label: "Day 50", unlocked: false },
+  { day: 100, label: "Day 100", unlocked: false },
+  { day: 200, label: "Day 200", unlocked: false },
+  { day: 365, label: "Day 365", unlocked: false },
 ];
 
 export default function ProfileContent() {
   const isAuthenticated = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [editing, setEditing] = useState(false);
+  // null = no section editing; string = which section is being edited
+  const [editingSection, setEditingSection] = useState<string | null>(null);
+
+  const registeredEmail =
+    typeof window !== "undefined"
+      ? localStorage.getItem("email") || localStorage.getItem("Name") || "guest"
+      : "guest";
 
   const [profile, setProfile] = useState<ProfileData>({
     name:
       typeof window !== "undefined"
         ? localStorage.getItem("Name") || "Guest"
         : "Guest",
-    username:
-      typeof window !== "undefined"
-        ? localStorage.getItem("Name")?.toLowerCase().replace(/\s+/g, "") ||
-          "guest"
-        : "guest",
     bio: "",
     college: "",
     role: "Student",
+    location: "",
+    resume: "",
+    skills: [],
     links: { github: "", linkedin: "", website: "" },
-    avatar: null,
+    avatar:
+      typeof window !== "undefined"
+        ? localStorage.getItem("userAvatar") || null
+        : null,
   });
 
   const [draft, setDraft] = useState<ProfileData>(profile);
+
+  // Keep draft in sync when profile loaded from localStorage
+  useEffect(() => {
+    setDraft(profile);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const [newSkill, setNewSkill] = useState("");
+
+  const [certs, setCerts] = useState<Cert[]>([
+    {
+      name: "DSA Fundamentals",
+      issuer: "Enum Platform",
+      date: "Jan 2026",
+      done: true,
+    },
+    {
+      name: "System Debugging",
+      issuer: "Enum Platform",
+      date: "Feb 2026",
+      done: true,
+    },
+    {
+      name: "Production Mastery",
+      issuer: "Enum Platform",
+      date: "--",
+      done: false,
+    },
+  ]);
+  const [addingCert, setAddingCert] = useState(false);
+  const [newCert, setNewCert] = useState({ name: "", issuer: "", date: "" });
 
   const [stats] = useState<UserStats>(() => {
     if (typeof window !== "undefined") {
@@ -195,7 +187,6 @@ export default function ProfileContent() {
             totalSimulations: p.totalSimulations ?? 0,
             longestStreak: p.longestStreak ?? 69,
             currentStreak: p.currentStreak ?? 0,
-            totalBugsFixed: p.totalBugsFixed ?? 0,
             globalRank: p.globalRank ?? null,
           };
         } catch {
@@ -208,7 +199,6 @@ export default function ProfileContent() {
       totalSimulations: 0,
       longestStreak: 69,
       currentStreak: 0,
-      totalBugsFixed: 0,
       globalRank: null,
     };
   });
@@ -218,19 +208,47 @@ export default function ProfileContent() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setDraft((d) => ({ ...d, avatar: ev.target?.result as string }));
+      const src = ev.target?.result as string;
+      setProfile((p) => ({ ...p, avatar: src }));
+      setDraft((d) => ({ ...d, avatar: src }));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("userAvatar", src);
+      }
     };
     reader.readAsDataURL(file);
   }
 
-  function saveProfile() {
-    setProfile(draft);
-    setEditing(false);
+  function startEdit(section: string) {
+    setDraft({ ...profile });
+    setEditingSection(section);
   }
 
-  function cancelEdit() {
+  function saveSection() {
+    setProfile(draft);
+    setEditingSection(null);
+  }
+
+  function cancelSection() {
     setDraft(profile);
-    setEditing(false);
+    setEditingSection(null);
+  }
+
+  function addSkill() {
+    const s = newSkill.trim();
+    if (!s || profile.skills.includes(s)) return;
+    setProfile((p) => ({ ...p, skills: [...p.skills, s] }));
+    setNewSkill("");
+  }
+
+  function removeSkill(skill: string) {
+    setProfile((p) => ({ ...p, skills: p.skills.filter((x) => x !== skill) }));
+  }
+
+  function submitCert() {
+    if (!newCert.name.trim()) return;
+    setCerts((c) => [...c, { ...newCert, done: false }]);
+    setNewCert({ name: "", issuer: "", date: "" });
+    setAddingCert(false);
   }
 
   if (isAuthenticated === null) {
@@ -257,8 +275,33 @@ export default function ProfileContent() {
     );
   }
 
-  const avatarSrc = (editing ? draft.avatar : profile.avatar) ?? null;
-  const displayProfile = editing ? draft : profile;
+  const avatarSrc = profile.avatar ?? null;
+
+  function SectionEditBar({ section }: { section: string }) {
+    return editingSection === section ? (
+      <div className="flex gap-1.5">
+        <button
+          onClick={cancelSection}
+          className="flex items-center gap-1 px-2 py-1 border border-gray-200 rounded-md font-mono text-[10px] text-gray-500 hover:border-black transition-all"
+        >
+          <X className="w-3 h-3" /> Cancel
+        </button>
+        <button
+          onClick={saveSection}
+          className="flex items-center gap-1 px-2 py-1 bg-black rounded-md font-mono text-[10px] text-white hover:bg-gray-800 transition-all"
+        >
+          <Save className="w-3 h-3" /> Save
+        </button>
+      </div>
+    ) : (
+      <button
+        onClick={() => startEdit(section)}
+        className="w-5 h-5 rounded-md border border-gray-200 flex items-center justify-center text-gray-400 hover:border-black hover:text-black transition-all"
+      >
+        <Edit3 className="w-3 h-3" />
+      </button>
+    );
+  }
 
   return (
     <div className="relative min-h-screen">
@@ -272,54 +315,17 @@ export default function ProfileContent() {
       />
 
       <div className="relative z-10 pb-10">
-        {/* Top bar */}
-        <div className="flex items-center justify-between mb-6">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 text-gray-500 hover:text-black transition-colors font-mono text-xs"
-          >
-            <ArrowLeft className="w-4 h-4" /> Dashboard
-          </Link>
-          {!editing ? (
-            <button
-              onClick={() => {
-                setDraft(profile);
-                setEditing(true);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg font-mono text-xs text-gray-600 hover:border-black hover:text-black transition-all"
-            >
-              <Edit3 className="w-3.5 h-3.5" /> Edit Profile
-            </button>
-          ) : (
-            <div className="flex gap-2">
-              <button
-                onClick={cancelEdit}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg font-mono text-xs text-gray-500 hover:border-black transition-all"
-              >
-                <X className="w-3.5 h-3.5" /> Cancel
-              </button>
-              <button
-                onClick={saveProfile}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-black rounded-lg font-mono text-xs text-white hover:bg-gray-800 transition-all"
-              >
-                <Save className="w-3.5 h-3.5" /> Save
-              </button>
-            </div>
-          )}
-        </div>
-
         {/* Main grid */}
         <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
           {/* LEFT: Profile card */}
           <div className="space-y-4">
             {/* Identity card */}
             <div className="border border-gray-200 rounded-xl p-6 bg-white/90 backdrop-blur-sm space-y-4">
-              {/* Avatar */}
+              {/* Avatar — always clickable */}
               <div className="flex flex-col items-center gap-3">
                 <div
-                  className="relative group"
-                  onClick={() => editing && fileInputRef.current?.click()}
-                  style={{ cursor: editing ? "pointer" : "default" }}
+                  className="relative group cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
                 >
                   <div className="w-20 h-20 rounded-full bg-gray-900 flex items-center justify-center overflow-hidden ring-2 ring-gray-200 group-hover:ring-black transition-all">
                     {avatarSrc ? (
@@ -331,15 +337,13 @@ export default function ProfileContent() {
                       />
                     ) : (
                       <span className="text-white text-3xl font-bold select-none">
-                        {displayProfile.name.charAt(0).toUpperCase()}
+                        {profile.name.charAt(0).toUpperCase()}
                       </span>
                     )}
                   </div>
-                  {editing && (
-                    <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Camera className="w-5 h-5 text-white" />
-                    </div>
-                  )}
+                  <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Camera className="w-5 h-5 text-white" />
+                  </div>
                 </div>
                 <input
                   type="file"
@@ -349,41 +353,43 @@ export default function ProfileContent() {
                   className="hidden"
                 />
 
-                {editing ? (
-                  <div className="w-full space-y-2">
-                    <input
-                      className="w-full text-center font-bold text-black text-lg border-b border-gray-200 focus:border-black outline-none pb-0.5 bg-transparent"
-                      value={draft.name}
-                      onChange={(e) =>
-                        setDraft((d) => ({ ...d, name: e.target.value }))
-                      }
-                      placeholder="Full name"
-                    />
-                    <input
-                      className="w-full text-center font-mono text-sm text-gray-400 border-b border-gray-200 focus:border-black outline-none pb-0.5 bg-transparent"
-                      value={draft.username}
-                      onChange={(e) =>
-                        setDraft((d) => ({ ...d, username: e.target.value }))
-                      }
-                      placeholder="username"
-                    />
+                {/* Name + registered email (read-only) */}
+                <div className="text-center">
+                  <h2 className="text-xl font-bold text-black">
+                    {profile.name}
+                  </h2>
+                  <div className="flex items-center justify-center gap-1 mt-0.5">
+                    <Mail className="w-3 h-3 text-gray-300" />
+                    <span className="font-mono text-xs text-gray-400">
+                      {registeredEmail}
+                    </span>
                   </div>
-                ) : (
-                  <div className="text-center">
-                    <h2 className="text-xl font-bold text-black">
-                      {profile.name}
-                    </h2>
-                    <p className="font-mono text-sm text-gray-400">
-                      @{profile.username}
-                    </p>
-                  </div>
-                )}
+                </div>
               </div>
 
-              {/* Role / College */}
+              {/* ABOUT — role, college, location */}
               <div className="space-y-2 pt-2 border-t border-gray-100">
-                {editing ? (
-                  <>
+                <div className="flex items-center justify-between">
+                  <p className="font-mono text-[10px] tracking-widest text-gray-400">
+                    ABOUT
+                  </p>
+                  <SectionEditBar section="identity" />
+                </div>
+                {editingSection === "identity" ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[10px] text-gray-300 w-4 text-center shrink-0">
+                        N
+                      </span>
+                      <input
+                        className="flex-1 font-mono text-xs border-b border-gray-200 focus:border-black outline-none pb-0.5 bg-transparent text-gray-700"
+                        value={draft.name}
+                        onChange={(e) =>
+                          setDraft((d) => ({ ...d, name: e.target.value }))
+                        }
+                        placeholder="Display name"
+                      />
+                    </div>
                     <div className="flex items-center gap-2">
                       <Building2 className="w-4 h-4 text-gray-300 shrink-0" />
                       <input
@@ -406,9 +412,20 @@ export default function ProfileContent() {
                         placeholder="College / Organization"
                       />
                     </div>
-                  </>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-gray-300 shrink-0" />
+                      <input
+                        className="flex-1 font-mono text-xs border-b border-gray-200 focus:border-black outline-none pb-0.5 bg-transparent text-gray-700"
+                        value={draft.location}
+                        onChange={(e) =>
+                          setDraft((d) => ({ ...d, location: e.target.value }))
+                        }
+                        placeholder="City, Country"
+                      />
+                    </div>
+                  </div>
                 ) : (
-                  <>
+                  <div className="space-y-1.5">
                     {profile.role && (
                       <div className="flex items-center gap-2">
                         <Building2 className="w-3.5 h-3.5 text-gray-300" />
@@ -425,21 +442,32 @@ export default function ProfileContent() {
                         </span>
                       </div>
                     )}
-                    {!profile.role && !profile.college && (
+                    {profile.location && (
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-3.5 h-3.5 text-gray-300" />
+                        <span className="font-mono text-xs text-gray-600">
+                          {profile.location}
+                        </span>
+                      </div>
+                    )}
+                    {!profile.role && !profile.college && !profile.location && (
                       <p className="font-mono text-xs text-gray-300 italic">
                         No details added
                       </p>
                     )}
-                  </>
+                  </div>
                 )}
               </div>
 
-              {/* Bio */}
+              {/* BIO */}
               <div className="space-y-1.5 pt-2 border-t border-gray-100">
-                <p className="font-mono text-[10px] tracking-widest text-gray-400">
-                  BIO
-                </p>
-                {editing ? (
+                <div className="flex items-center justify-between">
+                  <p className="font-mono text-[10px] tracking-widest text-gray-400">
+                    BIO
+                  </p>
+                  <SectionEditBar section="bio" />
+                </div>
+                {editingSection === "bio" ? (
                   <textarea
                     rows={3}
                     className="w-full font-mono text-xs text-gray-700 border border-gray-200 rounded-lg p-2.5 focus:border-black outline-none bg-transparent resize-none"
@@ -459,13 +487,52 @@ export default function ProfileContent() {
                   </p>
                 )}
               </div>
-
-              {/* Links */}
+              {/* SKILLS — always inline editable */}
               <div className="space-y-2 pt-2 border-t border-gray-100">
                 <p className="font-mono text-[10px] tracking-widest text-gray-400">
-                  LINKS
+                  SKILLS
                 </p>
-                {editing ? (
+                <div className="flex flex-wrap gap-1.5 mb-1">
+                  {profile.skills.map((sk) => (
+                    <span
+                      key={sk}
+                      className="flex items-center gap-1 px-2 py-0.5 bg-gray-900 text-white font-mono text-[10px] rounded-md"
+                    >
+                      {sk}
+                      <button
+                        onClick={() => removeSkill(sk)}
+                        className="text-gray-400 hover:text-white"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-1.5">
+                  <input
+                    className="flex-1 font-mono text-xs border-b border-gray-200 focus:border-black outline-none pb-0.5 bg-transparent text-gray-700"
+                    value={newSkill}
+                    onChange={(e) => setNewSkill(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && addSkill()}
+                    placeholder="Add a skill..."
+                  />
+                  <button
+                    onClick={addSkill}
+                    className="text-gray-400 hover:text-black transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+              {/* LINKS + RESUME */}
+              <div className="space-y-2 pt-2 border-t border-gray-100">
+                <div className="flex items-center justify-between">
+                  <p className="font-mono text-[10px] tracking-widest text-gray-400">
+                    LINKS
+                  </p>
+                  <SectionEditBar section="links" />
+                </div>
+                {editingSection === "links" ? (
                   <div className="space-y-2">
                     {(["github", "linkedin", "website"] as const).map((key) => {
                       const icons = {
@@ -495,6 +562,17 @@ export default function ProfileContent() {
                         </div>
                       );
                     })}
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                      <input
+                        className="flex-1 font-mono text-xs border-b border-gray-200 focus:border-black outline-none pb-0.5 bg-transparent text-gray-700"
+                        value={draft.resume}
+                        onChange={(e) =>
+                          setDraft((d) => ({ ...d, resume: e.target.value }))
+                        }
+                        placeholder="Resume URL or Google Drive link"
+                      />
+                    </div>
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-3">
@@ -531,9 +609,21 @@ export default function ProfileContent() {
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     )}
+                    {profile.resume && (
+                      <a
+                        href={profile.resume}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 font-mono text-xs text-gray-500 hover:text-black transition-colors"
+                      >
+                        <FileText className="w-3.5 h-3.5" /> Resume{" "}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
                     {!profile.links.github &&
                       !profile.links.linkedin &&
-                      !profile.links.website && (
+                      !profile.links.website &&
+                      !profile.resume && (
                         <span className="font-mono text-xs text-gray-300 italic">
                           No links added
                         </span>
@@ -543,33 +633,99 @@ export default function ProfileContent() {
               </div>
             </div>
 
-            {/* Badges */}
+            {/* Certifications */}
             <div className="border border-gray-200 rounded-xl p-5 bg-white/90 backdrop-blur-sm">
-              <p className="font-mono text-[10px] tracking-widest text-gray-400 mb-3">
-                BADGES
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {BADGES.map((b) => (
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                  <Star className="w-3 h-3 text-gray-400" />
+                  <p className="font-mono text-[10px] tracking-widest text-gray-400">
+                    CERTIFICATIONS
+                  </p>
+                </div>
+                <button
+                  onClick={() => setAddingCert(true)}
+                  className="w-5 h-5 rounded-md border border-gray-200 flex items-center justify-center text-gray-400 hover:border-black hover:text-black transition-all"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              </div>
+              <div className="space-y-2.5">
+                {certs.map((c, i) => (
                   <div
-                    key={b.id}
-                    title={b.desc}
-                    className={`flex flex-col items-center gap-1 p-2 rounded-lg border transition-all ${
-                      b.unlocked
-                        ? "border-gray-200 bg-gray-50 hover:border-black"
-                        : "border-gray-100 bg-gray-50/50 opacity-35 grayscale"
-                    }`}
+                    key={i}
+                    className={`flex items-start gap-2.5 group ${!c.done ? "opacity-50" : ""}`}
                   >
-                    <span className="text-xl leading-none">{b.icon}</span>
-                    <span className="font-mono text-[9px] text-gray-500 text-center leading-tight">
-                      {b.name}
-                    </span>
+                    <div
+                      className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5 ${c.done ? "bg-gray-900" : "border border-gray-200"}`}
+                    >
+                      <Star
+                        className={`w-3 h-3 ${c.done ? "text-white" : "text-gray-300"}`}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-mono text-xs text-gray-800 font-medium truncate">
+                        {c.name}
+                      </p>
+                      <p className="font-mono text-[10px] text-gray-400">
+                        {c.issuer} · {c.date}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() =>
+                        setCerts((prev) => prev.filter((_, j) => j !== i))
+                      }
+                      className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-black transition-all mt-0.5"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
                   </div>
                 ))}
+                {addingCert && (
+                  <div className="space-y-2 pt-2 border-t border-gray-100">
+                    <input
+                      autoFocus
+                      className="w-full font-mono text-xs border-b border-gray-200 focus:border-black outline-none pb-0.5 bg-transparent text-gray-700"
+                      value={newCert.name}
+                      onChange={(e) =>
+                        setNewCert((c) => ({ ...c, name: e.target.value }))
+                      }
+                      placeholder="Certificate name"
+                    />
+                    <input
+                      className="w-full font-mono text-xs border-b border-gray-200 focus:border-black outline-none pb-0.5 bg-transparent text-gray-700"
+                      value={newCert.issuer}
+                      onChange={(e) =>
+                        setNewCert((c) => ({ ...c, issuer: e.target.value }))
+                      }
+                      placeholder="Issuer"
+                    />
+                    <input
+                      className="w-full font-mono text-xs border-b border-gray-200 focus:border-black outline-none pb-0.5 bg-transparent text-gray-700"
+                      value={newCert.date}
+                      onChange={(e) =>
+                        setNewCert((c) => ({ ...c, date: e.target.value }))
+                      }
+                      placeholder="Date (e.g. Mar 2026)"
+                    />
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={submitCert}
+                        className="flex-1 font-mono text-[11px] py-1 bg-gray-900 text-white rounded-md hover:bg-black transition-colors"
+                      >
+                        Add
+                      </button>
+                      <button
+                        onClick={() => setAddingCert(false)}
+                        className="flex-1 font-mono text-[11px] py-1 border border-gray-200 rounded-md text-gray-500 hover:border-black transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-
-          {/* RIGHT: Stats, heatmap, achievements */}
           <div className="space-y-4">
             {/* Lifetime stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -586,15 +742,15 @@ export default function ProfileContent() {
                   icon: PlayCircle,
                 },
                 {
-                  label: "Longest Streak",
+                  label: "Max Streak",
                   value:
                     stats.longestStreak > 0 ? `${stats.longestStreak}d` : "--",
-                  icon: Trophy,
+                  icon: Star,
                 },
                 {
-                  label: "Bugs Fixed",
-                  value: stats.totalBugsFixed > 0 ? stats.totalBugsFixed : "--",
-                  icon: CheckCircle,
+                  label: "Global Rank",
+                  value: stats.globalRank ? `#${stats.globalRank}` : "--",
+                  icon: Trophy,
                 },
               ].map(({ label, value, icon: Icon }) => (
                 <div
@@ -608,42 +764,6 @@ export default function ProfileContent() {
                   </p>
                 </div>
               ))}
-            </div>
-
-            {/* Skill Breakdown */}
-            <div className="border border-gray-200 rounded-xl p-5 bg-white/90 backdrop-blur-sm">
-              <div className="flex items-center justify-between mb-4">
-                <p className="font-mono text-[10px] tracking-widest text-gray-400">
-                  SKILL BREAKDOWN
-                </p>
-                <TrendingUp className="w-4 h-4 text-gray-300" />
-              </div>
-              <div className="space-y-3">
-                {[
-                  { skill: "Arrays & Strings", val: 72 },
-                  { skill: "Trees & Graphs", val: 45 },
-                  { skill: "Dynamic Programming", val: 28 },
-                  { skill: "System Debugging", val: 83 },
-                  { skill: "Frontend Simulation", val: 60 },
-                ].map(({ skill, val }) => (
-                  <div key={skill}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-mono text-[11px] text-gray-600">
-                        {skill}
-                      </span>
-                      <span className="font-mono text-[10px] text-gray-400">
-                        {val}%
-                      </span>
-                    </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gray-900 rounded-full"
-                        style={{ width: `${val}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
 
             {/* Streak Heatmap */}
@@ -722,158 +842,47 @@ export default function ProfileContent() {
               </div>
             </div>
 
-            {/* XP & Badges */}
-            <div className="border border-gray-200 rounded-xl p-5 bg-white/90 backdrop-blur-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div>
+            {/* Badges */}
+            <div className="border border-gray-200 rounded-xl p-5 bg-white/90 backdrop-blur-sm space-y-5">
+              {/* ── Streak track ── */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-3">
+                  <Flame className="w-3.5 h-3.5 text-orange-400" />
                   <p className="font-mono text-[10px] tracking-widest text-gray-400">
-                    XP & LEVEL
-                  </p>
-                  <div className="flex items-center gap-2.5 mt-1.5">
-                    <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center shrink-0">
-                      <span className="text-white font-mono text-sm font-bold">
-                        7
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-bold text-black text-sm leading-tight">
-                        Level 7
-                      </p>
-                      <p className="font-mono text-[10px] text-gray-400">
-                        Incident Debugger
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-mono text-sm font-semibold text-black">
-                    2,450 XP
-                  </p>
-                  <p className="font-mono text-[10px] text-gray-400">
-                    550 to Level 8
+                    STREAK MILESTONES
                   </p>
                 </div>
-              </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-1">
-                <div
-                  className="h-full bg-gray-900 rounded-full"
-                  style={{ width: "82%" }}
-                />
-              </div>
-              <div className="flex justify-between mb-4">
-                <span className="font-mono text-[9px] text-gray-400">L7</span>
-                <span className="font-mono text-[9px] text-gray-400">
-                  L8 · 3,000 XP
-                </span>
-              </div>
-
-              {/* Badges row */}
-              <p className="font-mono text-[10px] tracking-widest text-gray-400 mb-3">
-                BADGES
-              </p>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                {BADGES.map((b) => (
-                  <div
-                    key={b.id}
-                    title={b.unlocked ? b.desc : `Locked: ${b.desc}`}
-                    className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-all ${
-                      b.unlocked
-                        ? "border-gray-200 bg-gray-50 hover:border-black"
-                        : "border-gray-100 bg-gray-50/50 opacity-30 grayscale"
-                    }`}
-                  >
-                    <span className="text-xl leading-none">{b.icon}</span>
-                    <span className="font-mono text-[9px] text-gray-500 text-center leading-tight">
-                      {b.name}
-                    </span>
-                    {b.unlocked && (
-                      <span className="font-mono text-[8px] text-gray-400">
-                        +50 XP
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Achievements + Certifications */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="border border-gray-200 rounded-xl p-5 bg-white/90 backdrop-blur-sm">
-                <p className="font-mono text-[10px] tracking-widest text-gray-400 mb-3">
-                  ACHIEVEMENTS
-                </p>
-                <div className="space-y-2.5">
-                  {[
-                    { title: "First Problem Solved", done: true },
-                    { title: "7-Day Streak Maintained", done: true },
-                    { title: "10 Simulations Completed", done: false },
-                    { title: "Top 100 Global Rank", done: false },
-                  ].map((a, i) => (
-                    <div key={i} className="flex items-center gap-2.5">
-                      <div
-                        className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${a.done ? "bg-gray-900" : "bg-gray-100"}`}
-                      >
-                        {a.done ? (
-                          <CheckCircle className="w-3 h-3 text-white" />
-                        ) : (
-                          <div className="w-2 h-2 rounded-full bg-gray-300" />
-                        )}
-                      </div>
-                      <span
-                        className={`font-mono text-xs ${a.done ? "text-gray-800" : "text-gray-400"}`}
-                      >
-                        {a.title}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border border-gray-200 rounded-xl p-5 bg-white/90 backdrop-blur-sm">
-                <p className="font-mono text-[10px] tracking-widest text-gray-400 mb-3">
-                  CERTIFICATIONS
-                </p>
-                <div className="space-y-3">
-                  {CERTS.map((c, i) => (
+                <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                  {STREAK_BADGES.map(({ day, label, unlocked }) => (
                     <div
-                      key={i}
-                      className={`flex items-start gap-2.5 ${!c.done ? "opacity-40" : ""}`}
+                      key={day}
+                      className={`group flex flex-col items-center gap-2 rounded-xl p-3 border transition-all duration-200 cursor-default ${
+                        unlocked
+                          ? "border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-300"
+                          : "border-gray-100 bg-gray-50 opacity-40"
+                      }`}
                     >
                       <div
-                        className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5 ${c.done ? "bg-gray-900" : "border border-gray-200"}`}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center ${unlocked ? "bg-orange-100" : "bg-gray-100"}`}
                       >
-                        <Star
-                          className={`w-3 h-3 ${c.done ? "text-white" : "text-gray-300"}`}
+                        <Flame
+                          className={`w-4 h-4 ${unlocked ? "text-orange-500" : "text-gray-300"}`}
                         />
                       </div>
-                      <div>
-                        <p className="font-mono text-xs text-gray-800 font-medium">
-                          {c.name}
-                        </p>
-                        <p className="font-mono text-[10px] text-gray-400">
-                          {c.issuer} · {c.date}
-                        </p>
-                      </div>
+                      <span
+                        className={`font-mono text-[10px] font-semibold ${unlocked ? "text-orange-600" : "text-gray-400"}`}
+                      >
+                        {label}
+                      </span>
+                      {unlocked && (
+                        <span className="font-mono text-[9px] text-orange-400">
+                          ✓
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
-            </div>
-
-            {/* Global rank banner */}
-            <div className="border border-gray-900 rounded-xl p-5 bg-gray-950 text-white flex items-center justify-between">
-              <div>
-                <p className="font-mono text-[10px] tracking-widest text-gray-400 mb-1">
-                  GLOBAL RANK
-                </p>
-                <p className="text-3xl font-bold">
-                  {stats.globalRank ? `#${stats.globalRank}` : "--"}
-                </p>
-                <p className="font-mono text-xs text-gray-500 mt-1">
-                  Compete more to climb the leaderboard
-                </p>
-              </div>
-              <Trophy className="w-10 h-10 text-gray-700" />
             </div>
           </div>
         </div>
