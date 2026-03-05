@@ -12,11 +12,96 @@ import {
   ChevronRight,
   Flame,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import useAuth from "@/hooks/useAuth";
+import axios from "axios";
+import { proxy } from "@/app/proxy";
 
 interface DashboardContentProps {
   userName?: string;
+}
+
+interface LeaderboardEntry {
+  _id: string;
+  username: string;
+  displayName: string;
+  avatar: string;
+  xp: number;
+  problemsSolved: number;
+  simulationsSolved: number;
+}
+
+interface RecentSubmission {
+  _id: string;
+  question: { _id: string; title: string; level: string } | null;
+  verdict: string;
+  language: string;
+  createdAt: string;
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 172800) return "Yesterday";
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function CircularRing({
+  value,
+  max,
+  size = 72,
+  stroke = 7,
+}: {
+  value: number;
+  max: number;
+  size?: number;
+  stroke?: number;
+}) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const pct = max > 0 ? Math.min(1, value / max) : 0;
+  return (
+    <svg width={size} height={size} className="shrink-0">
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke="#f3f4f6"
+        strokeWidth={stroke}
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke="#111827"
+        strokeWidth={stroke}
+        strokeDasharray={`${pct * circ} ${circ}`}
+        strokeLinecap="round"
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        style={{ transition: "stroke-dasharray 0.7s ease-out" }}
+      />
+    </svg>
+  );
+}
+
+function computeLevel(xp: number) {
+  const tiers = [
+    { level: 1, title: "Code Rookie", minXP: 0, maxXP: 200 },
+    { level: 2, title: "Script Kiddie", minXP: 200, maxXP: 500 },
+    { level: 3, title: "Bug Hunter", minXP: 500, maxXP: 1000 },
+    { level: 4, title: "Stack Tracer", minXP: 1000, maxXP: 2000 },
+    { level: 5, title: "Debug Ninja", minXP: 2000, maxXP: 3500 },
+    { level: 6, title: "System Engineer", minXP: 3500, maxXP: 5500 },
+    { level: 7, title: "Incident Debugger", minXP: 5500, maxXP: 8000 },
+    { level: 8, title: "Arch Wizard", minXP: 8000, maxXP: 12000 },
+    { level: 9, title: "Production God", minXP: 12000, maxXP: 999999 },
+  ];
+  const tier = [...tiers].reverse().find((t) => xp >= t.minXP) ?? tiers[0];
+  return tier;
 }
 
 interface UserStats {
@@ -40,6 +125,13 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
           localStorage.getItem("Name"))) ||
       "Guest",
   );
+  const [currentUsername] = useState<string>(() =>
+    typeof window !== "undefined" ? localStorage.getItem("Name") || "" : "",
+  );
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [totalQuestions, setTotalQuestions] = useState<number>(0);
+  const [totalSimulations, setTotalSimulations] = useState<number>(0);
+  const [recentActivity, setRecentActivity] = useState<RecentSubmission[]>([]);
   const [stats, setStats] = useState<UserStats>({
     totalProblems: 0,
     totalSimulations: 0,
@@ -77,19 +169,6 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
         localStorage.getItem("Name") ||
         "Guest";
       if (name !== displayName) setDisplayName(name);
-
-      const token = localStorage.getItem("accessToken");
-      if (token) {
-        const storedStats = localStorage.getItem("userStats");
-        if (storedStats) {
-          try {
-            const parsedStats = JSON.parse(storedStats);
-            setStats(parsedStats);
-          } catch {
-            // Stats couldn't be parsed, keeping defaults
-          }
-        }
-      }
     }
 
     const handleNameChanged = (e: Event) => {
@@ -111,6 +190,58 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userName]);
+
+  // Fetch live leaderboard + total questions count + simulations count
+  useEffect(() => {
+    Promise.all([
+      axios.get(`${proxy}/api/v1/users/leaderboard`).catch(() => null),
+      axios.get(`${proxy}/api/v1/questions/getQuestion`).catch(() => null),
+      axios.get(`${proxy}/api/v1/simulations/getSimulations`).catch(() => null),
+    ]).then(([lbRes, qRes, simRes]) => {
+      const lb: LeaderboardEntry[] = lbRes?.data?.data ?? [];
+      setLeaderboard(lb);
+      setTotalQuestions((qRes?.data?.data ?? []).length);
+      setTotalSimulations((simRes?.data?.data ?? []).length);
+
+      const uname =
+        typeof window !== "undefined" ? localStorage.getItem("Name") || "" : "";
+      const idx = lb.findIndex((e) => e.username === uname);
+      if (idx !== -1) {
+        const entry = lb[idx];
+        setStats((prev) => ({
+          ...prev,
+          totalProblems: entry.problemsSolved,
+          totalSimulations: entry.simulationsSolved,
+          globalRank: idx + 1,
+        }));
+      }
+    });
+  }, []);
+
+  // Fetch recent submissions for the current user
+  useEffect(() => {
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("accessToken")
+        : null;
+    if (!token) return;
+    fetch("/api/submissions/recent", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((d) => setRecentActivity(d?.data ?? []))
+      .catch(() => {});
+  }, []);
+
+  // Derived: top 3 + current user's leaderboard entry
+  const top3 = useMemo(() => leaderboard.slice(0, 3), [leaderboard]);
+  const userRank = useMemo(
+    () => leaderboard.findIndex((e) => e.username === currentUsername),
+    [leaderboard, currentUsername],
+  );
+  const userLbEntry = userRank !== -1 ? leaderboard[userRank] : null;
+  const userXP = userLbEntry?.xp ?? 0;
+  const lvl = computeLevel(userXP);
 
   // Loading state
   if (isAuthenticated === null) {
@@ -190,12 +321,25 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
               <Code2 className="w-4 h-4 text-gray-500" />
               <span className="font-mono text-[10px] text-gray-400">DSA</span>
             </div>
-            <p className="text-2xl font-bold text-black mb-0.5">
-              {stats.totalProblems > 0 ? stats.totalProblems : "--"}
-            </p>
-            <p className="font-mono text-[11px] text-gray-500">
-              Problems Solved
-            </p>
+            <div className="flex items-center gap-3">
+              <CircularRing
+                value={stats.totalProblems}
+                max={totalQuestions || 1}
+              />
+              <div>
+                <p className="text-2xl font-bold text-black mb-0.5">
+                  {stats.totalProblems}
+                </p>
+                <p className="font-mono text-[11px] text-gray-500">
+                  Problems Solved
+                </p>
+                {totalQuestions > 0 && (
+                  <p className="font-mono text-[10px] text-gray-400 mt-0.5">
+                    of {totalQuestions}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="border border-gray-200 rounded-lg p-4 hover:border-black transition-all hover:shadow-md bg-white/80 backdrop-blur-sm">
@@ -203,25 +347,36 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
               <PlayCircle className="w-4 h-4 text-gray-500" />
               <span className="font-mono text-[10px] text-gray-400">PROD</span>
             </div>
-            <p className="text-2xl font-bold text-black mb-0.5">
-              {stats.totalSimulations > 0 ? stats.totalSimulations : "--"}
-            </p>
-            <p className="font-mono text-[11px] text-gray-500">
-              Simulations Done
-            </p>
+            <div className="flex items-center gap-3">
+              <CircularRing
+                value={stats.totalSimulations}
+                max={totalSimulations || 1}
+              />
+              <div>
+                <p className="text-2xl font-bold text-black mb-0.5">
+                  {stats.totalSimulations}
+                </p>
+                <p className="font-mono text-[11px] text-gray-500">
+                  Simulations Done
+                </p>
+                {totalSimulations > 0 && (
+                  <p className="font-mono text-[10px] text-gray-400 mt-0.5">
+                    of {totalSimulations}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="border border-gray-200 rounded-lg p-4 hover:border-black transition-all hover:shadow-md bg-white/80 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
               <Zap className="w-4 h-4 text-gray-500" />
-              <span className="font-mono text-[10px] text-gray-400">
-                STREAK
-              </span>
+              <span className="font-mono text-[10px] text-gray-400">XP</span>
             </div>
             <p className="text-2xl font-bold text-black mb-0.5">
-              {stats.currentStreak > 0 ? stats.currentStreak : "--"}
+              {userXP.toLocaleString()}
             </p>
-            <p className="font-mono text-[11px] text-gray-500">Day Streak</p>
+            <p className="font-mono text-[11px] text-gray-500">Total XP</p>
           </div>
 
           <div className="border border-gray-200 rounded-lg p-4 hover:border-black transition-all hover:shadow-md bg-white/80 backdrop-blur-sm">
@@ -242,36 +397,55 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
         <div className="border border-gray-900 rounded-lg p-4 bg-gray-950 text-white flex items-center gap-5">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center shrink-0">
-              <span className="text-white font-mono text-sm font-bold">7</span>
+              <span className="text-white font-mono text-sm font-bold">
+                {lvl.level}
+              </span>
             </div>
             <div>
               <p className="font-mono text-[10px] text-gray-400 tracking-widest">
                 LEVEL
               </p>
-              <p className="font-bold text-white text-sm">Incident Debugger</p>
+              <p className="font-bold text-white text-sm">{lvl.title}</p>
             </div>
           </div>
           <div className="flex-1">
             <div className="flex justify-between mb-1">
               <span className="font-mono text-[10px] text-gray-500">
-                2,450 XP
+                {userXP.toLocaleString()} XP
               </span>
               <span className="font-mono text-[10px] text-gray-500">
-                3,000 XP
+                {lvl.maxXP < 999999
+                  ? lvl.maxXP.toLocaleString() + " XP"
+                  : "MAX"}
               </span>
             </div>
             <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
               <div
-                className="h-full bg-white rounded-full"
-                style={{ width: "82%" }}
+                className="h-full bg-white rounded-full transition-all duration-700"
+                style={{
+                  width:
+                    lvl.maxXP < 999999
+                      ? `${Math.min(100, Math.round(((userXP - lvl.minXP) / (lvl.maxXP - lvl.minXP)) * 100))}%`
+                      : "100%",
+                }}
               />
             </div>
           </div>
           <div className="text-right shrink-0">
-            <p className="font-mono text-xs text-gray-400">550 XP to</p>
-            <p className="font-mono text-xs text-white font-semibold">
-              Level 8
-            </p>
+            {lvl.maxXP < 999999 ? (
+              <>
+                <p className="font-mono text-xs text-gray-400">
+                  {(lvl.maxXP - userXP).toLocaleString()} XP to
+                </p>
+                <p className="font-mono text-xs text-white font-semibold">
+                  Level {lvl.level + 1}
+                </p>
+              </>
+            ) : (
+              <p className="font-mono text-xs text-white font-semibold">
+                Max Level
+              </p>
+            )}
           </div>
         </div>
 
@@ -350,51 +524,63 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
               <Users className="w-4 h-4 text-gray-400" />
             </div>
             <div className="space-y-2">
-              {[
-                { rank: 1, name: "alex_dev", xp: "12,840 XP", badge: "🏆" },
-                { rank: 2, name: "priya_codes", xp: "11,200 XP", badge: "🥈" },
-                { rank: 3, name: "max_sys", xp: "9,750 XP", badge: "🥉" },
-                {
-                  rank: 47,
-                  name: "You",
-                  xp: "2,450 XP",
-                  badge: null,
-                  isYou: true,
-                },
-              ].map((u) => (
-                <div
-                  key={u.rank}
-                  className={`flex items-center gap-3 p-2.5 rounded-lg ${
-                    u.isYou
-                      ? "bg-gray-950 text-white border border-gray-800"
-                      : "bg-gray-50 border border-gray-100"
-                  }`}
-                >
-                  <span
-                    className={`font-mono text-xs w-6 text-center font-bold ${
-                      u.isYou ? "text-gray-400" : "text-gray-600"
+              {/* Top 3 */}
+              {top3.map((u, i) => {
+                const badges = ["🏆", "🥈", "🥉"];
+                const isYou = u.username === currentUsername;
+                return (
+                  <div
+                    key={u._id}
+                    className={`flex items-center gap-3 p-2.5 rounded-lg ${
+                      isYou
+                        ? "bg-gray-950 text-white border border-gray-800"
+                        : "bg-gray-50 border border-gray-100"
                     }`}
                   >
-                    #{u.rank}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className={`font-mono text-xs font-semibold truncate ${
-                        u.isYou ? "text-white" : "text-gray-800"
+                    <span
+                      className={`font-mono text-xs w-6 text-center font-bold ${
+                        isYou ? "text-gray-400" : "text-gray-600"
                       }`}
                     >
-                      {u.badge} {u.name}
+                      #{i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className={`font-mono text-xs font-semibold truncate ${
+                          isYou ? "text-white" : "text-gray-800"
+                        }`}
+                      >
+                        {badges[i]} {u.displayName || u.username}
+                        {isYou && " (You)"}
+                      </p>
+                    </div>
+                    <span className="font-mono text-[10px] text-gray-400">
+                      {u.xp.toLocaleString()} XP
+                    </span>
+                  </div>
+                );
+              })}
+              {/* Current user if not in top 3 */}
+              {userRank >= 3 && userLbEntry && (
+                <div className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-950 text-white border border-gray-800">
+                  <span className="font-mono text-xs w-6 text-center font-bold text-gray-400">
+                    #{userRank + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-mono text-xs font-semibold truncate text-white">
+                      {userLbEntry.displayName || userLbEntry.username} (You)
                     </p>
                   </div>
-                  <span
-                    className={`font-mono text-[10px] ${
-                      u.isYou ? "text-gray-400" : "text-gray-400"
-                    }`}
-                  >
-                    {u.xp}
+                  <span className="font-mono text-[10px] text-gray-400">
+                    {userLbEntry.xp.toLocaleString()} XP
                   </span>
                 </div>
-              ))}
+              )}
+              {top3.length === 0 && (
+                <p className="font-mono text-[11px] text-gray-400 text-center py-2">
+                  No data yet — be the first on the board!
+                </p>
+              )}
             </div>
             <a
               href="/dashboard/leaderboard"
@@ -405,61 +591,77 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
           </div>
         </div>
 
-        {/* Recent Simulations */}
+        {/* Recent Activity */}
         <div>
           <h2 className="font-mono text-[10px] tracking-[0.2em] text-gray-400 mb-3">
-            RECENT SIMULATIONS
+            RECENT ACTIVITY
           </h2>
           <div className="space-y-2">
-            {[
-              {
-                title: "Memory Leak in Node.js API",
-                tag: "Backend",
-                diff: "Hard",
-                time: "2h ago",
-                done: true,
-              },
-              {
-                title: "React Component Re-renders",
-                tag: "Frontend",
-                diff: "Medium",
-                time: "Yesterday",
-                done: true,
-              },
-              {
-                title: "Database Connection Pool Exhaustion",
-                tag: "DevOps",
-                diff: "Hard",
-                time: "2 days ago",
-                done: false,
-              },
-            ].map((sim, i) => (
-              <div
-                key={i}
-                className="border border-gray-200 rounded-lg p-4 bg-white/80 backdrop-blur-sm hover:border-black transition-all flex items-center justify-between gap-4"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div
-                    className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${sim.done ? "bg-gray-100" : "bg-gray-50"}`}
-                  >
-                    <PlayCircle className="w-3.5 h-3.5 text-gray-600" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-black text-sm truncate">
-                      {sim.title}
-                    </p>
-                    <p className="font-mono text-[11px] text-gray-400">
-                      {sim.tag} · {sim.diff} · {sim.time}
-                    </p>
-                  </div>
-                </div>
-                <span
-                  className={`font-mono text-[10px] px-2 py-0.5 rounded-full shrink-0 ${sim.done ? "bg-gray-100 text-gray-500" : "bg-black text-white"}`}
+            {recentActivity.length === 0 ? (
+              <div className="border border-gray-200 rounded-lg p-6 bg-white/80 text-center">
+                <p className="font-mono text-sm text-gray-400">
+                  No activity yet — start solving problems!
+                </p>
+                <a
+                  href="/dashboard/dsa-arena"
+                  className="inline-flex items-center gap-1 mt-2 font-mono text-xs text-black hover:underline"
                 >
-                  {sim.done ? "Completed" : "In Progress"}
-                </span>
+                  Go to DSA Arena <ArrowRight className="w-3 h-3" />
+                </a>
               </div>
-            ))}
+            ) : (
+              recentActivity.map((sub) => {
+                const accepted = sub.verdict === "accepted";
+                const title = sub.question?.title ?? "Unknown Question";
+                const level = sub.question?.level ?? "";
+                const levelColor =
+                  level === "Easy"
+                    ? "text-green-600"
+                    : level === "Medium"
+                      ? "text-yellow-600"
+                      : "text-red-600";
+                return (
+                  <a
+                    key={sub._id}
+                    href={`/dashboard/dsa-arena/${sub.question?._id ?? ""}`}
+                    className="border border-gray-200 rounded-lg p-4 bg-white/80 backdrop-blur-sm hover:border-black transition-all flex items-center justify-between gap-4"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${
+                          accepted ? "bg-gray-900" : "bg-gray-100"
+                        }`}
+                      >
+                        <Code2
+                          className={`w-3.5 h-3.5 ${
+                            accepted ? "text-white" : "text-gray-500"
+                          }`}
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-black text-sm truncate">
+                          {title}
+                        </p>
+                        <p className="font-mono text-[11px] text-gray-400">
+                          <span className={levelColor}>{level}</span>
+                          {level ? " · " : ""}
+                          {sub.language} · {timeAgo(sub.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={`font-mono text-[10px] px-2 py-0.5 rounded-full shrink-0 ${
+                        accepted
+                          ? "bg-gray-900 text-white"
+                          : "bg-gray-100 text-gray-500"
+                      }`}
+                    >
+                      {accepted ? "Accepted" : "Attempted"}
+                    </span>
+                  </a>
+                );
+              })
+            )}
           </div>
         </div>
       </div>
