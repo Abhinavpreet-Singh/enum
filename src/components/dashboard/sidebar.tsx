@@ -15,7 +15,10 @@ import {
   LogOut,
   Shield,
   Menu,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { useTheme } from "@/providers/theme-provider";
 
 // Sidebar dimensions (in px)
 const COLLAPSED_W = 72;
@@ -62,6 +65,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
   ]);
   const [hovered, setHovered] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   const expanded = pinned || hovered;
 
@@ -193,14 +197,15 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
     <>
       {/* Desktop Sidebar */}
       <aside
+        onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{ width: expanded ? EXPANDED_W : COLLAPSED_W }}
-        className={`hidden lg:flex lg:flex-col lg:fixed lg:left-0 lg:top-0 lg:h-screen bg-white dark:bg-black border-r border-gray-100 dark:border-gray-900 transition-[width] duration-300 ease-in-out overflow-hidden ${
+        className={`hidden lg:flex lg:flex-col lg:fixed lg:left-0 lg:top-0 lg:h-screen bg-white dark:bg-black border-r border-gray-100 dark:border-gray-800 transition-[width] duration-380 ease-in-out overflow-hidden ${
           pinned ? "z-40" : "z-50"
         }`}
       >
         {/* ── Header: Hamburger toggle (click only) ── */}
-        <div className="px-4 h-16 flex items-center gap-3 border-b border-gray-100">
+        <div className="px-4 h-16 flex items-center gap-3 border-b border-gray-100 dark:border-gray-800">
           <button
             onClick={() => {
               if (pinned) setHovered(false);
@@ -216,7 +221,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
             <Menu className="w-5 h-5" />
           </button>
           <span
-            className={`font-bold text-lg tracking-tight whitespace-nowrap transition-opacity duration-200 ${
+            className={`font-bold text-lg tracking-tight whitespace-nowrap transition-opacity duration-300 ${
               expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
             }`}
           >
@@ -229,11 +234,8 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
           </span>
         </div>
 
-        {/* ── Hoverable body: nav + profile + actions ── */}
-        <div
-          className="flex flex-col flex-1 min-h-0"
-          onMouseEnter={() => setHovered(true)}
-        >
+        {/* ── Body: nav + profile + actions ── */}
+        <div className="flex flex-col flex-1 min-h-0">
           {/* Navigation */}
           <nav className="flex-1 px-3 py-4 space-y-1">
             {navItems.map((item) => {
@@ -247,10 +249,10 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
                   onClick={() => {
                     if (!pinned) setHovered(false);
                   }}
-                  className={`group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-lg font-mono text-sm tracking-wide transition-all duration-150 whitespace-nowrap ${
+                  className={`group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-lg font-mono text-sm tracking-wide transition-all duration-200 whitespace-nowrap border ${
                     isActive
-                      ? "bg-gray-50 dark:bg-gray-900 text-black dark:text-white font-medium"
-                      : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900 hover:text-gray-800 dark:hover:text-white"
+                      ? "border-gray-200 bg-gray-50 dark:border-white dark:bg-transparent text-black dark:text-white font-medium"
+                      : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-transparent hover:border-gray-200 dark:hover:border-white hover:text-gray-800 dark:hover:text-white"
                   }`}
                 >
                   {/* Active indicator bar */}
@@ -263,7 +265,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
                     }`}
                   />
                   <span
-                    className={`transition-opacity duration-200 ${
+                    className={`transition-opacity duration-300 ${
                       expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
                     }`}
                   >
@@ -280,7 +282,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
           {/* User Profile */}
           <Link
             href="/dashboard/profile"
-            className="block px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg transition-colors"
+            className="block px-4 py-3 hover:bg-gray-50 dark:hover:bg-transparent rounded-lg transition-all duration-200 border border-transparent hover:border-gray-200 dark:hover:border-white"
             title="View Profile"
             onClick={() => {
               if (!pinned) setHovered(false);
@@ -307,7 +309,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
                 )}
               </div>
               <div
-                className={`min-w-0 transition-opacity duration-200 ${
+                className={`min-w-0 transition-opacity duration-300 ${
                   expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
                 }`}
               >
@@ -323,13 +325,35 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
 
           {/* Bottom Actions */}
           <div className="px-3 pb-4 space-y-0.5">
+            <button
+              onClick={toggleTheme}
+              title={
+                theme === "dark"
+                  ? "Switch to Light Mode"
+                  : "Switch to Dark Mode"
+              }
+              className="w-full flex items-center gap-3 pl-4 pr-3 py-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-transparent hover:text-gray-800 dark:hover:text-white rounded-lg font-mono text-sm tracking-wide transition-all duration-200 border border-transparent hover:border-gray-200 dark:hover:border-white whitespace-nowrap"
+            >
+              {theme === "dark" ? (
+                <Sun className="w-4 h-4 shrink-0" />
+              ) : (
+                <Moon className="w-4 h-4 shrink-0" />
+              )}
+              <span
+                className={`transition-opacity duration-200 ${
+                  expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
+                }`}
+              >
+                {theme === "dark" ? "Light Mode" : "Dark Mode"}
+              </span>
+            </button>
             <Link
               href="/dashboard/settings"
               title="Settings"
               onClick={() => {
                 if (!pinned) setHovered(false);
               }}
-              className="flex items-center gap-3 pl-4 pr-3 py-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900 hover:text-gray-800 dark:hover:text-white rounded-lg font-mono text-sm tracking-wide transition-colors whitespace-nowrap"
+              className="flex items-center gap-3 pl-4 pr-3 py-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-transparent hover:text-gray-800 dark:hover:text-white rounded-lg font-mono text-sm tracking-wide transition-all duration-200 border border-transparent hover:border-gray-200 dark:hover:border-white whitespace-nowrap"
             >
               <Settings className="w-4.5 h-4.5 shrink-0" />
               <span
@@ -344,7 +368,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
               onClick={handleLogout}
               disabled={isLoggingOut}
               title="Sign Out"
-              className="w-full flex items-center gap-3 pl-4 pr-3 py-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900 hover:text-gray-800 dark:hover:text-white rounded-lg font-mono text-sm tracking-wide transition-colors disabled:opacity-70 disabled:cursor-not-allowed whitespace-nowrap"
+              className="w-full flex items-center gap-3 pl-4 pr-3 py-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-transparent hover:text-gray-800 dark:hover:text-white rounded-lg font-mono text-sm tracking-wide transition-all duration-200 border border-transparent hover:border-gray-200 dark:hover:border-white disabled:opacity-70 disabled:cursor-not-allowed whitespace-nowrap"
             >
               {isLoggingOut ? (
                 <svg

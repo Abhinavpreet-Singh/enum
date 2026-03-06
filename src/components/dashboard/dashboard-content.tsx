@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   Code2,
@@ -291,20 +291,6 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
   // Authenticated dashboard
   return (
     <div className="relative min-h-screen">
-      {/* Grid Background */}
-      <div className="absolute inset-0 opacity-[0.04] pointer-events-none">
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `
-              linear-gradient(to right, #888 1px, transparent 1px),
-              linear-gradient(to bottom, #888 1px, transparent 1px)
-            `,
-            backgroundSize: "40px 40px",
-          }}
-        />
-      </div>
-
       <div className="relative z-10 space-y-5 pb-6">
         {/* Welcome */}
         <div>
@@ -318,7 +304,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 hover:border-black dark:hover:border-gray-500 transition-all hover:shadow-md bg-white/80 dark:bg-black/80 backdrop-blur-sm">
+          <div className="border border-gray-200 dark:border-white/8 rounded-lg p-4 hover:border-gray-400 dark:hover:border-white/40 transition-all bg-white dark:bg-[#111]">
             <div className="flex items-center justify-between mb-2">
               <Code2 className="w-4 h-4 text-gray-500" />
               <span className="font-mono text-[10px] text-gray-400">DSA</span>
@@ -344,7 +330,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
             </div>
           </div>
 
-          <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 hover:border-black dark:hover:border-gray-500 transition-all hover:shadow-md bg-white/80 dark:bg-black/80 backdrop-blur-sm">
+          <div className="border border-gray-200 dark:border-white/8 rounded-lg p-4 hover:border-gray-400 dark:hover:border-white/40 transition-all bg-white dark:bg-[#111]">
             <div className="flex items-center justify-between mb-2">
               <PlayCircle className="w-4 h-4 text-gray-500" />
               <span className="font-mono text-[10px] text-gray-400">PROD</span>
@@ -370,7 +356,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
             </div>
           </div>
 
-          <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 hover:border-black dark:hover:border-gray-500 transition-all hover:shadow-md bg-white/80 dark:bg-black/80 backdrop-blur-sm">
+          <div className="border border-gray-200 dark:border-white/8 rounded-lg p-4 hover:border-gray-400 dark:hover:border-white/40 transition-all bg-white dark:bg-[#111]">
             <div className="flex items-center justify-between mb-2">
               <Zap className="w-4 h-4 text-gray-500" />
               <span className="font-mono text-[10px] text-gray-400">XP</span>
@@ -383,7 +369,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
             </p>
           </div>
 
-          <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 hover:border-black dark:hover:border-gray-500 transition-all hover:shadow-md bg-white/80 dark:bg-black/80 backdrop-blur-sm">
+          <div className="border border-gray-200 dark:border-white/8 rounded-lg p-4 hover:border-gray-400 dark:hover:border-white/40 transition-all bg-white dark:bg-[#111]">
             <div className="flex items-center justify-between mb-2">
               <Trophy className="w-4 h-4 text-gray-500" />
               <span className="font-mono text-[10px] text-gray-400">RANK</span>
@@ -398,34 +384,39 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
         </div>
 
         {/* XP Level Strip */}
-        <div className="border border-gray-900 rounded-lg p-4 bg-gray-950 text-white flex items-center gap-5">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center shrink-0">
+        <div className="rounded-lg p-5 border border-white/8 bg-[#111] text-white flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          {/* Level badge */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="w-10 h-10 border border-white/30 rounded-lg flex items-center justify-center shrink-0">
               <span className="text-white font-mono text-sm font-bold">
                 {lvl.level}
               </span>
             </div>
             <div>
-              <p className="font-mono text-[10px] text-gray-400 tracking-widest">
-                LEVEL
+              <p className="font-mono text-[9px] tracking-[0.3em] text-gray-500 uppercase">
+                Level
               </p>
-              <p className="font-bold text-white text-sm">{lvl.title}</p>
+              <p className="font-bold text-white text-sm leading-tight">
+                {lvl.title}
+              </p>
             </div>
           </div>
-          <div className="flex-1">
-            <div className="flex justify-between mb-1">
-              <span className="font-mono text-[10px] text-gray-500">
+
+          {/* Progress */}
+          <div className="flex-1 w-full">
+            <div className="flex justify-between mb-2">
+              <span className="font-mono text-[10px] text-gray-400">
                 {userXP.toLocaleString()} XP
               </span>
               <span className="font-mono text-[10px] text-gray-500">
                 {lvl.maxXP < 999999
-                  ? lvl.maxXP.toLocaleString() + " XP"
-                  : "MAX"}
+                  ? `${lvl.maxXP.toLocaleString()} XP`
+                  : "MAX LEVEL"}
               </span>
             </div>
-            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-px bg-white/10 relative overflow-visible">
               <div
-                className="h-full bg-white rounded-full transition-all duration-700"
+                className="absolute top-1/2 left-0 -translate-y-1/2 h-0.75 bg-white rounded-full transition-all duration-700"
                 style={{
                   width:
                     lvl.maxXP < 999999
@@ -434,29 +425,26 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                 }}
               />
             </div>
-          </div>
-          <div className="text-right shrink-0">
-            {lvl.maxXP < 999999 ? (
-              <>
-                <p className="font-mono text-xs text-gray-400">
-                  {(lvl.maxXP - userXP).toLocaleString()} XP to
-                </p>
-                <p className="font-mono text-xs text-white font-semibold">
-                  Level {lvl.level + 1}
-                </p>
-              </>
-            ) : (
-              <p className="font-mono text-xs text-white font-semibold">
-                Max Level
-              </p>
-            )}
+            <div className="mt-2 flex justify-between">
+              <span className="font-mono text-[9px] text-gray-600">
+                {lvl.maxXP < 999999
+                  ? `${Math.round(((userXP - lvl.minXP) / (lvl.maxXP - lvl.minXP)) * 100)}% complete`
+                  : ""}
+              </span>
+              {lvl.maxXP < 999999 && (
+                <span className="font-mono text-[9px] text-gray-500">
+                  {(lvl.maxXP - userXP).toLocaleString()} XP to Level{" "}
+                  {lvl.level + 1}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Daily Challenge + Leaderboard */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Daily Challenge */}
-          <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-5 bg-white/80 dark:bg-black/80 backdrop-blur-sm hover:border-black dark:hover:border-gray-500 transition-all">
+          <div className="border border-gray-200 dark:border-white/8 rounded-lg p-5 bg-white dark:bg-[#111] hover:border-gray-400 dark:hover:border-white/40 transition-all">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="font-mono text-[10px] tracking-widest text-gray-400">
@@ -469,7 +457,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
               <Flame className="w-4 h-4 text-gray-400" />
             </div>
             <div className="space-y-3">
-              <div className="p-3 bg-gray-50 dark:bg-[#111] rounded-lg border border-gray-100 dark:border-gray-800">
+              <div className="p-3 bg-gray-50 dark:bg-[#1a1a1a] rounded-lg border border-gray-100 dark:border-white/6">
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-semibold text-black dark:text-white text-sm">
                     LRU Cache Implementation
@@ -479,7 +467,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                   </span>
                 </div>
                 <p className="font-mono text-[11px] text-gray-400 mt-1">
-                  Data Structures · Hash Map + DLL
+                  Data Structures � Hash Map + DLL
                 </p>
                 <div className="flex items-center justify-between mt-3">
                   <div className="flex items-center gap-1">
@@ -502,7 +490,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                   </button>
                 </div>
               </div>
-              <div className="flex items-center gap-2 p-2 rounded-md bg-gray-50 dark:bg-[#111]">
+              <div className="flex items-center gap-2 p-2 rounded-md bg-gray-50 dark:bg-[#1a1a1a]">
                 <Zap className="w-3.5 h-3.5 text-gray-500" />
                 <span className="font-mono text-[11px] text-gray-500 dark:text-gray-400">
                   Complete today to earn
@@ -515,7 +503,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
           </div>
 
           {/* Leaderboard Peek */}
-          <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-5 bg-white/80 dark:bg-black/80 backdrop-blur-sm hover:border-black dark:hover:border-gray-500 transition-all">
+          <div className="border border-gray-200 dark:border-white/8 rounded-lg p-5 bg-white dark:bg-[#111] hover:border-gray-400 dark:hover:border-white/40 transition-all">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="font-mono text-[10px] tracking-widest text-gray-400">
@@ -530,15 +518,15 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
             <div className="space-y-2">
               {/* Top 3 */}
               {top3.map((u, i) => {
-                const badges = ["🏆", "🥈", "🥉"];
+                const badges = ["??", "??", "??"];
                 const isYou = u.username === currentUsername;
                 return (
                   <div
                     key={u._id}
                     className={`flex items-center gap-3 p-2.5 rounded-lg ${
                       isYou
-                        ? "bg-gray-950 text-white border border-gray-800"
-                        : "bg-gray-50 dark:bg-[#111] border border-gray-100 dark:border-gray-800"
+                        ? "bg-white/10 text-white border border-white/20"
+                        : "bg-gray-50 dark:bg-[#1a1a1a] border border-gray-100 dark:border-white/6"
                     }`}
                   >
                     <span
@@ -566,7 +554,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
               })}
               {/* Current user if not in top 3 */}
               {userRank >= 3 && userLbEntry && (
-                <div className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-950 text-white border border-gray-800">
+                <div className="flex items-center gap-3 p-2.5 rounded-lg bg-white/10 text-white border border-white/20">
                   <span className="font-mono text-xs w-6 text-center font-bold text-gray-400">
                     #{userRank + 1}
                   </span>
@@ -582,7 +570,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
               )}
               {top3.length === 0 && (
                 <p className="font-mono text-[11px] text-gray-400 text-center py-2">
-                  No data yet — be the first on the board!
+                  No data yet � be the first on the board!
                 </p>
               )}
             </div>
@@ -602,9 +590,9 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
           </h2>
           <div className="space-y-2">
             {recentActivity.length === 0 ? (
-              <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-6 bg-white/80 dark:bg-black/80 text-center">
+              <div className="border border-gray-200 dark:border-white/8 rounded-lg p-6 bg-white dark:bg-[#111] text-center">
                 <p className="font-mono text-sm text-gray-400">
-                  No activity yet — start solving problems!
+                  No activity yet � start solving problems!
                 </p>
                 <a
                   href="/dashboard/dsa-arena"
@@ -628,19 +616,19 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                   <a
                     key={sub._id}
                     href={`/dashboard/dsa-arena/${sub.question?._id ?? ""}`}
-                    className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 bg-white/80 dark:bg-black/80 backdrop-blur-sm hover:border-black dark:hover:border-gray-500 transition-all flex items-center justify-between gap-4"
+                    className="border border-gray-200 dark:border-white/8 rounded-lg p-4 bg-white dark:bg-[#111] hover:border-gray-400 dark:hover:border-white/40 transition-all flex items-center justify-between gap-4"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div
                         className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${
                           accepted
-                            ? "bg-gray-900"
-                            : "bg-gray-100 dark:bg-gray-800"
+                            ? "bg-white dark:bg-white"
+                            : "bg-gray-100 dark:bg-[#1a1a1a]"
                         }`}
                       >
                         <Code2
                           className={`w-3.5 h-3.5 ${
-                            accepted ? "text-white" : "text-gray-500"
+                            accepted ? "text-black" : "text-gray-500"
                           }`}
                         />
                       </div>
@@ -650,16 +638,16 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                         </p>
                         <p className="font-mono text-[11px] text-gray-400">
                           <span className={levelColor}>{level}</span>
-                          {level ? " · " : ""}
-                          {sub.language} · {timeAgo(sub.createdAt)}
+                          {level ? " � " : ""}
+                          {sub.language} � {timeAgo(sub.createdAt)}
                         </p>
                       </div>
                     </div>
                     <span
                       className={`font-mono text-[10px] px-2 py-0.5 rounded-full shrink-0 ${
                         accepted
-                          ? "bg-gray-900 text-white"
-                          : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
+                          ? "bg-white text-black"
+                          : "bg-gray-100 dark:bg-[#1a1a1a] text-gray-500 dark:text-gray-400"
                       }`}
                     >
                       {accepted ? "Accepted" : "Attempted"}
