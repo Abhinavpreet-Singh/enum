@@ -49,11 +49,14 @@ export default function AuthForm() {
         withCredentials: true,
       });
 
-            localStorage.setItem("Name", response.data.data.username);
-            localStorage.setItem("id", response.data.data.id ?? response.data.data._id);
-            localStorage.setItem("accessToken", response.data.accessToken);
-            
-            console.log("✅ Success:", response.data);
+      localStorage.setItem("Name", response.data.data.username);
+      localStorage.setItem(
+        "id",
+        response.data.data.id ?? response.data.data._id,
+      );
+      localStorage.setItem("accessToken", response.data.accessToken);
+
+      console.log("✅ Success:", response.data);
 
       // Redirect to dashboard
       router.push("/dashboard");
@@ -87,7 +90,7 @@ export default function AuthForm() {
   };
 
   return (
-    <div className="relative h-screen w-full flex items-center justify-center px-4 py-4 bg-gray-50 overflow-hidden">
+    <div className="relative h-screen w-full flex items-center justify-center px-4 py-4 bg-gray-50 dark:bg-black overflow-hidden">
       {/* Grid Background */}
       <div className="absolute inset-0 opacity-[0.07]">
         <div
@@ -107,7 +110,7 @@ export default function AuthForm() {
         <div className="text-center mb-4">
           <Link href="/" className="inline-block">
             <h1
-              className="font-bold text-[40px] leading-none text-black flex justify-center"
+              className="font-bold text-[40px] leading-none text-black dark:text-white flex justify-center"
               style={{ letterSpacing: "-0.08em", transform: "scaleX(0.9)" }}
             >
               <span>E</span>
@@ -119,15 +122,15 @@ export default function AuthForm() {
         </div>
 
         {/* Auth Card */}
-        <div className="bg-white border border-gray-300 p-6">
+        <div className="bg-white dark:bg-[#0d0d0d] border border-gray-300 dark:border-gray-800 p-6">
           {/* Mode Toggle */}
           <div className="flex mb-3 border-b border-gray-200">
             <button
               onClick={() => setMode("login")}
               className={`flex-1 pb-2 font-mono text-xs tracking-wider transition-colors ${
                 mode === "login"
-                  ? "text-black border-b-2 border-black"
-                  : "text-gray-400"
+                  ? "text-black dark:text-white border-b-2 border-black dark:border-white"
+                  : "text-gray-400 dark:text-gray-600"
               }`}
             >
               LOGIN
@@ -136,8 +139,8 @@ export default function AuthForm() {
               onClick={() => setMode("register")}
               className={`flex-1 pb-2 font-mono text-xs tracking-wider transition-colors ${
                 mode === "register"
-                  ? "text-black border-b-2 border-black"
-                  : "text-gray-400"
+                  ? "text-black dark:text-white border-b-2 border-black dark:border-white"
+                  : "text-gray-400 dark:text-gray-600"
               }`}
             >
               REGISTER
@@ -151,7 +154,7 @@ export default function AuthForm() {
               <div>
                 <label
                   htmlFor="username"
-                  className="block font-mono text-xs tracking-wider text-gray-700 mb-1"
+                  className="block font-mono text-xs tracking-wider text-gray-700 dark:text-gray-400 mb-1"
                 >
                   USERNAME
                 </label>
@@ -162,7 +165,7 @@ export default function AuthForm() {
                   onChange={(e) =>
                     setFormData({ ...formData, username: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 bg-white text-black font-mono text-sm focus:outline-none focus:border-black transition-colors"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] text-black dark:text-white font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white transition-colors"
                   placeholder="Username"
                   required
                 />
@@ -173,7 +176,7 @@ export default function AuthForm() {
             <div>
               <label
                 htmlFor="email"
-                className="block font-mono text-xs tracking-wider text-gray-700 mb-1"
+                className="block font-mono text-xs tracking-wider text-gray-700 dark:text-gray-400 mb-1"
               >
                 EMAIL
               </label>
@@ -184,7 +187,7 @@ export default function AuthForm() {
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 bg-white text-black font-mono text-sm focus:outline-none focus:border-black transition-colors"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] text-black dark:text-white font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white transition-colors"
                 placeholder="Email"
                 required
               />
@@ -194,7 +197,7 @@ export default function AuthForm() {
             <div>
               <label
                 htmlFor="password"
-                className="block font-mono text-xs tracking-wider text-gray-700 mb-1"
+                className="block font-mono text-xs tracking-wider text-gray-700 dark:text-gray-400 mb-1"
               >
                 PASSWORD
               </label>
@@ -205,7 +208,7 @@ export default function AuthForm() {
                 onChange={(e) =>
                   setFormData({ ...formData, password: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 bg-white text-black font-mono text-sm focus:outline-none focus:border-black transition-colors"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] text-black dark:text-white font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white transition-colors"
                 placeholder="Password"
                 required
               />
@@ -215,7 +218,7 @@ export default function AuthForm() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full px-4 py-2 bg-black text-white font-mono text-xs tracking-wider hover:bg-gray-900 transition-colors mt-3 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full px-4 py-2 bg-black dark:bg-white text-white dark:text-black font-mono text-xs tracking-wider hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors mt-3 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isLoading && (
                 <svg
@@ -252,10 +255,10 @@ export default function AuthForm() {
           {/* Divider */}
           <div className="relative my-3">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200" />
+              <div className="w-full border-t border-gray-200 dark:border-gray-800" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="px-2 bg-white font-mono text-gray-500 tracking-wider">
+              <span className="px-2 bg-white dark:bg-[#0d0d0d] font-mono text-gray-500 dark:text-gray-600 tracking-wider">
                 OR
               </span>
             </div>
@@ -266,7 +269,7 @@ export default function AuthForm() {
             <button
               type="button"
               onClick={() => handleSocialAuth("github")}
-              className="w-full px-4 py-2 border border-gray-300 text-black font-mono text-xs tracking-wider hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 text-black dark:text-white font-mono text-xs tracking-wider hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors flex items-center justify-center gap-2"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path
@@ -281,7 +284,7 @@ export default function AuthForm() {
             <button
               type="button"
               onClick={() => handleSocialAuth("google")}
-              className="w-full px-4 py-2 border border-gray-300 text-black font-mono text-xs tracking-wider hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 text-black dark:text-white font-mono text-xs tracking-wider hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors flex items-center justify-center gap-2"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path
@@ -307,21 +310,21 @@ export default function AuthForm() {
 
           {/* Footer Text */}
           {mode === "login" ? (
-            <p className="text-center mt-3 text-xs text-gray-600">
+            <p className="text-center mt-3 text-xs text-gray-600 dark:text-gray-400">
               Don&apos;t have an account?{" "}
               <button
                 onClick={() => setMode("register")}
-                className="text-black font-mono tracking-wider underline"
+                className="text-black dark:text-white font-mono tracking-wider underline"
               >
                 Sign up
               </button>
             </p>
           ) : (
-            <p className="text-center mt-3 text-xs text-gray-600">
+            <p className="text-center mt-3 text-xs text-gray-600 dark:text-gray-400">
               Already have an account?{" "}
               <button
                 onClick={() => setMode("login")}
-                className="text-black font-mono tracking-wider underline"
+                className="text-black dark:text-white font-mono tracking-wider underline"
               >
                 Log in
               </button>
@@ -333,7 +336,7 @@ export default function AuthForm() {
         <div className="text-center mt-3">
           <Link
             href="/"
-            className="text-xs text-gray-600 hover:text-black font-mono tracking-wider transition-colors"
+            className="text-xs text-gray-600 dark:text-gray-500 hover:text-black dark:hover:text-white font-mono tracking-wider transition-colors"
           >
             ← BACK TO HOME
           </Link>

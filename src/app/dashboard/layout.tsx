@@ -13,7 +13,7 @@ export default function DashboardLayout({
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-black">
         <Sidebar pinned={pinned} onTogglePin={() => setPinned((p) => !p)} />
         <main
           style={{ zoom: "110%" }}

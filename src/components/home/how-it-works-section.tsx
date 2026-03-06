@@ -88,14 +88,14 @@ const steps = [
 
 export default function HowItWorksSection() {
   return (
-    <section className="py-16 md:py-20 px-4 md:px-6 bg-white border-t border-gray-300">
+    <section className="py-16 md:py-20 px-4 md:px-6 bg-white dark:bg-black">
       <div className="max-w-7xl mx-auto">
         {/* Section header */}
         <div className="mb-12 md:mb-16">
-          <h2 className="font-mono text-2xl md:text-4xl font-bold mb-3 md:mb-4 text-black tracking-tight">
+          <h2 className="font-mono text-2xl md:text-4xl font-bold mb-3 md:mb-4 text-black dark:text-white tracking-tight">
             How Enum Works
           </h2>
-          <p className="text-gray-700 text-xs md:text-sm font-mono tracking-[0.05em] max-w-2xl">
+          <p className="text-gray-700 dark:text-gray-400 text-xs md:text-sm font-mono tracking-[0.05em] max-w-2xl">
             Production-style simulations that train you for real engineering
             work
           </p>
@@ -105,17 +105,19 @@ export default function HowItWorksSection() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 mb-12 md:mb-20">
           {steps.map((step, index) => (
             <div key={index} className="relative">
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 md:p-8 hover:border-gray-300 transition-all h-full">
+              <div className="bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-lg p-6 md:p-8 hover:border-gray-300 dark:hover:border-gray-400 transition-all h-full">
                 {/* Icon */}
-                <div className="mb-4 text-black">{step.icon}</div>
+                <div className="mb-4 text-black dark:text-white inline-flex items-center justify-center w-12 h-12 border border-gray-300 dark:border-gray-600 rounded-lg">
+                  {step.icon}
+                </div>
 
                 {/* Title */}
-                <h3 className="text-lg md:text-xl font-bold mb-2 md:mb-3 text-black">
+                <h3 className="text-lg md:text-xl font-bold mb-2 md:mb-3 text-black dark:text-white">
                   {step.title}
                 </h3>
 
                 {/* Description */}
-                <p className="text-gray-700 text-sm md:text-base leading-relaxed">
+                <p className="text-gray-700 dark:text-gray-400 text-sm md:text-base leading-relaxed">
                   {step.description}
                 </p>
               </div>

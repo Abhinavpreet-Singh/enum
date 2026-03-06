@@ -195,7 +195,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
       <aside
         onMouseLeave={() => setHovered(false)}
         style={{ width: expanded ? EXPANDED_W : COLLAPSED_W }}
-        className={`hidden lg:flex lg:flex-col lg:fixed lg:left-0 lg:top-0 lg:h-screen bg-white border-r border-gray-100 transition-[width] duration-300 ease-in-out overflow-hidden ${
+        className={`hidden lg:flex lg:flex-col lg:fixed lg:left-0 lg:top-0 lg:h-screen bg-white dark:bg-black border-r border-gray-100 dark:border-gray-900 transition-[width] duration-300 ease-in-out overflow-hidden ${
           pinned ? "z-40" : "z-50"
         }`}
       >
@@ -208,8 +208,8 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
             }}
             className={`p-2 rounded-lg transition-all duration-200 shrink-0 ${
               pinned
-                ? "bg-black text-white shadow-sm"
-                : "text-gray-400 hover:bg-gray-50 hover:text-gray-700"
+                ? "bg-black dark:bg-white text-white dark:text-black shadow-sm"
+                : "text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900 hover:text-gray-700"
             }`}
             title={pinned ? "Unpin sidebar" : "Pin sidebar open"}
           >
@@ -220,7 +220,10 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
               expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
             }`}
           >
-            <Link href="/" className="text-gray-900 hover:text-black">
+            <Link
+              href="/"
+              className="text-gray-900 dark:text-white hover:text-black dark:hover:text-gray-200"
+            >
               ENUM
             </Link>
           </span>
@@ -246,17 +249,17 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
                   }}
                   className={`group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-lg font-mono text-sm tracking-wide transition-all duration-150 whitespace-nowrap ${
                     isActive
-                      ? "bg-gray-50 text-black font-medium"
-                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
+                      ? "bg-gray-50 dark:bg-gray-900 text-black dark:text-white font-medium"
+                      : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900 hover:text-gray-800 dark:hover:text-white"
                   }`}
                 >
                   {/* Active indicator bar */}
                   {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.75 h-5 bg-black rounded-r-full" />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.75 h-5 bg-black dark:bg-white rounded-r-full" />
                   )}
                   <Icon
                     className={`w-4.5 h-4.5 shrink-0 ${
-                      isActive ? "text-black" : ""
+                      isActive ? "text-black dark:text-white" : ""
                     }`}
                   />
                   <span
@@ -272,12 +275,12 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
           </nav>
 
           {/* Separator */}
-          <div className="mx-4 border-t border-gray-100" />
+          <div className="mx-4 border-t border-gray-100 dark:border-gray-900" />
 
           {/* User Profile */}
           <Link
             href="/dashboard/profile"
-            className="block px-4 py-3 hover:bg-gray-50 rounded-lg transition-colors"
+            className="block px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg transition-colors"
             title="View Profile"
             onClick={() => {
               if (!pinned) setHovered(false);
@@ -308,10 +311,10 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
                   expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
                 }`}
               >
-                <p className="font-semibold text-gray-900 text-sm truncate whitespace-nowrap">
+                <p className="font-semibold text-gray-900 dark:text-white text-sm truncate whitespace-nowrap">
                   Profile
                 </p>
-                <p className="font-mono text-[10px] text-gray-400 truncate whitespace-nowrap">
+                <p className="font-mono text-[10px] text-gray-400 dark:text-gray-500 truncate whitespace-nowrap">
                   {userName || "Guest"}
                 </p>
               </div>
@@ -326,7 +329,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
               onClick={() => {
                 if (!pinned) setHovered(false);
               }}
-              className="flex items-center gap-3 pl-4 pr-3 py-2.5 text-gray-500 hover:bg-gray-50 hover:text-gray-800 rounded-lg font-mono text-sm tracking-wide transition-colors whitespace-nowrap"
+              className="flex items-center gap-3 pl-4 pr-3 py-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900 hover:text-gray-800 dark:hover:text-white rounded-lg font-mono text-sm tracking-wide transition-colors whitespace-nowrap"
             >
               <Settings className="w-4.5 h-4.5 shrink-0" />
               <span
@@ -341,7 +344,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
               onClick={handleLogout}
               disabled={isLoggingOut}
               title="Sign Out"
-              className="w-full flex items-center gap-3 pl-4 pr-3 py-2.5 text-gray-500 hover:bg-gray-50 hover:text-gray-800 rounded-lg font-mono text-sm tracking-wide transition-colors disabled:opacity-70 disabled:cursor-not-allowed whitespace-nowrap"
+              className="w-full flex items-center gap-3 pl-4 pr-3 py-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900 hover:text-gray-800 dark:hover:text-white rounded-lg font-mono text-sm tracking-wide transition-colors disabled:opacity-70 disabled:cursor-not-allowed whitespace-nowrap"
             >
               {isLoggingOut ? (
                 <svg
@@ -380,7 +383,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
       </aside>
 
       {/* Mobile Bottom Dock */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-black border-t border-gray-100 dark:border-gray-900 z-50">
         <div className="flex justify-around items-center px-2 py-3">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -390,11 +393,13 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
                 key={item.href}
                 href={item.href}
                 className={`relative flex flex-col items-center gap-1 px-3 py-1 rounded-md transition-colors ${
-                  isActive ? "text-black" : "text-gray-400"
+                  isActive
+                    ? "text-black dark:text-white"
+                    : "text-gray-400 dark:text-gray-600"
                 }`}
               >
                 {isActive && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-0.75 bg-black rounded-full" />
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-0.75 bg-black dark:bg-white rounded-full" />
                 )}
                 <Icon className="w-5 h-5" />
                 <span className="font-mono text-[10px] tracking-wide">
