@@ -7,7 +7,7 @@ import axios from "axios";
 import { proxy } from "@/app/proxy";
 
 interface SimulationItem {
-  _id: string;
+  id: string;
   title: string;
   category: "frontend" | "backend" | "fullstack" | "devops";
   difficulty: "easy" | "medium" | "hard";
@@ -110,8 +110,8 @@ export default function SimulationsPage() {
         <div className="space-y-4">
           {simulations.map((simulation) => (
             <Link
-              key={simulation._id}
-              href={`/dashboard/simulations/${simulation._id}`}
+              key={simulation.id}
+              href={`/dashboard/simulations/${simulation.id}`}
               className="block bg-white rounded-lg border border-gray-200 hover:border-black transition-all hover:shadow-md group"
             >
               <div className="p-6">

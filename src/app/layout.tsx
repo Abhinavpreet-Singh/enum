@@ -17,6 +17,10 @@ export const metadata: Metadata = {
   title: "Enum - Practice Production, Not Puzzles",
   description:
     "Production simulation platform for software engineers. Learn by fixing real-world engineering issues inside live environments.",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
