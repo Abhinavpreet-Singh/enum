@@ -75,9 +75,9 @@ export default function PublishSolutionModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
+        <div className="flex-shrink-0 flex items-center justify-between p-6 border-b">
           <div>
             <h2 className="text-xl font-bold text-black">Publish Your Solution</h2>
             <p className="text-sm text-gray-600 font-mono mt-1">
@@ -93,7 +93,7 @@ export default function PublishSolutionModal({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto flex-1">
           {/* Language Badge */}
           <div>
             <label className="font-mono text-xs tracking-[0.2em] text-gray-500 mb-2 block">
