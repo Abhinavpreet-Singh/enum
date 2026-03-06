@@ -144,22 +144,28 @@ export default function TracksPage() {
             return (
               <div
                 key={track.id}
-                className={`group relative flex flex-col p-5 bg-white dark:bg-[#111] transition-colors ${
+                className={`group relative flex flex-col p-5 bg-white dark:bg-[#111] transition-colors overflow-hidden ${
                   track.locked
-                    ? "opacity-60"
+                    ? "opacity-70 pointer-events-none select-none"
                     : "hover:bg-gray-50 dark:hover:bg-[#161616] cursor-pointer"
                 }`}
               >
-                {/* Lock badge */}
+                {/* Background lock watermark */}
                 {track.locked && (
-                  <span className="absolute top-4 right-4 flex items-center gap-1 font-mono text-[9px] tracking-widest text-gray-400 dark:text-gray-600">
-                    <Lock className="w-3 h-3" />
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
+                    <Lock className="w-28 h-28 text-black/10 dark:text-white/10 stroke-[0.75]" />
+                  </div>
+                )}
+
+                {/* SOON badge */}
+                {track.locked && (
+                  <span className="absolute top-4 right-4 font-mono text-[9px] tracking-widest text-gray-300 dark:text-white/20 z-10">
                     SOON
                   </span>
                 )}
 
                 {/* Icon + difficulty */}
-                <div className="flex items-start justify-between mb-4">
+                <div className="relative z-10 flex items-start justify-between mb-4">
                   <div className="p-2 border border-gray-100 dark:border-white/8 text-black dark:text-white">
                     <Icon className="w-5 h-5" />
                   </div>
@@ -171,15 +177,15 @@ export default function TracksPage() {
                 </div>
 
                 {/* Title + desc */}
-                <h2 className="text-base font-bold text-black dark:text-white mb-1.5 leading-tight">
+                <h2 className="relative z-10 text-base font-bold text-black dark:text-white mb-1.5 leading-tight">
                   {track.title}
                 </h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed flex-1">
+                <p className="relative z-10 text-xs text-gray-500 dark:text-gray-400 leading-relaxed flex-1">
                   {track.description}
                 </p>
 
                 {/* Tags */}
-                <div className="flex flex-wrap gap-1 mt-3 mb-4">
+                <div className="relative z-10 flex flex-wrap gap-1 mt-3 mb-4">
                   {track.tags.map((tag) => (
                     <span
                       key={tag}
@@ -191,7 +197,7 @@ export default function TracksPage() {
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-white/5">
+                <div className="relative z-10 flex items-center justify-between pt-3 border-t border-gray-100 dark:border-white/5">
                   <div className="flex items-center gap-3 font-mono text-[10px] text-gray-400 dark:text-gray-500">
                     <span>
                       <span className="text-black dark:text-white font-bold">
