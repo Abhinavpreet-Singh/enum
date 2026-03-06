@@ -28,7 +28,8 @@ export interface Question {
 
 // Backend question interface
 interface BackendQuestion {
-  _id: string;
+  _id?: string;
+  id?: string;
   title: string;
   desc: string;
   level: "Easy" | "Medium" | "Hard";
@@ -94,7 +95,7 @@ export const fetchQuestions = async (): Promise<Question[]> => {
         }) : [];
 
         return {
-          id: q._id,
+          id: q._id ?? q.id ?? '',
           title: q.title || "Untitled",
           difficulty: q.level || "Easy",
           category: q.topic || "General",

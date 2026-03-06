@@ -47,9 +47,9 @@ export default function QuestionsList() {
 
   return (
     <div className="space-y-4">
-      {questions.map((question) => (
+      {questions.map((question, index) => (
         <Link
-          key={question.id}
+          key={question.id ?? `question-${index}`}
           href={`/dashboard/dsa-arena/${question.id}`}
           className="block border border-gray-300 rounded-lg p-4 hover:border-black hover:shadow-md transition-all"
         >
