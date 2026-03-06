@@ -69,7 +69,8 @@ function CircularRing({
         cy={size / 2}
         r={r}
         fill="none"
-        stroke="#f3f4f6"
+        stroke="currentColor"
+        className="text-gray-200 dark:text-gray-800"
         strokeWidth={stroke}
       />
       <circle
@@ -77,7 +78,8 @@ function CircularRing({
         cy={size / 2}
         r={r}
         fill="none"
-        stroke="#111827"
+        stroke="currentColor"
+        className="text-gray-900 dark:text-white"
         strokeWidth={stroke}
         strokeDasharray={`${pct * circ} ${circ}`}
         strokeLinecap="round"
@@ -248,7 +250,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-4">
-          <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-8 h-8 border-2 border-black dark:border-white border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="font-mono text-sm text-gray-500">
             Loading dashboard...
           </p>
@@ -262,21 +264,21 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="max-w-md text-center space-y-6 px-4">
-          <div className="w-20 h-20 mx-auto bg-gray-100 rounded-full flex items-center justify-center">
+          <div className="w-20 h-20 mx-auto bg-gray-100 dark:bg-gray-900 rounded-full flex items-center justify-center">
             <BarChart3 className="w-10 h-10 text-gray-400" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-2xl md:text-3xl font-bold text-black">
+            <h2 className="text-2xl md:text-3xl font-bold text-black dark:text-white">
               Welcome to Your Dashboard
             </h2>
-            <p className="text-gray-600 font-mono text-sm">
+            <p className="text-gray-600 dark:text-gray-400 font-mono text-sm">
               Please log in to view your stats, progress, and personalized
               recommendations.
             </p>
           </div>
           <a
             href="/login"
-            className="inline-flex items-center gap-2 px-8 py-3 bg-black text-white font-mono text-sm tracking-wider hover:bg-gray-900 transition-colors"
+            className="inline-flex items-center gap-2 px-8 py-3 bg-black dark:bg-white text-white dark:text-black font-mono text-sm tracking-wider hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors"
           >
             Sign In
             <ArrowRight className="w-4 h-4" />
@@ -295,8 +297,8 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
           className="absolute inset-0"
           style={{
             backgroundImage: `
-              linear-gradient(to right, #000 1px, transparent 1px),
-              linear-gradient(to bottom, #000 1px, transparent 1px)
+              linear-gradient(to right, #888 1px, transparent 1px),
+              linear-gradient(to bottom, #888 1px, transparent 1px)
             `,
             backgroundSize: "40px 40px",
           }}
@@ -306,17 +308,17 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
       <div className="relative z-10 space-y-5 pb-6">
         {/* Welcome */}
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-black mb-1">
+          <h1 className="text-2xl md:text-3xl font-bold text-black dark:text-white mb-1">
             Welcome back, {displayName}.
           </h1>
-          <p className="text-gray-500 font-mono text-xs">
+          <p className="text-gray-500 dark:text-gray-400 font-mono text-xs">
             Continue your journey to production-ready excellence
           </p>
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="border border-gray-200 rounded-lg p-4 hover:border-black transition-all hover:shadow-md bg-white/80 backdrop-blur-sm">
+          <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 hover:border-black dark:hover:border-gray-500 transition-all hover:shadow-md bg-white/80 dark:bg-black/80 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
               <Code2 className="w-4 h-4 text-gray-500" />
               <span className="font-mono text-[10px] text-gray-400">DSA</span>
@@ -327,10 +329,10 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                 max={totalQuestions || 1}
               />
               <div>
-                <p className="text-2xl font-bold text-black mb-0.5">
+                <p className="text-2xl font-bold text-black dark:text-white mb-0.5">
                   {stats.totalProblems}
                 </p>
-                <p className="font-mono text-[11px] text-gray-500">
+                <p className="font-mono text-[11px] text-gray-500 dark:text-gray-400">
                   Problems Solved
                 </p>
                 {totalQuestions > 0 && (
@@ -342,7 +344,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
             </div>
           </div>
 
-          <div className="border border-gray-200 rounded-lg p-4 hover:border-black transition-all hover:shadow-md bg-white/80 backdrop-blur-sm">
+          <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 hover:border-black dark:hover:border-gray-500 transition-all hover:shadow-md bg-white/80 dark:bg-black/80 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
               <PlayCircle className="w-4 h-4 text-gray-500" />
               <span className="font-mono text-[10px] text-gray-400">PROD</span>
@@ -353,10 +355,10 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                 max={totalSimulations || 1}
               />
               <div>
-                <p className="text-2xl font-bold text-black mb-0.5">
+                <p className="text-2xl font-bold text-black dark:text-white mb-0.5">
                   {stats.totalSimulations}
                 </p>
-                <p className="font-mono text-[11px] text-gray-500">
+                <p className="font-mono text-[11px] text-gray-500 dark:text-gray-400">
                   Simulations Done
                 </p>
                 {totalSimulations > 0 && (
@@ -368,26 +370,28 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
             </div>
           </div>
 
-          <div className="border border-gray-200 rounded-lg p-4 hover:border-black transition-all hover:shadow-md bg-white/80 backdrop-blur-sm">
+          <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 hover:border-black dark:hover:border-gray-500 transition-all hover:shadow-md bg-white/80 dark:bg-black/80 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
               <Zap className="w-4 h-4 text-gray-500" />
               <span className="font-mono text-[10px] text-gray-400">XP</span>
             </div>
-            <p className="text-2xl font-bold text-black mb-0.5">
+            <p className="text-2xl font-bold text-black dark:text-white mb-0.5">
               {userXP.toLocaleString()}
             </p>
-            <p className="font-mono text-[11px] text-gray-500">Total XP</p>
+            <p className="font-mono text-[11px] text-gray-500 dark:text-gray-400">
+              Total XP
+            </p>
           </div>
 
-          <div className="border border-gray-200 rounded-lg p-4 hover:border-black transition-all hover:shadow-md bg-white/80 backdrop-blur-sm">
+          <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 hover:border-black dark:hover:border-gray-500 transition-all hover:shadow-md bg-white/80 dark:bg-black/80 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
               <Trophy className="w-4 h-4 text-gray-500" />
               <span className="font-mono text-[10px] text-gray-400">RANK</span>
             </div>
-            <p className="text-2xl font-bold text-black mb-0.5">
+            <p className="text-2xl font-bold text-black dark:text-white mb-0.5">
               {stats.globalRank ? `#${stats.globalRank}` : "--"}
             </p>
-            <p className="font-mono text-[11px] text-gray-500">
+            <p className="font-mono text-[11px] text-gray-500 dark:text-gray-400">
               Global Ranking
             </p>
           </div>
@@ -452,22 +456,22 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
         {/* Daily Challenge + Leaderboard */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Daily Challenge */}
-          <div className="border border-gray-200 rounded-lg p-5 bg-white/80 backdrop-blur-sm hover:border-black transition-all">
+          <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-5 bg-white/80 dark:bg-black/80 backdrop-blur-sm hover:border-black dark:hover:border-gray-500 transition-all">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="font-mono text-[10px] tracking-widest text-gray-400">
                   DAILY CHALLENGE
                 </p>
-                <h3 className="text-sm font-bold text-black mt-0.5">
+                <h3 className="text-sm font-bold text-black dark:text-white mt-0.5">
                   Today&apos;s Problem
                 </h3>
               </div>
               <Flame className="w-4 h-4 text-gray-400" />
             </div>
             <div className="space-y-3">
-              <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+              <div className="p-3 bg-gray-50 dark:bg-[#111] rounded-lg border border-gray-100 dark:border-gray-800">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold text-black text-sm">
+                  <p className="font-semibold text-black dark:text-white text-sm">
                     LRU Cache Implementation
                   </p>
                   <span className="font-mono text-[10px] px-2 py-0.5 bg-gray-800 text-white rounded-full shrink-0">
@@ -498,12 +502,12 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                   </button>
                 </div>
               </div>
-              <div className="flex items-center gap-2 p-2 rounded-md bg-gray-50">
+              <div className="flex items-center gap-2 p-2 rounded-md bg-gray-50 dark:bg-[#111]">
                 <Zap className="w-3.5 h-3.5 text-gray-500" />
-                <span className="font-mono text-[11px] text-gray-500">
+                <span className="font-mono text-[11px] text-gray-500 dark:text-gray-400">
                   Complete today to earn
                 </span>
-                <span className="font-mono text-[11px] font-semibold text-black">
+                <span className="font-mono text-[11px] font-semibold text-black dark:text-white">
                   +150 XP
                 </span>
               </div>
@@ -511,13 +515,13 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
           </div>
 
           {/* Leaderboard Peek */}
-          <div className="border border-gray-200 rounded-lg p-5 bg-white/80 backdrop-blur-sm hover:border-black transition-all">
+          <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-5 bg-white/80 dark:bg-black/80 backdrop-blur-sm hover:border-black dark:hover:border-gray-500 transition-all">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="font-mono text-[10px] tracking-widest text-gray-400">
                   LEADERBOARD
                 </p>
-                <h3 className="text-sm font-bold text-black mt-0.5">
+                <h3 className="text-sm font-bold text-black dark:text-white mt-0.5">
                   Top Performers
                 </h3>
               </div>
@@ -534,7 +538,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                     className={`flex items-center gap-3 p-2.5 rounded-lg ${
                       isYou
                         ? "bg-gray-950 text-white border border-gray-800"
-                        : "bg-gray-50 border border-gray-100"
+                        : "bg-gray-50 dark:bg-[#111] border border-gray-100 dark:border-gray-800"
                     }`}
                   >
                     <span
@@ -547,7 +551,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                     <div className="flex-1 min-w-0">
                       <p
                         className={`font-mono text-xs font-semibold truncate ${
-                          isYou ? "text-white" : "text-gray-800"
+                          isYou ? "text-white" : "text-gray-800 dark:text-white"
                         }`}
                       >
                         {badges[i]} {u.displayName || u.username}
@@ -584,7 +588,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
             </div>
             <a
               href="/dashboard/leaderboard"
-              className="flex items-center justify-center gap-1 mt-3 font-mono text-[11px] text-gray-400 hover:text-black transition-colors"
+              className="flex items-center justify-center gap-1 mt-3 font-mono text-[11px] text-gray-400 hover:text-black dark:hover:text-white transition-colors"
             >
               View full leaderboard <ArrowRight className="w-3 h-3" />
             </a>
@@ -598,13 +602,13 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
           </h2>
           <div className="space-y-2">
             {recentActivity.length === 0 ? (
-              <div className="border border-gray-200 rounded-lg p-6 bg-white/80 text-center">
+              <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-6 bg-white/80 dark:bg-black/80 text-center">
                 <p className="font-mono text-sm text-gray-400">
                   No activity yet — start solving problems!
                 </p>
                 <a
                   href="/dashboard/dsa-arena"
-                  className="inline-flex items-center gap-1 mt-2 font-mono text-xs text-black hover:underline"
+                  className="inline-flex items-center gap-1 mt-2 font-mono text-xs text-black dark:text-white hover:underline"
                 >
                   Go to DSA Arena <ArrowRight className="w-3 h-3" />
                 </a>
@@ -624,12 +628,14 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                   <a
                     key={sub._id}
                     href={`/dashboard/dsa-arena/${sub.question?._id ?? ""}`}
-                    className="border border-gray-200 rounded-lg p-4 bg-white/80 backdrop-blur-sm hover:border-black transition-all flex items-center justify-between gap-4"
+                    className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 bg-white/80 dark:bg-black/80 backdrop-blur-sm hover:border-black dark:hover:border-gray-500 transition-all flex items-center justify-between gap-4"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div
                         className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${
-                          accepted ? "bg-gray-900" : "bg-gray-100"
+                          accepted
+                            ? "bg-gray-900"
+                            : "bg-gray-100 dark:bg-gray-800"
                         }`}
                       >
                         <Code2
@@ -639,7 +645,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                         />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-semibold text-black text-sm truncate">
+                        <p className="font-semibold text-black dark:text-white text-sm truncate">
                           {title}
                         </p>
                         <p className="font-mono text-[11px] text-gray-400">
@@ -653,7 +659,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                       className={`font-mono text-[10px] px-2 py-0.5 rounded-full shrink-0 ${
                         accepted
                           ? "bg-gray-900 text-white"
-                          : "bg-gray-100 text-gray-500"
+                          : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
                       }`}
                     >
                       {accepted ? "Accepted" : "Attempted"}

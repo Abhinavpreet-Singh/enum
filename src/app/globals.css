@@ -1,8 +1,17 @@
 @import "tailwindcss";
 
+/* Class-based dark mode variant for Tailwind v4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #000000;
+}
+
+/* Dark mode overrides */
+.dark {
+  --background: #000000;
+  --foreground: #ffffff;
 }
 
 @theme inline {
@@ -10,6 +19,17 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+/* Text selection — monochrome theme */
+::selection {
+  background: #000;
+  color: #fff;
+}
+
+.dark ::selection {
+  background: #fff;
+  color: #000;
 }
 
 body {
@@ -23,20 +43,16 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: -0.01em;
+  transition:
+    background-color 0.3s ease,
+    color 0.25s ease;
 }
 
 * {
   scroll-behavior: smooth;
 }
 
-/* Clean border styling */
-.border,
-.border-b,
-.border-t,
-.border-l,
-.border-r {
-  border-color: rgba(0, 0, 0, 0.08);
-}
+/* Clean border styling - handled by Tailwind utilities per-element */
 
 .font-display {
   font-family: var(--font-geist-sans);
@@ -118,4 +134,28 @@ body {
   -webkit-user-select: none !important;
   -moz-user-select: none !important;
   -ms-user-select: none !important;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+/* Smooth transitions for theme switching */
+*,
+*::before,
+*::after {
+  transition-property:
+    background-color, border-color, color, box-shadow, outline-color;
+  transition-duration: 250ms;
+  transition-timing-function: ease;
 }
