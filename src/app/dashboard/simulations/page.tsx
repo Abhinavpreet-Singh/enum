@@ -20,7 +20,7 @@ import axios from "axios";
 import { proxy } from "@/app/proxy";
 
 interface SimulationItem {
-  _id: string;
+  id: string;
   title: string;
   category: "frontend" | "backend" | "fullstack" | "devops";
   difficulty: "easy" | "medium" | "hard";
@@ -84,7 +84,11 @@ export default function SimulationsPage() {
 
   const toggleSet = (set: Set<string>, val: string): Set<string> => {
     const next = new Set(set);
-    next.has(val) ? next.delete(val) : next.add(val);
+    if (next.has(val)) {
+      next.delete(val);
+    } else {
+      next.add(val);
+    }
     return next;
   };
 
@@ -314,8 +318,8 @@ export default function SimulationsPage() {
               };
               return (
                 <Link
-                  key={sim._id}
-                  href={`/dashboard/simulations/${sim._id}`}
+                  key={sim.id}
+                  href={`/dashboard/simulations/${sim.id}`}
                   className="group flex items-start gap-5 p-5 border border-gray-100 dark:border-white/8 hover:border-gray-300 dark:hover:border-white/30 bg-white dark:bg-[#111] hover:bg-gray-50 dark:hover:bg-[#161616] transition-all duration-200"
                 >
                   {/* Index */}
