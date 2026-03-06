@@ -134,7 +134,9 @@ export default function WorkspacePage() {
         <div
           onMouseDown={handleMouseDown}
           className={`w-1 cursor-col-resize shrink-0 ${
-            isResizing ? "bg-black" : "bg-transparent hover:bg-gray-300"
+            isResizing
+              ? "bg-white dark:bg-white"
+              : "bg-transparent hover:bg-gray-300 dark:hover:bg-white/20"
           }`}
           style={{ minWidth: "1px" }}
         />

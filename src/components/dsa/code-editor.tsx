@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import {
-  Moon,
   Play,
   Check,
   Copy,
@@ -88,12 +87,25 @@ export default function CodeEditor({
   });
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [consoleHeight, setConsoleHeight] = useState(280);
   const [isResizing, setIsResizing] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [showComplexityModal, setShowComplexityModal] = useState(false);
   const [wasSubmission, setWasSubmission] = useState(false);
+
+  // Track page dark mode for Monaco theme
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  useEffect(() => {
+    const check = () =>
+      setIsDarkMode(document.documentElement.classList.contains("dark"));
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
+  }, []);
 
   // Submit overlay state
   const [showSubmitOverlay, setShowSubmitOverlay] = useState(false);
@@ -403,40 +415,40 @@ export default function CodeEditor({
   // ---------- Verdict display helpers ----------
   const verdictConfig = {
     idle: { label: "Ready", color: "text-gray-500", bg: "" },
-    running: { label: "Running...", color: "text-yellow-600", bg: "" },
+    running: { label: "Running...", color: "text-yellow-500", bg: "" },
     accepted: {
       label: "Accepted",
-      color: "text-green-600",
-      bg: "bg-green-50",
+      color: "text-emerald-500",
+      bg: "bg-emerald-500/10",
     },
     wrong_answer: {
       label: "Wrong Answer",
-      color: "text-red-600",
-      bg: "bg-red-50",
+      color: "text-red-500",
+      bg: "bg-red-500/10",
     },
     error: {
       label: "Runtime Error",
-      color: "text-red-600",
-      bg: "bg-red-50",
+      color: "text-red-500",
+      bg: "bg-red-500/10",
     },
     partial: {
       label: "Partially Accepted",
-      color: "text-yellow-600",
-      bg: "bg-yellow-50",
+      color: "text-yellow-500",
+      bg: "bg-yellow-500/10",
     },
   };
 
   const isProcessing = isRunning || isSubmitting;
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-white dark:bg-black">
       {/* ═══════ Top Controls ═══════ */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-white sticky top-0 z-10">
+      <div className="flex items-center justify-between px-4 h-12 shrink-0 border-b border-gray-200 dark:border-white/10 bg-white dark:bg-black sticky top-0 z-10">
         <div>
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value as Language)}
-            className="px-2 py-1 bg-gray-50 text-gray-700 rounded text-xs"
+            className="px-2 py-1 bg-gray-100 dark:bg-white/8 text-gray-700 dark:text-white rounded text-xs outline-none cursor-pointer"
           >
             {languageOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -448,15 +460,8 @@ export default function CodeEditor({
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className="p-2 hover:bg-gray-100 rounded"
-            title={isDarkMode ? "Light mode" : "Dark mode"}
-          >
-            <Moon className="w-4 h-4" />
-          </button>
-          <button
             onClick={() => navigator.clipboard.writeText(code)}
-            className="p-2 hover:bg-gray-100 rounded"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded text-gray-500 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors"
             title="Copy code"
           >
             <Copy className="w-4 h-4" />
@@ -466,7 +471,7 @@ export default function CodeEditor({
           <button
             onClick={handleRun}
             disabled={isProcessing}
-            className="px-4 py-1.5 bg-black text-white text-xs rounded flex items-center gap-2 hover:bg-gray-800 disabled:opacity-50 transition-colors"
+            className="px-4 py-1.5 bg-black dark:bg-white/10 text-white dark:text-white text-xs rounded flex items-center gap-2 hover:bg-gray-800 dark:hover:bg-white/20 border border-black dark:border-white/15 disabled:opacity-50 transition-colors"
           >
             {isRunning ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -480,7 +485,7 @@ export default function CodeEditor({
           <button
             onClick={handleSubmit}
             disabled={isProcessing}
-            className="px-4 py-1.5 bg-green-600 text-white text-xs rounded flex items-center gap-2 hover:bg-green-700 disabled:opacity-50 transition-colors"
+            className="px-4 py-1.5 bg-green-600 dark:bg-white text-white dark:text-black text-xs rounded flex items-center gap-2 hover:bg-green-700 dark:hover:bg-white/90 disabled:opacity-50 transition-colors"
           >
             {isSubmitting ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -494,7 +499,7 @@ export default function CodeEditor({
           {questionId && (
             <button
               onClick={() => setShowPublishModal(true)}
-              className="px-4 py-1.5 bg-gray-100 text-black text-xs rounded flex items-center gap-2 hover:bg-gray-200 transition-colors"
+              className="px-4 py-1.5 bg-gray-100 dark:bg-white/8 text-gray-600 dark:text-gray-300 text-xs rounded flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-white/15 hover:text-black dark:hover:text-white transition-colors"
             >
               <Upload className="w-4 h-4" />
               PUBLISH
@@ -504,11 +509,22 @@ export default function CodeEditor({
       </div>
 
       {/* ═══════ Monaco Editor ═══════ */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden bg-white dark:bg-black">
         <Editor
           height="100%"
           language={language === "cpp" ? "cpp" : language}
-          theme={isDarkMode ? "vs-dark" : "vs-light"}
+          theme={isDarkMode ? "pitch-black" : "vs-light"}
+          beforeMount={(monaco) => {
+            monaco.editor.defineTheme("pitch-black", {
+              base: "vs-dark",
+              inherit: true,
+              rules: [],
+              colors: {
+                "editor.background": "#000000",
+                "editor.lineHighlightBackground": "#111111",
+              },
+            });
+          }}
           value={code}
           onChange={handleCodeChange}
           options={{
@@ -538,7 +554,9 @@ export default function CodeEditor({
       <div
         onMouseDown={handleConsoleResize}
         className={`h-1 cursor-row-resize shrink-0 ${
-          isResizing ? "bg-black" : "bg-transparent hover:bg-gray-300"
+          isResizing
+            ? "bg-black dark:bg-white"
+            : "bg-transparent hover:bg-gray-200 dark:hover:bg-white/20"
         }`}
         style={{ minHeight: "1px" }}
       />
@@ -546,16 +564,16 @@ export default function CodeEditor({
       {/* ═══════ Bottom Panel ═══════ */}
       <div
         style={{ height: `${consoleHeight}px` }}
-        className="bg-white flex flex-col border-t"
+        className="bg-white dark:bg-black flex flex-col border-t border-gray-200 dark:border-white/10"
       >
         {/* Bottom Tabs */}
-        <div className="flex items-center border-b bg-gray-50 px-2">
+        <div className="flex items-center border-b border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-[#0d0d0d] px-2">
           <button
             onClick={() => setBottomTab("testcase")}
             className={`px-4 py-2 font-mono text-xs tracking-wider transition-colors border-b-2 ${
               bottomTab === "testcase"
-                ? "text-black border-black font-bold"
-                : "text-gray-500 border-transparent hover:text-black"
+                ? "text-black dark:text-white border-black dark:border-white font-bold"
+                : "text-gray-500 border-transparent hover:text-black dark:hover:text-white"
             }`}
           >
             Testcase
@@ -564,8 +582,8 @@ export default function CodeEditor({
             onClick={() => setBottomTab("result")}
             className={`px-4 py-2 font-mono text-xs tracking-wider transition-colors border-b-2 flex items-center gap-2 ${
               bottomTab === "result"
-                ? "text-black border-black font-bold"
-                : "text-gray-500 border-transparent hover:text-black"
+                ? "text-black dark:text-white border-black dark:border-white font-bold"
+                : "text-gray-500 border-transparent hover:text-black dark:hover:text-white"
             }`}
           >
             Test Result
@@ -648,7 +666,7 @@ export default function CodeEditor({
                     })}
                     <button
                       onClick={addCustomTestCase}
-                      className="p-1.5 text-gray-400 hover:text-black transition-colors"
+                      className="p-1.5 text-gray-500 hover:text-black dark:hover:text-white transition-colors"
                       title="Add custom test case"
                     >
                       <Plus className="w-4 h-4" />
@@ -677,12 +695,12 @@ export default function CodeEditor({
                                 e.target.value,
                               )
                             }
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                            className="w-full px-3 py-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded font-mono text-sm text-gray-800 dark:text-white resize-none focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/30 focus:border-transparent"
                             rows={3}
                             placeholder="Enter test input..."
                           />
                         ) : (
-                          <pre className="px-3 py-2 bg-gray-50 border border-gray-200 rounded font-mono text-sm text-gray-800 whitespace-pre-wrap">
+                          <pre className="px-3 py-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded font-mono text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
                             {allTestCases[activeTestCaseIdx].input || "(empty)"}
                           </pre>
                         )}
@@ -707,12 +725,12 @@ export default function CodeEditor({
                                 e.target.value,
                               )
                             }
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                            className="w-full px-3 py-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded font-mono text-sm text-gray-800 dark:text-white resize-none focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/30 focus:border-transparent"
                             rows={2}
                             placeholder="Enter expected output..."
                           />
                         ) : (
-                          <pre className="px-3 py-2 bg-gray-50 border border-gray-200 rounded font-mono text-sm text-gray-800 whitespace-pre-wrap">
+                          <pre className="px-3 py-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded font-mono text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
                             {allTestCases[activeTestCaseIdx].output ||
                               "(empty)"}
                           </pre>
@@ -751,21 +769,21 @@ export default function CodeEditor({
                   {/* Overall Verdict Banner */}
                   {overallVerdict !== "running" && (
                     <div
-                      className={`mb-4 p-4 rounded-lg border ${verdictConfig[overallVerdict].bg} ${
+                      className={`mb-4 p-4 border ${
                         overallVerdict === "accepted"
-                          ? "border-green-200"
+                          ? "border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10"
                           : overallVerdict === "wrong_answer" ||
                               overallVerdict === "error"
-                            ? "border-red-200"
-                            : "border-yellow-200"
+                            ? "border-red-200 bg-red-50 dark:border-red-500/30 dark:bg-red-500/10"
+                            : "border-yellow-200 bg-yellow-50 dark:border-yellow-500/30 dark:bg-yellow-500/10"
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           {overallVerdict === "accepted" ? (
-                            <CircleCheck className="w-6 h-6 text-green-600" />
+                            <CircleCheck className="w-6 h-6 text-emerald-500" />
                           ) : (
-                            <CircleX className="w-6 h-6 text-red-600" />
+                            <CircleX className="w-6 h-6 text-red-500" />
                           )}
                           <div>
                             <h3
@@ -774,7 +792,7 @@ export default function CodeEditor({
                               {verdictConfig[overallVerdict].label}
                             </h3>
                             {totalCount > 0 && (
-                              <p className="text-xs font-mono text-gray-600 mt-0.5">
+                              <p className="text-xs font-mono text-gray-400 mt-0.5">
                                 {passedCount}/{totalCount} test cases passed
                               </p>
                             )}
@@ -785,7 +803,7 @@ export default function CodeEditor({
                             <p className="font-mono text-xs text-gray-500">
                               Runtime
                             </p>
-                            <p className="font-mono text-sm font-bold text-gray-800">
+                            <p className="font-mono text-sm font-bold text-gray-800 dark:text-gray-200">
                               {runtime}ms
                             </p>
                           </div>
@@ -796,7 +814,7 @@ export default function CodeEditor({
                       {overallVerdict === "accepted" &&
                         questionId &&
                         wasSubmission && (
-                          <div className="mt-3 pt-3 border-t border-green-200">
+                          <div className="mt-3 pt-3 border-t border-white/10">
                             <button
                               onClick={() => setShowComplexityModal(true)}
                               className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg text-xs font-mono font-bold hover:bg-gray-800 transition-colors shadow-sm"
@@ -817,13 +835,13 @@ export default function CodeEditor({
                         onClick={() => setActiveResultIdx(idx)}
                         className={`px-3 py-1.5 font-mono text-xs rounded transition-colors flex items-center gap-1.5 ${
                           activeResultIdx === idx
-                            ? "bg-black text-white"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            ? "bg-black dark:bg-white text-white dark:text-black"
+                            : "bg-gray-100 dark:bg-white/8 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/15 hover:text-black dark:hover:text-white"
                         }`}
                       >
                         {result.passed ? (
                           <CircleCheck
-                            className={`w-3 h-3 ${activeResultIdx === idx ? "text-green-300" : "text-green-600"}`}
+                            className={`w-3 h-3 ${activeResultIdx === idx ? "text-emerald-300" : "text-emerald-500"}`}
                           />
                         ) : result.actualOutput === "(not executed)" ? (
                           <span className="w-3 h-3 inline-block rounded-full bg-gray-300" />
@@ -845,7 +863,7 @@ export default function CodeEditor({
                         <label className="font-mono text-xs text-gray-500 tracking-wider block mb-1">
                           INPUT
                         </label>
-                        <pre className="px-3 py-2 bg-gray-50 border border-gray-200 rounded font-mono text-sm text-gray-800 whitespace-pre-wrap">
+                        <pre className="px-3 py-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded font-mono text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
                           {testResults[activeResultIdx].input || "(empty)"}
                         </pre>
                       </div>
@@ -856,7 +874,7 @@ export default function CodeEditor({
                           <label className="font-mono text-xs text-gray-500 tracking-wider block mb-1">
                             EXPECTED OUTPUT
                           </label>
-                          <pre className="px-3 py-2 bg-gray-50 border border-gray-200 rounded font-mono text-sm text-gray-800 whitespace-pre-wrap">
+                          <pre className="px-3 py-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded font-mono text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
                             {testResults[activeResultIdx].expectedOutput ||
                               "(empty)"}
                           </pre>
@@ -868,11 +886,11 @@ export default function CodeEditor({
                           <pre
                             className={`px-3 py-2 border rounded font-mono text-sm whitespace-pre-wrap ${
                               testResults[activeResultIdx].passed
-                                ? "bg-green-50 border-green-200 text-green-800"
+                                ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
                                 : testResults[activeResultIdx].actualOutput ===
                                     "(not executed)"
-                                  ? "bg-gray-50 border-gray-200 text-gray-500"
-                                  : "bg-red-50 border-red-200 text-red-800"
+                                  ? "bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400"
+                                  : "bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-300"
                             }`}
                           >
                             {testResults[activeResultIdx].actualOutput ||
@@ -892,16 +910,16 @@ export default function CodeEditor({
       {/* ═══════ Submit Overlay ═══════ */}
       {showSubmitOverlay && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+          <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 w-full max-w-md mx-4 overflow-hidden">
             {submitPhase === "evaluating" ? (
               /* ── Evaluating state ── */
               <div className="p-14 flex flex-col items-center gap-5">
                 <div className="relative w-16 h-16">
-                  <div className="absolute inset-0 rounded-full border-4 border-gray-100" />
-                  <div className="absolute inset-0 rounded-full border-4 border-t-black border-r-transparent border-b-transparent border-l-transparent animate-spin" />
+                  <div className="absolute inset-0 rounded-full border-4 border-gray-100 dark:border-white/10" />
+                  <div className="absolute inset-0 rounded-full border-4 border-t-black dark:border-t-white border-r-transparent border-b-transparent border-l-transparent animate-spin" />
                 </div>
                 <div className="text-center">
-                  <p className="text-base font-bold text-gray-900 font-mono">
+                  <p className="text-base font-bold text-gray-900 dark:text-white font-mono">
                     Evaluating your solution
                   </p>
                   <p className="text-xs text-gray-400 mt-1 font-mono">
@@ -916,7 +934,7 @@ export default function CodeEditor({
                 <div
                   className={`h-1.5 w-full ${
                     submitResultData.verdict === "accepted"
-                      ? "bg-green-500"
+                      ? "bg-emerald-500"
                       : "bg-red-500"
                   }`}
                 />
@@ -925,20 +943,20 @@ export default function CodeEditor({
                   {/* Verdict header */}
                   <div className="flex items-center gap-4 mb-6">
                     {submitResultData.verdict === "accepted" ? (
-                      <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                        <CircleCheck className="w-8 h-8 text-green-600" />
+                      <div className="w-14 h-14 flex items-center justify-center shrink-0">
+                        <CircleCheck className="w-10 h-10 text-emerald-500" />
                       </div>
                     ) : (
-                      <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                        <CircleX className="w-8 h-8 text-red-600" />
+                      <div className="w-14 h-14 flex items-center justify-center shrink-0">
+                        <CircleX className="w-10 h-10 text-red-500" />
                       </div>
                     )}
                     <div>
                       <h2
                         className={`text-2xl font-bold font-mono ${
                           submitResultData.verdict === "accepted"
-                            ? "text-green-600"
-                            : "text-red-600"
+                            ? "text-emerald-500"
+                            : "text-red-500"
                         }`}
                       >
                         {verdictConfig[submitResultData.verdict].label}
@@ -955,11 +973,11 @@ export default function CodeEditor({
                   {/* Animated progress bar */}
                   {submitResultData.totalCount > 0 && (
                     <div className="mb-6">
-                      <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-2.5 bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-[width] duration-700 ease-out ${
                             submitResultData.verdict === "accepted"
-                              ? "bg-green-500"
+                              ? "bg-emerald-500"
                               : "bg-red-400"
                           }`}
                           style={{ width: `${submitBarWidth}%` }}
@@ -977,21 +995,21 @@ export default function CodeEditor({
                   )}
 
                   {/* Stats */}
-                  <div className="flex items-center gap-4 mb-6 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-4 mb-6 p-3 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/8">
                     <div>
                       <p className="font-mono text-xs text-gray-400 tracking-wider">
                         RUNTIME
                       </p>
-                      <p className="font-mono text-sm font-bold text-gray-800">
+                      <p className="font-mono text-sm font-bold text-gray-900 dark:text-white">
                         {submitResultData.runtime}ms
                       </p>
                     </div>
-                    <div className="w-px h-8 bg-gray-200" />
+                    <div className="w-px h-8 bg-gray-200 dark:bg-white/10" />
                     <div>
                       <p className="font-mono text-xs text-gray-400 tracking-wider">
                         LANGUAGE
                       </p>
-                      <p className="font-mono text-sm font-bold text-gray-800">
+                      <p className="font-mono text-sm font-bold text-gray-900 dark:text-white">
                         {language.toUpperCase()}
                       </p>
                     </div>
@@ -1013,7 +1031,7 @@ export default function CodeEditor({
                     )}
                     <button
                       onClick={() => setShowSubmitOverlay(false)}
-                      className="ml-auto px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-xs font-mono font-bold hover:bg-gray-200 transition-colors"
+                      className="ml-auto px-4 py-2 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 rounded text-xs font-mono font-bold hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
                     >
                       Close
                     </button>
