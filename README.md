@@ -226,6 +226,4 @@ MIT - Educational use
 3. Test in development
 4. Submit PR
 
----
-
-**Built with ❤️ to make developers better at debugging.**
+**Built to make developers better at debugging.**
