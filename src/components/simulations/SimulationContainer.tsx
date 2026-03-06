@@ -19,6 +19,7 @@ import type {
   FileNode,
   FileMap,
   SimulationRunResponse,
+  SimulationEngineResponse,
   SimulationStatus,
 } from "@/types/simulation";
 import { fetchSimulationFiles } from "@/services/cloudinary";
@@ -284,56 +285,75 @@ export default function SimulationContainer({
     return simulation.initialFiles[0]?.path ?? "";
   };
 
-  // Run simulation via Docker sandbox
+  // Run simulation via Backend Simulation Engine (Docker + curl tests)
   const handleRun = async () => {
     setStatus("running");
     setConsoleVisible(true);
     const entryFile = getEntryFile();
-    setConsoleOutput(["$ node " + entryFile, ""]);
+    setConsoleOutput(["$ Running simulation engine...", ""]);
 
     try {
-      const response = await fetch("/api/simulations/run", {
+      const token = localStorage.getItem("accessToken");
+
+      // Convert FileMap to editedFiles array for the engine
+      const editedFiles = Object.entries(files).map(([filename, content]) => ({
+        filename,
+        content,
+      }));
+
+      const response = await fetch("/api/simulations/engine/run", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
-          files,
-          entryFile,
           simulationId: simulation.id,
+          editedFiles,
         }),
       });
 
-      const data: SimulationRunResponse = await response.json();
+      const data = await response.json();
 
       if (data.success) {
-        setStatus("success");
-        const outputLines = data.output
+        const engineData = data as SimulationEngineResponse & { success: boolean };
+        const allPassed = engineData.passedTests === engineData.totalTests && engineData.totalTests > 0;
+
+        // Display Docker logs
+        const logLines = (engineData.logs || "")
           .split("\n")
-          .filter((l) => l.length > 0);
+          .filter((l: string) => l.length > 0);
         setConsoleOutput((prev) => [
           ...prev,
-          ...outputLines,
+          ...logLines,
           "",
-          "✓ Process exited with code 0",
+          `Score: ${engineData.score}% (${engineData.passedTests}/${engineData.totalTests} tests passed)`,
         ]);
-        setIsResolved(true);
-        // Persist solved progress
-        await persistProgress(true);
-      } else {
-        setStatus("error");
-        const errLines = (data.error || "Unknown error")
-          .split("\n")
-          .filter((l) => l.length > 0);
-        if (data.output) {
+
+        if (allPassed) {
+          setStatus("success");
           setConsoleOutput((prev) => [
             ...prev,
-            ...data.output.split("\n").filter((l) => l.length > 0),
+            "",
+            "✓ All tests passed!",
           ]);
+          setIsResolved(true);
+          await persistProgress(true);
+        } else {
+          setStatus("error");
+          setConsoleOutput((prev) => [
+            ...prev,
+            "",
+            `✗ ${engineData.totalTests - engineData.passedTests} test(s) failed.`,
+          ]);
+          await persistProgress(false);
         }
+      } else {
+        setStatus("error");
         setConsoleOutput((prev) => [
           ...prev,
-          ...errLines.map((l) => `Error: ${l}`),
+          `Error: ${data.error || "Execution failed"}`,
         ]);
-        // Persist attempt (not solved)
         await persistProgress(false);
       }
     } catch (err) {

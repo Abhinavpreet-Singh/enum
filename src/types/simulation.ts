@@ -24,6 +24,15 @@ export interface SimulationRunResponse {
   error?: string;
 }
 
+/** Response from the backend simulation engine */
+export interface SimulationEngineResponse {
+  score: number;
+  passedTests: number;
+  totalTests: number;
+  logs: string;
+  submissionId: string;
+}
+
 /** Status of a simulation attempt */
 export type SimulationStatus = "idle" | "running" | "success" | "error";
 
