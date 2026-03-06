@@ -42,7 +42,7 @@ export default function SimulationDetailPage() {
         }
 
         const sim: Simulation = {
-          id: data._id,
+          id: data.id,
           title: data.title,
           category: data.category,
           difficulty: data.difficulty,
