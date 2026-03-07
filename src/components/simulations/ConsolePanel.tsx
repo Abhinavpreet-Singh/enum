@@ -59,19 +59,19 @@ export default function ConsolePanel({
   };
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-white dark:bg-black">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-t border-gray-200 bg-gray-50">
+      <div className="flex items-center justify-between px-3 py-1.5 border-t border-gray-200 dark:border-white/10 bg-white dark:bg-black">
         <div className="flex items-center gap-2">
-          <Terminal className="w-3.5 h-3.5 text-gray-500" />
-          <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+          <Terminal className="w-3.5 h-3.5 text-gray-500 dark:text-gray-200" />
+          <span className="text-xs font-bold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
             Console
           </span>
           {statusIndicator()}
         </div>
         <button
           onClick={onClear}
-          className="p-1 text-gray-400 hover:text-gray-700 transition-colors rounded"
+          className="p-1 text-gray-400 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white transition-colors rounded"
           title="Clear console"
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -81,21 +81,21 @@ export default function ConsolePanel({
       {/* Output */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-3 py-2 font-mono text-xs leading-5 bg-white"
+        className="flex-1 overflow-y-auto px-3 py-2 font-mono text-xs leading-5 bg-white dark:bg-black"
       >
         {output.length === 0 ? (
-          <p className="text-gray-400 select-none">
+          <p className="text-gray-400 dark:text-gray-500 select-none">
             Console output will appear here…
           </p>
         ) : (
           output.map((line, idx) => {
-            let lineClass = "text-gray-700";
+            let lineClass = "text-gray-700 dark:text-gray-200";
             if (line.startsWith("Error:") || line.startsWith("stderr:")) {
-              lineClass = "text-red-600";
+              lineClass = "text-red-600 dark:text-red-300";
             } else if (line.startsWith("$")) {
-              lineClass = "text-gray-500";
+              lineClass = "text-gray-500 dark:text-gray-200";
             } else if (line.startsWith("✓")) {
-              lineClass = "text-green-600 font-medium";
+              lineClass = "text-green-600 dark:text-green-300 font-medium";
             }
 
             return (

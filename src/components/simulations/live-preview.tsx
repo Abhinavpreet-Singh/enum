@@ -1,6 +1,7 @@
 "use client";
 
 import { SandpackPreview, SandpackProvider } from "@codesandbox/sandpack-react";
+import { useTheme } from "@/providers/theme-provider";
 
 interface LivePreviewProps {
   files: Record<string, string>;
@@ -8,6 +9,8 @@ interface LivePreviewProps {
 }
 
 export default function LivePreview({ files, simulationId }: LivePreviewProps) {
+  const { theme } = useTheme();
+
   // Convert files to Sandpack format
   const sandpackFiles: Record<string, string> = {};
 
@@ -161,7 +164,7 @@ export function UserProfile() {
     <SandpackProvider
       template="react-ts"
       files={sandpackFiles}
-      theme="light"
+      theme={theme === "dark" ? "dark" : "light"}
       options={{
         externalResources: [],
         autorun: true,
