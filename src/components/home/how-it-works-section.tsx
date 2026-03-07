@@ -88,7 +88,7 @@ const steps = [
 
 export default function HowItWorksSection() {
   return (
-    <section className="py-16 md:py-20 px-4 md:px-6 bg-white dark:bg-black">
+    <section id="how-it-works" className="py-16 md:py-20 px-4 md:px-6 bg-white dark:bg-black">
       <div className="max-w-7xl mx-auto">
         {/* Section header */}
         <div className="mb-12 md:mb-16">
