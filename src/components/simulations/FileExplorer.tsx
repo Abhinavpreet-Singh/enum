@@ -25,13 +25,10 @@ interface TreeNodeProps {
   toggleFolder: (path: string) => void;
 }
 
-function getFileIcon(name: string): string {
-  if (name.endsWith(".js")) return "text-yellow-500";
-  if (name.endsWith(".ts")) return "text-blue-500";
-  if (name.endsWith(".json")) return "text-green-500";
-  if (name.endsWith(".md")) return "text-gray-400";
-  if (name.endsWith(".env")) return "text-orange-400";
-  return "text-gray-500";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function getFileIcon(_name: string): string {
+  // Keep icons neutral in dark mode to avoid bright colors
+  return "text-gray-400";
 }
 
 function TreeNode({
@@ -60,8 +57,8 @@ function TreeNode({
         onClick={handleClick}
         className={`w-full flex items-center gap-1.5 py-1 pr-2 text-left text-sm transition-colors rounded-sm ${
           isActive
-            ? "bg-gray-200 text-black font-medium"
-            : "text-gray-700 hover:bg-gray-100"
+            ? "bg-gray-200 dark:bg-white/10 text-black dark:text-white font-medium"
+            : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10"
         }`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
@@ -73,9 +70,9 @@ function TreeNode({
               <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />
             )}
             {isExpanded ? (
-              <FolderOpen className="w-4 h-4 text-gray-500 shrink-0" />
+              <FolderOpen className="w-4 h-4 text-gray-400 shrink-0" />
             ) : (
-              <Folder className="w-4 h-4 text-gray-500 shrink-0" />
+              <Folder className="w-4 h-4 text-gray-400 shrink-0" />
             )}
           </>
         ) : (
@@ -139,9 +136,9 @@ export default function FileExplorer({
   }, []);
 
   return (
-    <div className="h-full flex flex-col bg-white">
-      <div className="px-3 py-2 border-b border-gray-200">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+    <div className="h-full flex flex-col bg-white dark:bg-black">
+      <div className="px-3 py-2 border-b border-gray-200 dark:border-white/10">
+        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
           Explorer
         </p>
       </div>

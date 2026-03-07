@@ -16,6 +16,7 @@ import {
 import Editor from "@monaco-editor/react";
 import PublishSolutionModal from "./publish-solution-modal";
 import ComplexityAnalysisModal from "./complexity-analysis-modal";
+import { useTheme } from "@/providers/theme-provider";
 
 interface TestCase {
   input: string;
@@ -93,19 +94,8 @@ export default function CodeEditor({
   const [showComplexityModal, setShowComplexityModal] = useState(false);
   const [wasSubmission, setWasSubmission] = useState(false);
 
-  // Track page dark mode for Monaco theme
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  useEffect(() => {
-    const check = () =>
-      setIsDarkMode(document.documentElement.classList.contains("dark"));
-    check();
-    const observer = new MutationObserver(check);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-    return () => observer.disconnect();
-  }, []);
+  const { theme } = useTheme();
+  const isDarkMode = theme === "dark";
 
   // Submit overlay state
   const [showSubmitOverlay, setShowSubmitOverlay] = useState(false);
@@ -441,9 +431,9 @@ export default function CodeEditor({
   const isProcessing = isRunning || isSubmitting;
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-black">
+    <div className="h-full flex flex-col bg-white dark:bg-slate-950">
       {/* ═══════ Top Controls ═══════ */}
-      <div className="flex items-center justify-between px-4 h-12 shrink-0 border-b border-gray-200 dark:border-white/10 bg-white dark:bg-black sticky top-0 z-10">
+      <div className="flex items-center justify-between px-4 h-12 shrink-0 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 sticky top-0 z-10">
         <div>
           <select
             value={language}
@@ -521,7 +511,18 @@ export default function CodeEditor({
               rules: [],
               colors: {
                 "editor.background": "#000000",
-                "editor.lineHighlightBackground": "#111111",
+                "editor.foreground": "#cbd5e1",
+                "editorLineNumber.foreground": "#94a3b8",
+                "editorLineNumber.activeForeground": "#60a5fa",
+                "editorCursor.foreground": "#60a5fa",
+                "editor.selectionBackground": "rgba(96, 165, 250, 0.25)",
+                "editor.inactiveSelectionBackground": "rgba(148, 163, 184, 0.2)",
+                "editor.lineHighlightBackground": "#0b1220",
+                "editorIndentGuide.background": "rgba(148, 163, 184, 0.2)",
+                "editorIndentGuide.activeBackground": "rgba(96, 165, 250, 0.4)",
+                "editorWhitespace.foreground": "rgba(148, 163, 184, 0.4)",
+                "editorBracketMatch.background": "rgba(96, 165, 250, 0.2)",
+                "editorBracketMatch.border": "rgba(59, 130, 246, 0.4)",
               },
             });
           }}

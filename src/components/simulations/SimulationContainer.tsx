@@ -480,12 +480,12 @@ export default function SimulationContainer({
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col bg-gray-50 dark:bg-black">
       {/* Top Bar */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shrink-0">
+      <div className="bg-white dark:bg-black border-b border-gray-200 dark:border-white/10 px-4 py-3 flex items-center justify-between shrink-0">
         <Link
           href="/dashboard/simulations"
-          className="flex items-center gap-2 text-sm text-gray-600 hover:text-black transition-colors"
+          className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
           Back to Simulations
@@ -510,17 +510,17 @@ export default function SimulationContainer({
       <div className="flex-1 flex overflow-hidden">
         {/* Task Description Panel */}
         <div
-          className="bg-white border-r border-gray-200 flex flex-col shrink-0 overflow-hidden"
+          className="bg-white dark:bg-black border-r border-gray-200 dark:border-white/10 flex flex-col shrink-0 overflow-hidden"
           style={{ width: `${taskPanelWidth}px` }}
         >
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-4 border-b border-gray-200 dark:border-white/10">
             <div className="flex items-center gap-2 mb-2">
               <div
                 className={`w-2 h-2 rounded-full ${
                   isResolved ? "bg-green-500" : "bg-red-500"
                 } animate-pulse`}
               />
-              <h2 className="text-sm font-bold text-gray-900 truncate">
+              <h2 className="text-sm font-bold text-gray-900 dark:text-white truncate">
                 {simulation.title}
               </h2>
             </div>
@@ -528,15 +528,15 @@ export default function SimulationContainer({
               <span
                 className={`px-2 py-0.5 rounded border ${
                   simulation.difficulty === "easy"
-                    ? "bg-white border-gray-300 text-gray-700"
+                    ? "bg-white dark:bg-white/10 border-gray-300 dark:border-white/10 text-gray-700 dark:text-white"
                     : simulation.difficulty === "medium"
-                      ? "bg-gray-100 border-gray-400 text-gray-800"
-                      : "bg-gray-900 border-black text-white"
+                      ? "bg-white dark:bg-white/10 border-gray-400 dark:border-white/10 text-gray-800 dark:text-white"
+                      : "bg-black dark:bg-black border-black dark:border-white/10 text-white"
                 }`}
               >
                 {simulation.difficulty}
               </span>
-              <span className="text-gray-500">
+              <span className="text-gray-500 dark:text-gray-300">
                 {simulation.estimatedTime} min
               </span>
             </div>
@@ -545,21 +545,21 @@ export default function SimulationContainer({
           <div className="flex-1 overflow-y-auto p-4">
             {/* Incident */}
             <div className="mb-5">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                 Incident
               </h3>
-              <p className="text-sm text-gray-700 leading-relaxed">
+              <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
                 {simulation.description}
               </p>
             </div>
 
             {/* Error */}
-            <div className="mb-5 p-3 bg-red-50 border border-red-200 rounded">
+            <div className="mb-5 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded">
               <div className="flex items-start gap-2">
-                <XCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+                <XCircle className="w-4 h-4 text-red-500" />
                 <div>
-                  <p className="text-xs font-bold text-red-700 mb-1">ERROR:</p>
-                  <p className="text-xs text-red-600 leading-relaxed">
+                  <p className="text-xs font-bold text-red-700 dark:text-red-200 mb-1">ERROR:</p>
+                  <p className="text-xs text-red-600 dark:text-red-200 leading-relaxed">
                     {simulation.incident}
                   </p>
                 </div>
@@ -568,13 +568,13 @@ export default function SimulationContainer({
 
             {/* Steps */}
             <div className="mb-5">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
                 Steps
               </h3>
               <ol className="space-y-2">
                 {simulation.steps.map((step, idx) => (
-                  <li key={idx} className="flex gap-2 text-sm text-gray-700">
-                    <span className="text-gray-400">{idx + 1}.</span>
+                  <li key={idx} className="flex gap-2 text-sm text-gray-700 dark:text-gray-200">
+                    <span className="text-gray-400 dark:text-gray-500">{idx + 1}.</span>
                     <span>{step.description}</span>
                   </li>
                 ))}
@@ -584,17 +584,17 @@ export default function SimulationContainer({
             {/* Hints */}
             {simulation.hints && simulation.hints.length > 0 && (
               <div>
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+                <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
                   Hints
                 </h3>
                 <div className="space-y-2">
                   {simulation.hints.map((hint, idx) => (
                     <details key={idx} className="group">
-                      <summary className="cursor-pointer text-xs text-gray-700 hover:text-black flex items-center gap-1 font-medium">
+                      <summary className="cursor-pointer text-xs text-gray-700 dark:text-gray-200 hover:text-black dark:hover:text-white flex items-center gap-1 font-medium">
                         <ChevronRight className="w-3 h-3 group-open:rotate-90 transition-transform" />
                         Hint {idx + 1}
                       </summary>
-                      <p className="mt-2 ml-4 text-xs text-gray-600 leading-relaxed">
+                      <p className="mt-2 ml-4 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
                         {hint}
                       </p>
                     </details>
@@ -607,15 +607,15 @@ export default function SimulationContainer({
 
         {/* Task panel resize handle */}
         <div
-          className={`w-1 hover:bg-gray-400 cursor-col-resize transition-colors shrink-0 ${
-            isResizingTask ? "bg-gray-500" : "bg-gray-200"
+          className={`w-1 hover:bg-white/30 cursor-col-resize transition-colors shrink-0 ${
+            isResizingTask ? "bg-white/50" : "bg-white/10"
           }`}
           onMouseDown={handleTaskResize}
         />
 
         {/* File Explorer */}
         <div
-          className="shrink-0 border-r border-gray-200 overflow-hidden"
+          className="shrink-0 border-r border-gray-200 dark:border-white/10 overflow-hidden"
           style={{ width: `${explorerWidth}px` }}
         >
           <FileExplorer
@@ -627,8 +627,8 @@ export default function SimulationContainer({
 
         {/* Explorer resize handle */}
         <div
-          className={`w-1 hover:bg-gray-400 cursor-col-resize transition-colors shrink-0 ${
-            isResizingExplorer ? "bg-gray-500" : "bg-gray-200"
+          className={`w-1 hover:bg-white/30 cursor-col-resize transition-colors shrink-0 ${
+            isResizingExplorer ? "bg-white/50" : "bg-white/10"
           }`}
           onMouseDown={handleExplorerResize}
         />
@@ -636,7 +636,7 @@ export default function SimulationContainer({
         {/* Editor + Console area */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Open file tabs */}
-          <div className="bg-white border-b border-gray-200 flex items-center overflow-x-auto shrink-0">
+          <div className="bg-white dark:bg-black border-b border-gray-200 dark:border-white/10 flex items-center overflow-x-auto shrink-0">
             {openTabs.map((tabPath) => {
               const fileName = tabPath.split("/").pop() || tabPath;
               const isActive = tabPath === activeFilePath;
@@ -644,10 +644,10 @@ export default function SimulationContainer({
               return (
                 <div
                   key={tabPath}
-                  className={`flex items-center gap-1.5 px-3 py-2 text-sm border-r border-gray-200 cursor-pointer whitespace-nowrap transition-colors ${
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm border-r border-gray-200 dark:border-slate-700 cursor-pointer whitespace-nowrap transition-colors ${
                     isActive
-                      ? "bg-white text-black border-b-2 border-b-black"
-                      : "bg-gray-50 text-gray-500 hover:bg-gray-100"
+                      ? "bg-white dark:bg-black text-black dark:text-white border-b-2 border-b-black dark:border-b-white"
+                      : "bg-gray-50 dark:bg-black text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
                   }`}
                 >
                   <button
@@ -661,7 +661,7 @@ export default function SimulationContainer({
                       e.stopPropagation();
                       handleCloseTab(tabPath);
                     }}
-                    className="ml-1 text-gray-400 hover:text-gray-700 transition-colors"
+                    className="ml-1 text-gray-400 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                   >
                     ×
                   </button>
@@ -671,11 +671,11 @@ export default function SimulationContainer({
           </div>
 
           {/* Editor */}
-          <div className="flex-1 min-h-0 bg-white relative">
+          <div className="flex-1 min-h-0 bg-white dark:bg-black relative">
             {/* Cloudinary loading overlay */}
             {loadingFiles && (
-              <div className="absolute inset-0 bg-white/80 z-10 flex items-center justify-center">
-                <div className="flex items-center gap-2 text-gray-500">
+              <div className="absolute inset-0 bg-black/70 z-10 flex items-center justify-center">
+                <div className="flex items-center gap-2 text-white">
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span className="font-mono text-sm">Loading files from cloud…</span>
                 </div>
@@ -698,21 +698,21 @@ export default function SimulationContainer({
 
           {/* Success Banner */}
           {isResolved && (
-            <div className="bg-green-50 border-t border-green-200 px-4 py-2.5 flex items-center gap-2 shrink-0">
-              <CheckCircle2 className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-semibold text-green-700">
+            <div className="bg-green-50 dark:bg-white/10 border-t border-green-200 dark:border-white/10 px-4 py-2.5 flex items-center gap-2 shrink-0">
+              <CheckCircle2 className="w-4 h-4 text-green-500" />
+              <span className="text-sm font-semibold text-green-700 dark:text-green-200">
                 Simulation solved! +{simulation.xpReward} XP earned
               </span>
             </div>
           )}
 
           {/* Action Bar */}
-          <div className="bg-white border-t border-gray-200 px-4 py-2.5 flex items-center justify-between shrink-0">
+          <div className="bg-white dark:bg-black border-t border-gray-200 dark:border-white/10 px-4 py-2.5 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <button
                 onClick={handleRun}
                 disabled={status === "running" || loadingFiles}
-                className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-black text-white dark:bg-white dark:text-black rounded hover:bg-gray-800 dark:hover:bg-white/80 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-sm"
               >
                 {status === "running" ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -724,14 +724,14 @@ export default function SimulationContainer({
               <button
                 onClick={handleReset}
                 disabled={loadingFiles}
-                className="flex items-center gap-2 px-4 py-2 border-2 border-gray-300 text-gray-700 rounded hover:border-gray-400 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-black text-white dark:bg-white dark:text-black rounded hover:bg-gray-800 dark:hover:bg-white/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
               >
                 <RotateCcw className="w-4 h-4" />
                 Reset
               </button>
               <button
                 onClick={handleSaveProgress}
-                className="flex items-center gap-2 px-4 py-2 border-2 border-gray-300 text-gray-700 rounded hover:border-gray-400 hover:bg-gray-50 transition-colors font-medium text-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-black text-white dark:bg-white dark:text-black rounded hover:bg-gray-800 dark:hover:bg-white/80 transition-colors font-medium text-sm"
                 title="Save your progress"
               >
                 <Save className="w-4 h-4" />
@@ -741,7 +741,7 @@ export default function SimulationContainer({
 
             <button
               onClick={() => setConsoleVisible((v) => !v)}
-              className="p-1.5 text-gray-500 hover:text-black transition-colors rounded"
+              className="p-1.5 text-gray-500 dark:text-gray-300 hover:text-white transition-colors rounded"
               title={consoleVisible ? "Hide console" : "Show console"}
             >
               {consoleVisible ? (
@@ -756,8 +756,8 @@ export default function SimulationContainer({
           {consoleVisible && (
             <>
               <div
-                className={`h-1 hover:bg-gray-400 cursor-row-resize transition-colors shrink-0 ${
-                  isResizingConsole ? "bg-gray-500" : "bg-gray-200"
+                className={`h-1 hover:bg-white/30 cursor-row-resize transition-colors shrink-0 ${
+                  isResizingConsole ? "bg-white/50" : "bg-white/10"
                 }`}
                 onMouseDown={handleConsoleResize}
               />
