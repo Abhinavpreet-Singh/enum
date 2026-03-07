@@ -18,6 +18,7 @@ import {
 import Link from "next/link";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
+import { browserSimulations } from "@/data/browser-simulations";
 
 interface SimulationItem {
   id: string;
@@ -71,10 +72,29 @@ export default function SimulationsPage() {
   const [sortBy, setSortBy] = useState<"default" | "xp" | "time">("default");
 
   useEffect(() => {
+    // Seed local browser simulations immediately
+    const local: SimulationItem[] = browserSimulations.map((s) => ({
+      id: s.id,
+      title: s.title,
+      category: s.category,
+      difficulty: s.difficulty,
+      description: s.description,
+      estimatedTime: s.estimatedTime,
+      xpReward: s.xpReward,
+      tags: s.tags,
+    }));
+
     axios
       .get(`${proxy}/api/v1/simulations/getSimulations`)
-      .then((r) => setSimulations(r.data.data || []))
-      .catch(() => {})
+      .then((r) => {
+        const backend: SimulationItem[] = r.data.data || [];
+        // Merge: put browser sims first, then backend ones
+        setSimulations([...local, ...backend]);
+      })
+      .catch(() => {
+        // If backend is unavailable, still show browser simulations
+        setSimulations(local);
+      })
       .finally(() => setLoading(false));
   }, []);
 
