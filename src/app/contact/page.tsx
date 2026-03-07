@@ -6,7 +6,9 @@ import Footer from "@/components/footer";
 
 export default function ContactPage() {
   const [message, setMessage] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
   const [error, setError] = useState<string | null>(null);
 
   const sendMessage = async () => {
@@ -16,7 +18,10 @@ export default function ContactPage() {
     setError(null);
 
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("accessToken")
+          : null;
 
       const res = await fetch("/api/contact", {
         method: "POST",
@@ -30,7 +35,8 @@ export default function ContactPage() {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        const serverMessage = data?.error || data?.message || "Failed to send message";
+        const serverMessage =
+          data?.error || data?.message || "Failed to send message";
         throw new Error(`${serverMessage} (${res.status})`);
       }
 
@@ -46,23 +52,35 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-white dark:bg-black">
       <Header />
-      <main className="max-w-5xl mx-auto px-4 md:px-6 pt-28 pb-16 font-display">
-        <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight text-black dark:text-white mb-6">
-          Contact Us
-        </h1>
-
-        <p className="text-base md:text-lg text-gray-700 dark:text-gray-300 mb-10 leading-relaxed">
-          Have a question, feedback, or want to report an issue? We'd love to hear from you. Use the form below to send us
-          a message.
+      <main className="max-w-3xl mx-auto px-4 md:px-6 pt-32 pb-24">
+        {/* Breadcrumb */}
+        <p className="font-mono text-[11px] tracking-[0.3em] text-gray-400 uppercase mb-6">
+          ENUM / CONTACT
         </p>
 
-        <section className="space-y-10">
-          <div className="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0b0b0b] p-6">
-            <h2 className="text-2xl font-display font-semibold tracking-tight text-black dark:text-white mb-3">
-              Send Us a Message
-            </h2>
+        {/* Title */}
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-black dark:text-white mb-4">
+          Contact Us
+        </h1>
+        <div className="h-px bg-gray-200 dark:bg-white/10 mb-8" />
+
+        <p className="font-mono text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-16">
+          Have a question, feedback, or want to report an issue? Use the form
+          below to send us a message and we'll get back to you.
+        </p>
+
+        <section className="space-y-12">
+          <div className="border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0b0b0b] p-6">
+            <div className="flex items-start gap-6 mb-6">
+              <span className="font-mono text-[11px] tracking-[0.2em] text-gray-300 dark:text-gray-700 mt-1 shrink-0">
+                01
+              </span>
+              <h2 className="text-xl font-bold tracking-tight text-black dark:text-white">
+                Send Us a Message
+              </h2>
+            </div>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
@@ -126,7 +144,9 @@ export default function ContactPage() {
                 )}
               </button>
               {status === "error" && (
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {error}
+                </p>
               )}
             </div>
           </div>

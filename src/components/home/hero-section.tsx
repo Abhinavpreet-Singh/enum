@@ -65,13 +65,21 @@ export default function HeroSection() {
         </Link>
       </div>
 
-      {/* System Overview Indicator */}
-      <div className="absolute bottom-12 md:bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-        <p className="font-mono text-xs tracking-[0.2em] text-gray-400 dark:text-gray-600">
-          SYSTEM OVERVIEW
-        </p>
-        <div className="w-px h-6 md:h-8 bg-gray-200 dark:bg-gray-700" />
-      </div>
+      {/* System Overview button */}
+      <Link
+        href="/demo#demo-videos"
+        scroll
+        aria-label="Open demo videos"
+        className="absolute z-20 bottom-10 md:bottom-14 left-1/2 -translate-x-1/2 cursor-pointer pointer-events-auto focus-visible:outline-none"
+      >
+        <span className="relative inline-flex">
+          <span className="pointer-events-none absolute -inset-1 rounded-full border border-black/55 dark:border-white/55 animate-[outline-pulse_1.8s_ease-in-out_infinite]" />
+          <span className="relative inline-flex items-center gap-3 rounded-full border border-black dark:border-white bg-white dark:bg-black px-5 py-2.5 font-mono text-[11px] tracking-[0.2em] text-gray-700 dark:text-gray-300">
+            <span>SYSTEM OVERVIEW</span>
+            <span className="text-base leading-none">{"->"}</span>
+          </span>
+        </span>
+      </Link>
     </section>
   );
 }

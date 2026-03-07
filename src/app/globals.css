@@ -48,12 +48,9 @@ body {
     color 0.25s ease;
 }
 
-* {
-  scroll-behavior: smooth;
-}
-
 /* Prevent anchored sections from hiding under the sticky header */
 html {
+  scroll-behavior: auto;
   scroll-padding-top: 5.5rem; /* matches header height */
 }
 
@@ -62,6 +59,18 @@ html {
 .font-display {
   font-family: var(--font-geist-sans);
   letter-spacing: -0.02em;
+}
+
+@keyframes outline-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
 }
 
 /* Custom sleek scrollbar for webkit browsers */

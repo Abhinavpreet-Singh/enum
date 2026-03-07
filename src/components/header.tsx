@@ -99,8 +99,8 @@ export default function Header() {
       className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-black/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-600"
       style={{ borderBottomColor: undefined }}
     >
-      <div className="px-4 md:px-6 lg:px-8 py-3 md:py-4">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
+      <div className="px-3 md:px-4 py-3 md:py-4">
+        <div className="grid grid-cols-3 items-center max-w-7xl mx-auto">
           {/* Logo */}
           <Link
             href="/"
@@ -109,8 +109,8 @@ export default function Header() {
             ENUM
           </Link>
 
-          {/* Navigation */}
-          <nav className="hidden md:flex items-center space-x-12 lg:space-x-14">
+          {/* Navigation — centered */}
+          <nav className="hidden md:flex items-center justify-center space-x-10 lg:space-x-12">
             {[
               { href: "/#how-it-works", label: "HOW IT WORKS" },
               { href: "/#simulations", label: "LATEST INCIDENTS" },
@@ -145,56 +145,58 @@ export default function Header() {
           </nav>
 
           {/* Auth buttons + Theme Toggle */}
-          {!isAuthenticated ? (
-            <div className="flex items-center gap-3 md:gap-4">
-              <ThemeToggle />
-              <Link
-                href="/login"
-                className="font-mono text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors tracking-wider hidden sm:inline"
-              >
-                LOGIN
-              </Link>
-              <Link
-                href="/start"
-                className="px-5 py-2 bg-black dark:bg-white text-white dark:text-black font-mono text-xs tracking-wider hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors"
-              >
-                START FREE
-              </Link>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <ThemeToggle />
-              <button
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="border border-gray-200 dark:border-white px-3 py-1 font-mono text-xs tracking-wider text-black dark:text-white hover:bg-gray-50 dark:hover:bg-white dark:hover:text-black transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {isLoggingOut && (
-                  <svg
-                    className="animate-spin h-3 w-3"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                )}
-                {isLoggingOut ? "LOGGING OUT..." : "LOGOUT"}
-              </button>
-            </div>
-          )}
+          <div className="flex justify-end">
+            {!isAuthenticated ? (
+              <div className="flex items-center gap-3 md:gap-4">
+                <ThemeToggle />
+                <Link
+                  href="/login"
+                  className="font-mono text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors tracking-wider hidden sm:inline"
+                >
+                  LOGIN
+                </Link>
+                <Link
+                  href="/start"
+                  className="px-5 py-2 bg-black dark:bg-white text-white dark:text-black font-mono text-xs tracking-wider hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors"
+                >
+                  START FREE
+                </Link>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <ThemeToggle />
+                <button
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="border border-gray-200 dark:border-white px-3 py-1 font-mono text-xs tracking-wider text-black dark:text-white hover:bg-gray-50 dark:hover:bg-white dark:hover:text-black transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isLoggingOut && (
+                    <svg
+                      className="animate-spin h-3 w-3"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                  )}
+                  {isLoggingOut ? "LOGGING OUT..." : "LOGOUT"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

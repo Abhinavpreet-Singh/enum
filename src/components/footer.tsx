@@ -86,6 +86,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="/contact"
+                  scroll
                   className="text-xs md:text-sm text-gray-700 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
                 >
                   Contact
@@ -142,12 +143,14 @@ export default function Footer() {
           <div className="flex items-center gap-4 md:gap-6">
             <Link
               href="/privacy"
+              scroll
               className="text-xs md:text-sm text-gray-600 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors"
             >
               PRIVACY
             </Link>
             <Link
               href="/terms"
+              scroll
               className="text-xs md:text-sm text-gray-600 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors"
             >
               TERMS
