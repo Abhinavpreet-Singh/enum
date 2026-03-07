@@ -90,12 +90,23 @@ export default function ConsolePanel({
         ) : (
           output.map((line, idx) => {
             let lineClass = "text-gray-700 dark:text-gray-200";
-            if (line.startsWith("Error:") || line.startsWith("stderr:")) {
+            if (
+              line.startsWith("Error:") ||
+              line.startsWith("Error [") ||
+              line.startsWith("stderr:") ||
+              line.startsWith("TypeError") ||
+              line.startsWith("ReferenceError") ||
+              line.startsWith("SyntaxError") ||
+              line.startsWith("✗") ||
+              /^\s+at\s+/.test(line)
+            ) {
               lineClass = "text-red-600 dark:text-red-300";
             } else if (line.startsWith("$")) {
               lineClass = "text-gray-500 dark:text-gray-200";
             } else if (line.startsWith("✓")) {
               lineClass = "text-green-600 dark:text-green-300 font-medium";
+            } else if (line.startsWith("Score:")) {
+              lineClass = "text-blue-600 dark:text-blue-300 font-medium";
             }
 
             return (

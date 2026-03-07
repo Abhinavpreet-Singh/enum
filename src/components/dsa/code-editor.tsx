@@ -560,6 +560,8 @@ export default function CodeEditor({
             cursorBlinking: "smooth",
             smoothScrolling: true,
             padding: { top: 16, bottom: 16 },
+            occurrencesHighlight: "off",
+            selectionHighlight: false,
           }}
         />
       </div>

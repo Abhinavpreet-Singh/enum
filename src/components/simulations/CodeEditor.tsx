@@ -137,6 +137,8 @@ export default function CodeEditor({
           smoothScrolling: true,
           cursorBlinking: "smooth",
           fontFamily: "var(--font-geist-mono), 'Fira Code', 'Cascadia Code', monospace",
+          occurrencesHighlight: "off",
+          selectionHighlight: false,
         }}
       />
     </div>

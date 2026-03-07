@@ -58,7 +58,7 @@ function bundleFiles(
         `const SIM_DIR = path.join("/app", "__sim__");`,
         ``,
         `// Clean slate`,
-        `try { fs.rmdirSync(SIM_DIR, { recursive: true }); } catch(e) {}`,
+        `try { fs.rmSync(SIM_DIR, { recursive: true, force: true }); } catch(e) {}`,
         `fs.mkdirSync(SIM_DIR, { recursive: true });`,
         ``,
         `// Force CJS so require() works inside simulation files`,
