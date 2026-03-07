@@ -101,7 +101,6 @@ export default function SimulationContainer({
   // Layout state
   const [explorerWidth, setExplorerWidth] = useState(220);
   const [consoleHeight, setConsoleHeight] = useState(180);
-  const [consoleVisible, setConsoleVisible] = useState(true);
   const [isResizingExplorer, setIsResizingExplorer] = useState(false);
   const [isResizingConsole, setIsResizingConsole] = useState(false);
 
@@ -111,6 +110,20 @@ export default function SimulationContainer({
 
   // File tree
   const [fileTree, setFileTree] = useState<FileNode[]>([]);
+
+  // Lock page scroll while on the simulation page (use internal panel scrolling)
+  useEffect(() => {
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalBodyOverflow = document.body.style.overflow;
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.overflow = originalBodyOverflow;
+    };
+  }, []);
 
   // Progress state
   const [progressLoaded, setProgressLoaded] = useState(false);
@@ -288,7 +301,6 @@ export default function SimulationContainer({
   // Run simulation via Backend Simulation Engine (Docker + curl tests)
   const handleRun = async () => {
     setStatus("running");
-    setConsoleVisible(true);
     const entryFile = getEntryFile();
     setConsoleOutput(["$ Running simulation engine...", ""]);
 
@@ -480,7 +492,7 @@ export default function SimulationContainer({
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 dark:bg-black">
+    <div className="h-screen flex flex-col overflow-hidden bg-gray-50 dark:bg-black">
       {/* Top Bar */}
       <div className="bg-white dark:bg-black border-b border-gray-200 dark:border-white/10 px-4 py-3 flex items-center justify-between shrink-0">
         <Link
@@ -634,7 +646,10 @@ export default function SimulationContainer({
         />
 
         {/* Editor + Console area */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div
+          className="flex-1 flex flex-col min-w-0 relative"
+          style={{ paddingBottom: `${consoleHeight}px` }}
+        >
           {/* Open file tabs */}
           <div className="bg-white dark:bg-black border-b border-gray-200 dark:border-white/10 flex items-center overflow-x-auto shrink-0">
             {openTabs.map((tabPath) => {
@@ -739,40 +754,27 @@ export default function SimulationContainer({
               </button>
             </div>
 
-            <button
-              onClick={() => setConsoleVisible((v) => !v)}
-              className="p-1.5 text-gray-500 dark:text-gray-300 hover:text-white transition-colors rounded"
-              title={consoleVisible ? "Hide console" : "Show console"}
-            >
-              {consoleVisible ? (
-                <PanelBottomClose className="w-4 h-4" />
-              ) : (
-                <PanelBottomOpen className="w-4 h-4" />
-              )}
-            </button>
           </div>
 
           {/* Console Panel */}
-          {consoleVisible && (
-            <>
-              <div
-                className={`h-1 hover:bg-white/30 cursor-row-resize transition-colors shrink-0 ${
-                  isResizingConsole ? "bg-white/50" : "bg-white/10"
-                }`}
-                onMouseDown={handleConsoleResize}
+          <div
+            className="absolute left-0 right-0 bottom-0 z-20"
+            style={{ height: `${consoleHeight}px` }}
+          >
+            <div
+              className={`h-1 hover:bg-white/30 cursor-row-resize transition-colors ${
+                isResizingConsole ? "bg-white/50" : "bg-white/10"
+              }`}
+              onMouseDown={handleConsoleResize}
+            />
+            <div className="h-full overflow-hidden">
+              <ConsolePanel
+                output={consoleOutput}
+                status={status}
+                onClear={handleClearConsole}
               />
-              <div
-                className="shrink-0 overflow-hidden"
-                style={{ height: `${consoleHeight}px` }}
-              >
-                <ConsolePanel
-                  output={consoleOutput}
-                  status={status}
-                  onClear={handleClearConsole}
-                />
-              </div>
-            </>
-          )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

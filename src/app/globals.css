@@ -164,6 +164,23 @@ html {
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 
+/* Monaco selection / find highlight overrides */
+.monaco-editor .selected-text,
+.monaco-editor .selected-text::selection,
+.monaco-editor .view-line .selected-text,
+.monaco-editor .currentFindMatch,
+.monaco-editor .findMatch,
+.monaco-editor .findMatchHighlight,
+.monaco-editor .rangeHighlight,
+.monaco-editor .wordHighlight,
+.monaco-editor .wordHighlightStrong,
+.monaco-editor .selectionHighlight {
+  background-color: rgba(148, 163, 184, 0.25) !important;
+  color: inherit !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
 /* Smooth transitions for theme switching */
 *,
 *::before,
