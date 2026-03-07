@@ -8,9 +8,13 @@ import { proxy } from "@/app/proxy.js";
 
 type AuthMode = "login" | "register";
 
-export default function AuthForm() {
+interface AuthFormProps {
+  initialMode?: AuthMode;
+}
+
+export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
   const router = useRouter();
-  const [mode, setMode] = useState<AuthMode>("login");
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>("");
   const [formData, setFormData] = useState({
