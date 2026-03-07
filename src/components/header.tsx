@@ -129,6 +129,12 @@ export default function Header() {
             >
               COLLEGES
             </Link>
+            <Link
+              href="/demo"
+              className="font-mono text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors tracking-[0.15em]"
+            >
+              DEMO
+            </Link>
           </nav>
 
           {/* Auth buttons + Theme Toggle */}
