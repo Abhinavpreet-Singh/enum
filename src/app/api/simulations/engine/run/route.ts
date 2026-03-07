@@ -6,6 +6,7 @@ const BACKEND_URL = proxy;
 interface EngineRunRequest {
     simulationId: string;
     editedFiles: Array<{ filename: string; content: string }>;
+    entryFile?: string;
 }
 
 /**
@@ -18,7 +19,7 @@ interface EngineRunRequest {
 export async function POST(request: NextRequest) {
     try {
         const body: EngineRunRequest = await request.json();
-        const { simulationId, editedFiles } = body;
+        const { simulationId, editedFiles, entryFile } = body;
 
         if (!simulationId) {
             return NextResponse.json(
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
                     "Content-Type": "application/json",
                     Authorization: authHeader,
                 },
-                body: JSON.stringify({ simulationId, editedFiles }),
+                body: JSON.stringify({ simulationId, editedFiles, ...(entryFile ? { entryFile } : {}) }),
             },
         );
 

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { proxy } from "@/app/proxy";
 
 /**
  * Proxy progress requests to the Express backend.
  * The backend handles authentication via JWT and Mongoose operations.
  */
 
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
+const BACKEND_URL = proxy;
 
 // GET /api/simulations/progress?simulationId=xxx
 export async function GET(request: NextRequest) {

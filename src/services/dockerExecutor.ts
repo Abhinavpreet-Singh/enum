@@ -37,35 +37,38 @@ function bundleFiles(
     files: Record<string, string>,
     entryFile: string,
 ): string {
-    // The bootstrap (code.js) runs as ESM because the compiler's
-    // /app/package.json has "type":"module".
+    // The bootstrap (code.js) runs as ESM (compiler's package.json has
+    // "type":"module"). Simulation files use CJS require(). The bootstrap:
     //
-    // It writes simulation files into /app/__sim__/ — a sub-directory of the
-    // Docker volume mount — so that Node's upward module resolution reaches
-    // /app/node_modules/ (where express, cors, etc. live).
-    //
-    // A package.json with {"type":"commonjs"} is written into __sim__/ so
-    // the simulation's .js files default to CJS and require() works.
-    //
-    // The entry file is launched as a separate CJS Node process via execSync,
-    // avoiding all ESM ↔ CJS interop issues.
+    //   1. Writes all files to /tmp/enum-sim/ with a package.json forcing CJS.
+    //   2. Symlinks node_modules from known locations so require("express")
+    //      etc. always resolve, regardless of Docker image layout.
+    //   3. Spawns the entry file as a child Node process in CJS mode.
 
     const lines: string[] = [
         `import fs from "fs";`,
         `import path from "path";`,
-        `import child_process from "child_process";`,
+        `import { execSync } from "child_process";`,
         ``,
-        `const SIM_DIR = path.join("/app", "__sim__");`,
+        `const SIM_DIR = "/tmp/enum-sim";`,
         ``,
-        `// Clean slate`,
-        `try { fs.rmSync(SIM_DIR, { recursive: true, force: true }); } catch(e) {}`,
+        `// Clean previous run`,
+        `try {`,
+        `  if (fs.rmSync) fs.rmSync(SIM_DIR, { recursive: true, force: true });`,
+        `  else fs.rmdirSync(SIM_DIR, { recursive: true });`,
+        `} catch(e) {}`,
         `fs.mkdirSync(SIM_DIR, { recursive: true });`,
         ``,
-        `// Force CJS so require() works inside simulation files`,
-        `fs.writeFileSync(`,
-        `  path.join(SIM_DIR, "package.json"),`,
-        `  JSON.stringify({ type: "commonjs" })`,
-        `);`,
+        `// Force CJS mode so require() works in simulation files`,
+        `fs.writeFileSync(path.join(SIM_DIR, "package.json"), '{"type":"commonjs"}');`,
+        ``,
+        `// Symlink node_modules so require("express") etc. resolve from SIM_DIR.`,
+        `const nmTarget = fs.existsSync("/node_modules") ? "/node_modules"`,
+        `               : fs.existsSync("/app/node_modules") ? "/app/node_modules"`,
+        `               : null;`,
+        `if (nmTarget) {`,
+        `  try { fs.symlinkSync(nmTarget, path.join(SIM_DIR, "node_modules"), "dir"); } catch(e) {}`,
+        `}`,
         ``,
         `const simFiles = ${JSON.stringify(files)};`,
         ``,
@@ -75,16 +78,24 @@ function bundleFiles(
         `  fs.writeFileSync(fp, content, "utf-8");`,
         `}`,
         ``,
-        `// Run the entry file as a separate CJS Node process.`,
-        `// Module resolution: /app/__sim__/node_modules → /app/node_modules/ ✓`,
+        `// Verify entry file exists`,
+        `const entryPath = path.join(SIM_DIR, ${JSON.stringify(entryFile)});`,
+        `if (!fs.existsSync(entryPath)) {`,
+        `  const written = fs.readdirSync(SIM_DIR).join(", ");`,
+        `  console.error("Error: Entry file ${entryFile} not found. Files: " + written);`,
+        `  process.exit(1);`,
+        `}`,
+        ``,
+        `// Run entry file as a separate CJS Node process.`,
         `try {`,
-        `  child_process.execSync(`,
-        `    "node " + ${JSON.stringify(entryFile)},`,
-        `    { cwd: SIM_DIR, stdio: "inherit", timeout: 8000 }`,
-        `  );`,
+        `  execSync("node " + ${JSON.stringify(entryFile)}, {`,
+        `    cwd: SIM_DIR,`,
+        `    stdio: "inherit",`,
+        `    timeout: 8000,`,
+        `    env: { ...process.env, NODE_PATH: nmTarget || "" }`,
+        `  });`,
         `} catch(e) {`,
-        `  if (e.stderr) process.stderr.write(e.stderr);`,
-        `  process.exit(e.status || 1);`,
+        `  process.exitCode = e.status || 1;`,
         `}`,
     ];
 

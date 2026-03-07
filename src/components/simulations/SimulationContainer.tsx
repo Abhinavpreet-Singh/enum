@@ -288,14 +288,16 @@ export default function SimulationContainer({
 
   // Determine entry file for execution
   const getEntryFile = (): string => {
-    // Use simulation-specified entry file first
-    if (simulation.entryFile) return simulation.entryFile;
-    // Fallback: prefer index.js, server.js, main.js, or the first .js file
-    const candidates = ["index.js", "server.js", "main.js", "app.js"];
+    // Prefer simulation-specified entry file if it actually exists in the file map
+    if (simulation.entryFile && files[simulation.entryFile]) return simulation.entryFile;
+    // Auto-detect: backend sims use server.js most often, then index.js etc.
+    const candidates = ["server.js", "index.js", "main.js", "app.js"];
     for (const c of candidates) {
       if (files[c]) return c;
     }
-    return simulation.initialFiles[0]?.path ?? "";
+    // Fall back to first top-level .js file, then any file
+    const firstJs = Object.keys(files).find(k => k.endsWith(".js") && !k.includes("/"));
+    return firstJs ?? simulation.initialFiles[0]?.path ?? "";
   };
 
   // Run simulation via Backend Simulation Engine (Docker + curl tests)
@@ -322,6 +324,7 @@ export default function SimulationContainer({
         body: JSON.stringify({
           simulationId: simulation.id,
           editedFiles,
+          entryFile,
         }),
       });
 
