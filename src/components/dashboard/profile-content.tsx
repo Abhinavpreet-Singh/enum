@@ -55,66 +55,140 @@ interface UserStats {
   globalRank: number | null;
 }
 
-function generateHeatmapData() {
-  const weeks: number[][] = [];
-  for (let w = 0; w < 52; w++) {
-    const days: number[] = [];
+interface LeaderboardEntry {
+  username: string;
+  problemsSolved: number;
+  simulationsSolved: number;
+}
+
+// Returns "YYYY-MM-DD" in the user's LOCAL timezone (not UTC)
+function localDateStr(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+interface HeatCell {
+  date: string;   // "YYYY-MM-DD" local timezone
+  level: number;  // 0-4 intensity
+  count: number;  // total submissions that day
+}
+
+// Builds 52-week grid anchored on Sunday, using total submissions for intensity
+function generateHeatmapCells(submissionsMap: Map<string, number>): HeatCell[][] {
+  const weeks: HeatCell[][] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const start = new Date(today);
+  start.setDate(start.getDate() - 52 * 7);
+  start.setDate(start.getDate() - start.getDay()); // snap to Sunday
+
+  const cur = new Date(start);
+  while (cur <= today) {
+    const week: HeatCell[] = [];
     for (let d = 0; d < 7; d++) {
-      const r = Math.random();
-      if (r < 0.45) days.push(0);
-      else if (r < 0.65) days.push(1);
-      else if (r < 0.8) days.push(2);
-      else if (r < 0.92) days.push(3);
-      else days.push(4);
+      const dateStr = localDateStr(cur);
+      const count = cur > today ? 0 : (submissionsMap.get(dateStr) ?? 0);
+      const level = count === 0 ? 0 : count === 1 ? 1 : count <= 3 ? 2 : count <= 5 ? 3 : 4;
+      week.push({ date: dateStr, level, count });
+      cur.setDate(cur.getDate() + 1);
     }
-    weeks.push(days);
+    weeks.push(week);
   }
   return weeks;
 }
 
+// Returns label + column index of the week that CONTAINS the 1st of each month
+// Pixel constants shared between label positions and cell column margins
+const CELL_W = 11;   // w-2.75
+const COL_GAP = 3;   // gap-0.75
+const DAY_W = 28;    // day-label column width
+const MONTH_EXTRA = 9; // extra px added at each month boundary
+
+// Returns { label, left } where left is the precise pixel offset for each month label.
+// Labels are anchored to the first week-column that *starts* in that month (the same
+// column that receives the boundary gap), so the label always sits right after its gap.
+function computeMonthLabelPositions(cells: HeatCell[][]): { label: string; left: number }[] {
+  const result: { label: string; left: number }[] = [];
+  let extraAcc = 0;
+
+  cells.forEach((week, wi) => {
+    const firstDay = new Date(week[0].date + "T00:00:00");
+    const isNewMonth =
+      wi > 0 &&
+      firstDay.getMonth() !== new Date(cells[wi - 1][0].date + "T00:00:00").getMonth();
+
+    if (isNewMonth) {
+      extraAcc += MONTH_EXTRA;
+      // left = day-label + first gap + col * (cell + gap) + accumulated extras
+      // This matches exactly the DOM left edge of column wi.
+      const left = DAY_W + COL_GAP + wi * (CELL_W + COL_GAP) + extraAcc;
+      result.push({ label: firstDay.toLocaleString("default", { month: "short" }), left });
+    }
+  });
+  return result;
+}
+
+function calculateStreak(activityMap: Map<string, number>) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let currentStreak = 0;
+  let longestStreak = 0;
+  let tempStreak = 0;
+  let currentStreakCaptured = false;
+
+  // Walk from today (i=0) backwards to 365 days ago
+  for (let i = 0; i <= 365; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = localDateStr(d); // local timezone, not UTC
+    const count = activityMap.get(dateStr) ?? 0;
+
+    if (count > 0) {
+      tempStreak++;
+    } else {
+      // First gap we hit going backward = end of current streak
+      if (!currentStreakCaptured) {
+        currentStreak = tempStreak;
+        currentStreakCaptured = true;
+      }
+      if (tempStreak > longestStreak) longestStreak = tempStreak;
+      tempStreak = 0;
+    }
+  }
+
+  // Finalize if the whole 365-day window was active
+  if (tempStreak > longestStreak) longestStreak = tempStreak;
+  if (!currentStreakCaptured) currentStreak = tempStreak;
+
+  return { currentStreak, longestStreak };
+}
+
+function generateStreakBadges(currentStreak: number) {
+  const milestones = [1, 7, 25, 50, 100, 200, 365];
+  return milestones.map((day) => ({
+    day,
+    label: day === 1 ? "Day 1" : day === 7 ? "Day 7" : `Day ${day}`,
+    unlocked: currentStreak >= day,
+  }));
+}
+
+// Black & white contribution colors
 function heatColor(level: number): string {
   switch (level) {
-    case 0:
-      return "bg-gray-100 border border-gray-200 dark:bg-white/5 dark:border-white/8";
-    case 1:
-      return "bg-gray-300 dark:bg-white/20";
-    case 2:
-      return "bg-gray-500 dark:bg-white/40";
-    case 3:
-      return "bg-gray-700 dark:bg-white/65";
-    case 4:
-      return "bg-gray-900 dark:bg-white";
-    default:
-      return "bg-gray-100 border border-gray-200 dark:bg-white/5 dark:border-white/8";
+    case 0:  return "bg-[#ebebeb] dark:bg-[#1e1e1e]";
+    case 1:  return "bg-[#c0c0c0] dark:bg-[#404040]";
+    case 2:  return "bg-[#888888] dark:bg-[#707070]";
+    case 3:  return "bg-[#4a4a4a] dark:bg-[#a0a0a0]";
+    case 4:  return "bg-[#1a1a1a] dark:bg-[#d8d8d8]";
+    default: return "bg-[#ebebeb] dark:bg-[#1e1e1e]";
   }
 }
 
-const HEATMAP = generateHeatmapData();
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = [
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-  "Jan",
-  "Feb",
-];
-
-const STREAK_BADGES = [
-  { day: 1, label: "Day 1", unlocked: true },
-  { day: 7, label: "Day 7", unlocked: true },
-  { day: 25, label: "Day 25", unlocked: true },
-  { day: 50, label: "Day 50", unlocked: false },
-  { day: 100, label: "Day 100", unlocked: false },
-  { day: 200, label: "Day 200", unlocked: false },
-  { day: 365, label: "Day 365", unlocked: false },
-];
 
 export default function ProfileContent() {
   const isAuthenticated = useAuth();
@@ -234,7 +308,7 @@ export default function ProfileContent() {
   const [addingCert, setAddingCert] = useState(false);
   const [newCert, setNewCert] = useState({ name: "", issuer: "", date: "" });
 
-  const [stats] = useState<UserStats>(() => {
+  const [stats, setStats] = useState<UserStats>(() => {
     if (typeof window !== "undefined") {
       const s = localStorage.getItem("userStats");
       if (s) {
@@ -243,7 +317,7 @@ export default function ProfileContent() {
           return {
             totalProblems: p.totalProblems ?? 0,
             totalSimulations: p.totalSimulations ?? 0,
-            longestStreak: p.longestStreak ?? 69,
+            longestStreak: p.longestStreak ?? 0,
             currentStreak: p.currentStreak ?? 0,
             globalRank: p.globalRank ?? null,
           };
@@ -255,11 +329,109 @@ export default function ProfileContent() {
     return {
       totalProblems: 0,
       totalSimulations: 0,
-      longestStreak: 69,
+      longestStreak: 0,
       currentStreak: 0,
       globalRank: null,
     };
   });
+
+  const [heatmapCells, setHeatmapCells] = useState<HeatCell[][]>([]);
+  const [totalSubmissionsYear, setTotalSubmissionsYear] = useState(0);
+  const [totalActiveDays, setTotalActiveDays] = useState(0);
+  const [streakBadges, setStreakBadges] = useState<Array<{ day: number; label: string; unlocked: boolean }>>(
+    generateStreakBadges(0)
+  );
+  const [lastLoginDate, setLastLoginDate] = useState<string>(
+    typeof window !== "undefined" ? localStorage.getItem("lastLoginDate") || "" : ""
+  );
+
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+
+    // Track daily login
+    const today = new Date().toISOString().split('T')[0];
+    const storedLastLogin = localStorage.getItem("lastLoginDate") || "";
+    if (storedLastLogin !== today) {
+      localStorage.setItem("lastLoginDate", today);
+      setLastLoginDate(today);
+    }
+
+    // Fetch leaderboard + submissions in parallel so setStats is called ONCE
+    // with all fields merged — eliminates the race condition where two separate
+    // setStats calls overwrite each other's data in localStorage.
+    Promise.all([
+      axios.get(`${proxy}/api/v1/users/leaderboard`).catch(() => null),
+      token
+        ? fetch("/api/submissions/recent", {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+            .then((r) => r.json())
+            .catch(() => null)
+        : Promise.resolve(null),
+    ]).then(([lbRes, subData]) => {
+      // ── Leaderboard data ──────────────────────────────
+      const lb: LeaderboardEntry[] = lbRes?.data?.data ?? [];
+      const idx = lb.findIndex((e) => e.username === registeredUsername);
+      const lbEntry = idx !== -1 ? lb[idx] : null;
+
+      // ── Submissions → two maps ─────────────────────────────────────────
+      // allSubmissionsMap  → ALL submissions per day  (drives heatmap color)
+      // activityMap        → days with ACCEPTED submissions (drives streak)
+      const submissions: any[] = subData?.data ?? [];
+      const allSubmissionsMap = new Map<string, number>();
+      const acceptedByDate = new Map<string, Set<string>>();
+
+      submissions.forEach((sub) => {
+        if (!sub.createdAt) return;
+        const date = localDateStr(new Date(sub.createdAt));
+        // Every submission counts for heatmap intensity
+        allSubmissionsMap.set(date, (allSubmissionsMap.get(date) ?? 0) + 1);
+        // Accepted-only for streak
+        const isAccepted = sub.verdict?.toLowerCase() === "accepted";
+        const uniqueKey = sub.question?._id || sub._id;
+        if (isAccepted) {
+          if (!acceptedByDate.has(date)) acceptedByDate.set(date, new Set());
+          acceptedByDate.get(date)!.add(uniqueKey);
+        }
+      });
+
+      const activityMap = new Map<string, number>();
+      acceptedByDate.forEach((problems, date) => activityMap.set(date, problems.size));
+
+      // Total submissions in the past year
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      oneYearAgo.setHours(0, 0, 0, 0);
+      let subsThisYear = 0;
+      allSubmissionsMap.forEach((count, date) => {
+        if (new Date(date + "T00:00:00") >= oneYearAgo) subsThisYear += count;
+      });
+
+      // ── Heatmap + streaks ─────────────────────────────
+      setHeatmapCells(generateHeatmapCells(allSubmissionsMap));
+      setTotalSubmissionsYear(subsThisYear);
+      setTotalActiveDays(activityMap.size);
+      const { currentStreak, longestStreak } = calculateStreak(activityMap);
+      setStreakBadges(generateStreakBadges(currentStreak));
+
+      // ── Single setStats call — no race condition ──────
+      setStats((prev) => {
+        const next: UserStats = {
+          ...prev,
+          ...(lbEntry && {
+            totalProblems: lbEntry.problemsSolved,
+            totalSimulations: lbEntry.simulationsSolved,
+            globalRank: idx + 1,
+          }),
+          currentStreak,
+          longestStreak,
+        };
+        localStorage.setItem("userStats", JSON.stringify(next));
+        return next;
+      });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registeredUsername]);
 
   async function persistProfile(data: ProfileData) {
     const token = localStorage.getItem("accessToken");
@@ -936,76 +1108,115 @@ export default function ProfileContent() {
               ))}
             </div>
 
-            {/* Streak Heatmap */}
-            <div className="border border-gray-200 dark:border-white/8 p-5 bg-white/90 dark:bg-[#111]">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="font-mono text-[10px] tracking-widest text-gray-400">
-                    ACTIVITY HEATMAP
-                  </p>
-                  <p className="text-sm font-bold text-black dark:text-white mt-0.5">
-                    {stats.currentStreak > 0
-                      ? `${stats.currentStreak}-day current streak`
-                      : "Start your streak today"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-mono text-[10px] text-gray-400">
-                    Less
+            {/* Activity Heatmap — LeetCode style */}
+            <div className="border border-gray-200 dark:border-[#21262d] bg-white dark:bg-[#0d1117]">
+              {/* ── Header bar ── */}
+              <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-gray-100 dark:border-[#21262d]">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <span className="font-bold text-black dark:text-white text-base">
+                    {heatmapCells.length > 0 ? totalSubmissionsYear : "--"}
+                  </span>{" "}
+                  submissions in the past one year
+                  <span
+                    className="ml-1.5 text-gray-400 cursor-default select-none"
+                    title="Cell intensity = all submissions that day. Streak = consecutive days with at least one accepted solution."
+                  >
+                    ⓘ
                   </span>
-                  {[0, 1, 2, 3, 4].map((l) => (
-                    <div key={l} className={`w-3 h-3 ${heatColor(l)}`} />
-                  ))}
-                  <span className="font-mono text-[10px] text-gray-400">
-                    More
+                </p>
+                <div className="flex items-center gap-5 text-[11px] font-mono text-gray-500 dark:text-gray-400 flex-wrap">
+                  <span>
+                    Total active days:{" "}
+                    <span className="font-bold text-black dark:text-white">{totalActiveDays}</span>
+                  </span>
+                  <span>
+                    Max streak:{" "}
+                    <span className="font-bold text-black dark:text-white">{stats.longestStreak}</span>
                   </span>
                 </div>
               </div>
 
-              <div
-                className="overflow-x-auto"
-                style={{ scrollbarWidth: "none" }}
-              >
-                <div style={{ minWidth: 640 }}>
-                  {/* Month labels */}
-                  <div className="flex gap-px mb-1 pl-8">
-                    {MONTHS.map((m, i) => (
-                      <div
-                        key={i}
-                        className="font-mono text-[9px] text-gray-400"
-                        style={{ width: "56.5px" }}
-                      >
-                        {m}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex gap-px">
-                    {/* Day labels */}
-                    <div className="flex flex-col gap-px mr-1">
-                      {DAYS.map((d, i) => (
-                        <div
-                          key={d}
-                          className="font-mono text-[9px] text-gray-400 h-3 flex items-center"
-                          style={{ width: 28, opacity: i % 2 === 1 ? 1 : 0 }}
+              {/* ── Grid ── */}
+              <div className="px-5 py-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                {heatmapCells.length > 0 ? (
+                  <div style={{ minWidth: 700 }}>
+                    {/* Month labels — absolutely positioned, left values include accumulated month-boundary extra gaps */}
+                    <div className="relative mb-1" style={{ height: 16 }}>
+                      {computeMonthLabelPositions(heatmapCells).map(({ label, left }) => (
+                        <span
+                          key={`${label}-${left}`}
+                          className="absolute font-mono text-[10px] text-gray-400 dark:text-gray-500"
+                          style={{ left, whiteSpace: "nowrap" }}
                         >
-                          {d}
-                        </div>
+                          {label}
+                        </span>
                       ))}
                     </div>
-                    {/* Cells */}
-                    {HEATMAP.map((week, wi) => (
-                      <div key={wi} className="flex flex-col gap-px">
-                        {week.map((level, di) => (
+
+                    <div className="flex">
+                      {/* Day labels — Mon / Wed / Fri visible, others hidden */}
+                      <div className="flex flex-col gap-0.75 shrink-0" style={{ width: DAY_W }}>
+                        {DAYS.map((d, i) => (
                           <div
-                            key={di}
-                            title={`${level} problem${level !== 1 ? "s" : ""}`}
-                            className={`w-3 h-3 ${heatColor(level)} hover:ring-1 hover:ring-gray-400 dark:hover:ring-white/30 cursor-default`}
-                          />
+                            key={d}
+                            className="font-mono text-[10px] text-gray-400 dark:text-gray-500 flex items-center"
+                            style={{ height: CELL_W, opacity: i === 1 || i === 3 || i === 5 ? 1 : 0 }}
+                          >
+                            {d}
+                          </div>
                         ))}
                       </div>
-                    ))}
+
+                      {/* Cell columns — extra marginLeft at every month boundary */}
+                      {heatmapCells.map((week, wi) => {
+                        const isNewMonth =
+                          wi > 0 &&
+                          new Date(week[0].date + "T00:00:00").getMonth() !==
+                            new Date(heatmapCells[wi - 1][0].date + "T00:00:00").getMonth();
+                        return (
+                          <div
+                            key={wi}
+                            className="flex flex-col gap-0.75"
+                            style={{ marginLeft: isNewMonth ? COL_GAP + MONTH_EXTRA : COL_GAP }}
+                          >
+                            {week.map((cell, di) => {
+                              const d = new Date(cell.date + "T00:00:00");
+                              const dateLabel = d.toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              });
+                              const tipText =
+                                cell.count > 0
+                                  ? `${cell.count} submission${cell.count !== 1 ? "s" : ""} on ${dateLabel}`
+                                  : `No submissions on ${dateLabel}`;
+                              return (
+                                <div
+                                  key={di}
+                                  title={tipText}
+                                  className={`w-2.75 h-2.75 rounded-xs cursor-default transition-opacity hover:opacity-75 ${heatColor(cell.level)}`}
+                                />
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Legend */}
+                    <div className="flex items-center justify-end gap-1.5 mt-3">
+                      <span className="font-mono text-[10px] text-gray-400">Less</span>
+                      {[0, 1, 2, 3, 4].map((l) => (
+                        <div key={l} className={`w-2.75 h-2.75 rounded-xs ${heatColor(l)}`} />
+                      ))}
+                      <span className="font-mono text-[10px] text-gray-400">More</span>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="text-gray-400 text-xs font-mono py-6 text-center">
+                    Loading activity...
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1020,7 +1231,7 @@ export default function ProfileContent() {
                   </p>
                 </div>
                 <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-                  {STREAK_BADGES.map(({ day, label, unlocked }) => (
+                  {streakBadges.map(({ day, label, unlocked }) => (
                     <div
                       key={day}
                       className={`group flex flex-col items-center gap-2 p-3 border transition-all duration-200 cursor-default ${
