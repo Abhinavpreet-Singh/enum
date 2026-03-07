@@ -52,6 +52,11 @@ body {
   scroll-behavior: smooth;
 }
 
+/* Prevent anchored sections from hiding under the sticky header */
+html {
+  scroll-padding-top: 5.5rem; /* matches header height */
+}
+
 /* Clean border styling - handled by Tailwind utilities per-element */
 
 .font-display {

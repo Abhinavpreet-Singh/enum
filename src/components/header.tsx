@@ -110,31 +110,38 @@ export default function Header() {
           </Link>
 
           {/* Navigation */}
-          <nav className="hidden md:flex items-center space-x-6 lg:space-x-8">
-            <Link
-              href="#features"
-              className="font-mono text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors tracking-[0.15em]"
-            >
-              FEATURES
-            </Link>
-            <Link
-              href="#simulations"
-              className="font-mono text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors tracking-[0.15em]"
-            >
-              SIMULATIONS
-            </Link>
-            <Link
-              href="#colleges"
-              className="font-mono text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors tracking-[0.15em]"
-            >
-              COLLEGES
-            </Link>
-            <Link
-              href="/demo"
-              className="font-mono text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors tracking-[0.15em]"
-            >
-              DEMO
-            </Link>
+          <nav className="hidden md:flex items-center space-x-12 lg:space-x-14">
+            {[
+              { href: "/#how-it-works", label: "HOW IT WORKS" },
+              { href: "/#simulations", label: "LATEST INCIDENTS" },
+              { href: "/#colleges", label: "WHO BENEFITS" },
+            ].map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className="font-mono text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors tracking-[0.03em]"
+                onClick={(e) => {
+                  if (typeof window === "undefined") return;
+
+                  const isHome = window.location.pathname === "/";
+                  const hash = href.split("#")[1];
+
+                  if (!isHome || !hash) return;
+
+                  const section = document.getElementById(hash);
+                  if (!section) return;
+
+                  e.preventDefault();
+                  section.scrollIntoView({
+                    behavior: "smooth",
+                    block: hash === "colleges" ? "start" : "center",
+                  });
+                  window.history.replaceState({}, "", href);
+                }}
+              >
+                {label}
+              </Link>
+            ))}
           </nav>
 
           {/* Auth buttons + Theme Toggle */}
