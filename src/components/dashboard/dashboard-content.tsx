@@ -562,7 +562,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
               const isYou = u.username === currentUsername;
               return (
                 <div
-                  key={u._id}
+                  key={u._id ?? i}
                   className={`flex items-center gap-3 py-2.5 relative ${isYou ? "pl-3" : ""}`}
                 >
                   {isYou && (
@@ -652,7 +652,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
           </div>
         ) : (
           <div className="border border-gray-100 dark:border-white/8 divide-y divide-gray-50 dark:divide-white/5 overflow-hidden">
-            {recentActivity.map((sub) => {
+            {recentActivity.map((sub, i) => {
               const accepted = sub.verdict === "accepted";
               const title = sub.question?.title ?? "Unknown Question";
               const level = sub.question?.level ?? "";
@@ -666,7 +666,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                       : "text-gray-400";
               return (
                 <a
-                  key={sub._id}
+                  key={sub._id ?? i}
                   href={`/dashboard/dsa-arena/${sub.question?._id ?? ""}`}
                   className="flex items-center justify-between gap-4 px-4 py-3 bg-white dark:bg-[#111] hover:bg-gray-50 dark:hover:bg-[#161616] transition-colors"
                 >

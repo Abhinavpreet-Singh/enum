@@ -93,6 +93,7 @@ export default function CodeEditor({
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [showComplexityModal, setShowComplexityModal] = useState(false);
   const [wasSubmission, setWasSubmission] = useState(false);
+  const [hasAcceptedSubmission, setHasAcceptedSubmission] = useState(false);
 
   const { theme } = useTheme();
   const isDarkMode = theme === "dark";
@@ -355,6 +356,7 @@ export default function CodeEditor({
     });
     setSubmitPhase("done");
     setIsSubmitting(false);
+    if (verdict === "accepted") setHasAcceptedSubmission(true);
 
     // Save all submissions to backend (accepted AND failed)
     try {
@@ -475,7 +477,7 @@ export default function CodeEditor({
           <button
             onClick={handleSubmit}
             disabled={isProcessing}
-            className="px-4 py-1.5 bg-green-600 dark:bg-white text-white dark:text-black text-xs rounded flex items-center gap-2 hover:bg-green-700 dark:hover:bg-white/90 disabled:opacity-50 transition-colors"
+            className="px-4 py-1.5 bg-black dark:bg-white text-white dark:text-black text-xs rounded flex items-center gap-2 hover:bg-gray-800 dark:hover:bg-gray-100 border border-black dark:border-white disabled:opacity-50 transition-colors"
           >
             {isSubmitting ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -485,11 +487,21 @@ export default function CodeEditor({
             SUBMIT
           </button>
 
-          {/* PUBLISH */}
+          {/* PUBLISH — only enabled after a correct submission */}
           {questionId && (
             <button
-              onClick={() => setShowPublishModal(true)}
-              className="px-4 py-1.5 bg-gray-100 dark:bg-white/8 text-gray-600 dark:text-gray-300 text-xs rounded flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-white/15 hover:text-black dark:hover:text-white transition-colors"
+              onClick={() => hasAcceptedSubmission && setShowPublishModal(true)}
+              disabled={!hasAcceptedSubmission}
+              title={
+                hasAcceptedSubmission
+                  ? "Publish your solution"
+                  : "Submit a correct solution first to unlock publishing"
+              }
+              className={`px-4 py-1.5 text-xs rounded flex items-center gap-2 transition-colors ${
+                hasAcceptedSubmission
+                  ? "bg-gray-100 dark:bg-white/8 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/15 hover:text-black dark:hover:text-white cursor-pointer"
+                  : "bg-gray-50 dark:bg-white/4 text-gray-300 dark:text-gray-600 cursor-not-allowed opacity-60"
+              }`}
             >
               <Upload className="w-4 h-4" />
               PUBLISH
@@ -516,7 +528,8 @@ export default function CodeEditor({
                 "editorLineNumber.activeForeground": "#60a5fa",
                 "editorCursor.foreground": "#60a5fa",
                 "editor.selectionBackground": "rgba(96, 165, 250, 0.25)",
-                "editor.inactiveSelectionBackground": "rgba(148, 163, 184, 0.2)",
+                "editor.inactiveSelectionBackground":
+                  "rgba(148, 163, 184, 0.2)",
                 "editor.lineHighlightBackground": "#0b1220",
                 "editorIndentGuide.background": "rgba(148, 163, 184, 0.2)",
                 "editorIndentGuide.activeBackground": "rgba(96, 165, 250, 0.4)",
