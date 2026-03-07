@@ -37,41 +37,55 @@ function bundleFiles(
     files: Record<string, string>,
     entryFile: string,
 ): string {
-    const fileEntries = Object.entries(files);
-
-    // Single-file shortcut: no bundling needed
-    if (fileEntries.length === 1) {
-        return fileEntries[0][1];
-    }
-
-    // Multi-file: generate a bootstrap script that writes all files to a temp
-    // directory and then requires the entry file.
+    // The bootstrap (code.js) runs as ESM because the compiler's
+    // /app/package.json has "type":"module".
     //
-    // This works because the compiler runs `node code.js` inside Docker.
-    // The bootstrap:
-    //   1. Creates /tmp/sim/<filename> for every file
-    //   2. Requires /tmp/sim/<entryFile>
+    // It writes simulation files into /app/__sim__/ — a sub-directory of the
+    // Docker volume mount — so that Node's upward module resolution reaches
+    // /app/node_modules/ (where express, cors, etc. live).
     //
-    // Using JSON.stringify to safely embed file contents as string literals.
+    // A package.json with {"type":"commonjs"} is written into __sim__/ so
+    // the simulation's .js files default to CJS and require() works.
+    //
+    // The entry file is launched as a separate CJS Node process via execSync,
+    // avoiding all ESM ↔ CJS interop issues.
 
     const lines: string[] = [
-        `"use strict";`,
-        `const fs = require("fs");`,
-        `const path = require("path");`,
+        `import fs from "fs";`,
+        `import path from "path";`,
+        `import child_process from "child_process";`,
         ``,
-        `const SIM_DIR = path.join(require("os").tmpdir(), "enum-sim");`,
+        `const SIM_DIR = path.join("/app", "__sim__");`,
         ``,
-        `// ── Write simulation files ──`,
-        `const files = ${JSON.stringify(files)};`,
+        `// Clean slate`,
+        `try { fs.rmdirSync(SIM_DIR, { recursive: true }); } catch(e) {}`,
+        `fs.mkdirSync(SIM_DIR, { recursive: true });`,
         ``,
-        `for (const [name, content] of Object.entries(files)) {`,
+        `// Force CJS so require() works inside simulation files`,
+        `fs.writeFileSync(`,
+        `  path.join(SIM_DIR, "package.json"),`,
+        `  JSON.stringify({ type: "commonjs" })`,
+        `);`,
+        ``,
+        `const simFiles = ${JSON.stringify(files)};`,
+        ``,
+        `for (const [name, content] of Object.entries(simFiles)) {`,
         `  const fp = path.join(SIM_DIR, name);`,
         `  fs.mkdirSync(path.dirname(fp), { recursive: true });`,
         `  fs.writeFileSync(fp, content, "utf-8");`,
         `}`,
         ``,
-        `// ── Execute entry file ──`,
-        `require(path.join(SIM_DIR, ${JSON.stringify(entryFile)}));`,
+        `// Run the entry file as a separate CJS Node process.`,
+        `// Module resolution: /app/__sim__/node_modules → /app/node_modules/ ✓`,
+        `try {`,
+        `  child_process.execSync(`,
+        `    "node " + ${JSON.stringify(entryFile)},`,
+        `    { cwd: SIM_DIR, stdio: "inherit", timeout: 8000 }`,
+        `  );`,
+        `} catch(e) {`,
+        `  if (e.stderr) process.stderr.write(e.stderr);`,
+        `  process.exit(e.status || 1);`,
+        `}`,
     ];
 
     return lines.join("\n");
