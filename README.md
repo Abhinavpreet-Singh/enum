@@ -218,7 +218,6 @@ See src/data/simulations.ts for examples.
 ## 📝 License
 
 MIT - Educational use
-
 ## 🤝 Contributing
 
 1. Fork repository
