@@ -1,8 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import useAuth from "@/hooks/useAuth";
 
 export default function Footer() {
+  const isAuthenticated = useAuth();
+  const simulationsHref = isAuthenticated ? "/dashboard/simulations" : "/login";
+  const tracksHref = isAuthenticated ? "/dashboard/tracks" : "/login";
+  const dsaHref = isAuthenticated ? "/dashboard/dsa-arena" : "/login";
+
   return (
     <footer className="border-t border-white dark:border-white bg-gray-50 dark:bg-black">
       <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-12 md:py-16">
@@ -30,7 +36,7 @@ export default function Footer() {
             <ul className="space-y-2 md:space-y-3">
               <li>
                 <Link
-                  href="/simulations"
+                  href={simulationsHref}
                   className="text-xs md:text-sm text-gray-700 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
                 >
                   Simulations
@@ -38,7 +44,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/tracks"
+                  href={tracksHref}
                   className="text-xs md:text-sm text-gray-700 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
                 >
                   Tracks
@@ -46,7 +52,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/dsa-arena"
+                  href={dsaHref}
                   className="text-xs md:text-sm text-gray-700 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
                 >
                   DSA Arena
@@ -71,15 +77,16 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/careers"
+                  href="/demo"
                   className="text-xs md:text-sm text-gray-700 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
                 >
-                  Careers
+                  Demo
                 </Link>
               </li>
               <li>
                 <Link
                   href="/contact"
+                  scroll
                   className="text-xs md:text-sm text-gray-700 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
                 >
                   Contact
@@ -136,12 +143,14 @@ export default function Footer() {
           <div className="flex items-center gap-4 md:gap-6">
             <Link
               href="/privacy"
+              scroll
               className="text-xs md:text-sm text-gray-600 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors"
             >
               PRIVACY
             </Link>
             <Link
               href="/terms"
+              scroll
               className="text-xs md:text-sm text-gray-600 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors"
             >
               TERMS

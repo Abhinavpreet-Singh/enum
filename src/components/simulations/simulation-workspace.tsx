@@ -13,6 +13,7 @@ import {
 import Editor from "@monaco-editor/react";
 import Link from "next/link";
 import type { Simulation, SimulationFile } from "@/data/simulations";
+import { useTheme } from "@/providers/theme-provider";
 import LivePreview from "./live-preview";
 
 interface SimulationWorkspaceProps {
@@ -24,6 +25,7 @@ type TabType = "preview" | "console" | "solution";
 export default function SimulationWorkspace({
   simulation,
 }: SimulationWorkspaceProps) {
+  const { theme } = useTheme();
   const [activeFile, setActiveFile] = useState<SimulationFile>(
     simulation.initialFiles[0],
   );
@@ -600,7 +602,78 @@ export default function SimulationWorkspace({
               language={activeFile?.language || "javascript"}
               value={files[activeFile?.name] || ""}
               onChange={handleCodeChange}
-              theme="vs-light"
+              theme={theme === "dark" ? "pitch-black" : "pitch-light"}
+              onMount={(editor, monaco) => {
+                monaco.editor.setTheme(theme === "dark" ? "pitch-black" : "pitch-light");
+              }}
+              beforeMount={(monaco) => {
+                // Dark (black) theme
+                monaco.editor.defineTheme("pitch-black", {
+                  base: "vs-dark",
+                  inherit: true,
+                  rules: [],
+                  colors: {
+                    "editor.background": "#000000",
+                    "editor.foreground": "#f8fafc",
+                    "editorLineNumber.foreground": "#64748b",
+                    "editorLineNumber.activeForeground": "#60a5fa",
+                    "editorCursor.foreground": "#60a5fa",
+                    "editor.selectionBackground": "rgba(248,250,252,0.12)",
+                    "editor.selectionHighlightBackground": "rgba(148,163,184,0.12)",
+                    "editor.findMatchBackground": "rgba(148,163,184,0.16)",
+                    "editor.findMatchBorder": "transparent",
+                    "editor.findMatchHighlightBackground": "rgba(148,163,184,0.16)",
+                    "editor.findMatchHighlightBorder": "transparent",
+                    "editor.findRangeHighlightBackground": "rgba(148,163,184,0.12)",
+                    "editor.findRangeHighlightBorder": "transparent",
+                    "editor.wordHighlightBackground": "rgba(148,163,184,0.12)",
+                    "editor.wordHighlightStrongBackground": "rgba(148,163,184,0.16)",
+                    "editor.inactiveSelectionBackground": "rgba(248,250,252,0.06)",
+                    "editor.lineHighlightBackground": "rgba(148,163,184,0.14)",
+                    "editor.lineHighlightBorder": "transparent",
+                    "editorIndentGuide.background": "rgba(148,163,184,0.25)",
+                    "editorIndentGuide.activeBackground": "rgba(248,250,252,0.2)",
+                    "editorWhitespace.foreground": "rgba(148,163,184,0.4)",
+                    "editorBracketMatch.background": "rgba(255,255,255,0.1)",
+                    "editorBracketMatch.border": "rgba(248,250,252,0.2)",
+                    "editorError.background": "rgba(148,163,184,0.16)",
+                    "editorError.foreground": "rgba(248,250,252,0.9)",
+                    "editorError.border": "transparent",
+                    "editorWarning.background": "rgba(148,163,184,0.12)",
+                    "editorWarning.foreground": "rgba(248,250,252,0.9)",
+                    "editorWarning.border": "transparent",
+                  },
+                });
+
+                // Light theme with a light gray highlight instead of red
+                monaco.editor.defineTheme("pitch-light", {
+                  base: "vs",
+                  inherit: true,
+                  rules: [],
+                  colors: {
+                    "editor.selectionBackground": "rgba(148,163,184,0.22)",
+                    "editor.selectionHighlightBackground": "rgba(148,163,184,0.22)",
+                    "editor.findMatchBackground": "rgba(148,163,184,0.18)",
+                    "editor.findMatchBorder": "transparent",
+                    "editor.findMatchHighlightBackground": "rgba(148,163,184,0.18)",
+                    "editor.findMatchHighlightBorder": "transparent",
+                    "editor.findRangeHighlightBackground": "rgba(148,163,184,0.14)",
+                    "editor.findRangeHighlightBorder": "transparent",
+                    "editor.wordHighlightBackground": "rgba(148,163,184,0.14)",
+                    "editor.wordHighlightStrongBackground": "rgba(148,163,184,0.18)",
+                    "editor.inactiveSelectionBackground": "rgba(148,163,184,0.14)",
+                    "editor.lineHighlightBackground": "rgba(148,163,184,0.18)",
+                    "editor.lineHighlightBorder": "transparent",
+                    "editorError.background": "rgba(148,163,184,0.16)",
+                    "editorError.foreground": "rgba(15,23,42,0.9)",
+                    "editorError.border": "transparent",
+                    "editorWarning.background": "rgba(148,163,184,0.12)",
+                    "editorWarning.foreground": "rgba(15,23,42,0.9)",
+                    "editorWarning.border": "transparent",
+                    "editorLineNumber.activeForeground": "#60a5fa",
+                  },
+                });
+              }}
               options={{
                 minimap: { enabled: false },
                 fontSize: 14,

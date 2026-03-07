@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/providers/theme-provider";
+import LoadingBar from "@/components/loading-bar";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -38,8 +39,10 @@ export default function RootLayout({
                 const theme = localStorage.getItem('theme');
                 if (theme === 'dark') {
                   document.documentElement.classList.add('dark');
+                  document.documentElement.style.backgroundColor = '#000000';
                 } else {
                   document.documentElement.classList.remove('dark');
+                  document.documentElement.style.backgroundColor = '#ffffff';
                 }
               } catch (e) {}
             `,
@@ -47,10 +50,13 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white dark:bg-black`}
         suppressHydrationWarning
       >
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <LoadingBar />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
