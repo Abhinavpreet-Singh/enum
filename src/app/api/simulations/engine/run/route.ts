@@ -49,13 +49,28 @@ export async function POST(request: NextRequest) {
             },
         );
 
-        const data = await backendRes.json();
+        // Safely parse — the backend might return HTML if it crashed or the
+        // route was missing. Always read as text first, then parse.
+        const rawText = await backendRes.text();
+        let data: Record<string, unknown>;
+        try {
+            data = JSON.parse(rawText);
+        } catch {
+            // Backend returned non-JSON (HTML error page / proxy error)
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: `Backend returned a non-JSON response (status ${backendRes.status}). Make sure the backend server is running.`,
+                },
+                { status: 502 },
+            );
+        }
 
         if (!backendRes.ok) {
             return NextResponse.json(
                 {
                     success: false,
-                    error: data.message || "Engine execution failed",
+                    error: (data.message as string) || "Engine execution failed",
                 },
                 { status: backendRes.status },
             );
@@ -63,7 +78,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            ...data.data,
+            ...(data.data as Record<string, unknown>),
         });
     } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
