@@ -13,7 +13,6 @@ import React, {
 import ReactFlow, {
   ReactFlowProvider,
   Controls,
-  MiniMap,
   Background,
   BackgroundVariant,
   addEdge,
@@ -47,11 +46,13 @@ interface SystemDesignCanvasProps {
 
 function CanvasInner(
   { onNodeSelect }: SystemDesignCanvasProps,
-  ref: React.Ref<CanvasHandle>
+  ref: React.Ref<CanvasHandle>,
 ) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState<SystemDesignNodeData>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<SystemDesignNodeData>(
+    [],
+  );
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const replayLog = useRef<ReplayEvent[]>([]);
 
@@ -68,8 +69,8 @@ function CanvasInner(
       const { nodeId, config } = (e as CustomEvent).detail;
       setNodes((nds) =>
         nds.map((n) =>
-          n.id === nodeId ? { ...n, data: { ...n.data, config } } : n
-        )
+          n.id === nodeId ? { ...n, data: { ...n.data, config } } : n,
+        ),
       );
       logEvent({
         type: "config_change",
@@ -107,7 +108,7 @@ function CanvasInner(
         data: { source: params.source, target: params.target },
       });
     },
-    [setEdges, logEvent]
+    [setEdges, logEvent],
   );
 
   // ---------- Drop handler ----------
@@ -149,17 +150,17 @@ function CanvasInner(
         data: { nodeId: newNode.id, componentId, position },
       });
     },
-    [rfInstance, setNodes, logEvent]
+    [rfInstance, setNodes, logEvent],
   );
 
   // ---------- Selection ----------
   const onSelectionChange = useCallback(
     ({ nodes: selected }: OnSelectionChangeParams) => {
       onNodeSelect?.(
-        selected.length === 1 ? (selected[0] as SystemDesignNode) : null
+        selected.length === 1 ? (selected[0] as SystemDesignNode) : null,
       );
     },
-    [onNodeSelect]
+    [onNodeSelect],
   );
 
   // ---------- Delete key ----------
@@ -170,10 +171,10 @@ function CanvasInner(
           type: "node_remove",
           timestamp: Date.now(),
           data: { nodeId: n.id },
-        })
+        }),
       );
     },
-    [logEvent]
+    [logEvent],
   );
 
   const onEdgesDelete = useCallback(
@@ -183,14 +184,14 @@ function CanvasInner(
           type: "edge_remove",
           timestamp: Date.now(),
           data: { edgeId: e.id },
-        })
+        }),
       );
     },
-    [logEvent]
+    [logEvent],
   );
 
   return (
-    <div ref={wrapperRef} className="flex-1 h-full">
+    <div ref={wrapperRef} className="w-full h-full">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -204,21 +205,23 @@ function CanvasInner(
         onNodesDelete={onNodesDelete}
         onEdgesDelete={onEdgesDelete}
         nodeTypes={nodeTypes}
-        fitView
+        defaultViewport={{ x: 80, y: 60, zoom: 0.65 }}
+        minZoom={0.2}
+        maxZoom={2}
         deleteKeyCode={["Backspace", "Delete"]}
-        className="bg-gray-50 dark:bg-gray-950"
+        proOptions={{ hideAttribution: true }}
+        className="bg-[#fafafa] dark:bg-[#0c0c0c]"
       >
-        <Controls className="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-700 !shadow-lg" />
-        <MiniMap
-          className="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-700"
-          nodeColor="#3b82f6"
-          maskColor="rgba(0,0,0,0.1)"
+        <Controls
+          position="bottom-right"
+          showInteractive={false}
+          className="bg-white! dark:bg-[#1a1a1a]! border! border-gray-200! dark:border-white/10! shadow-none! rounded-none!"
         />
         <Background
           variant={BackgroundVariant.Dots}
-          gap={16}
+          gap={20}
           size={1}
-          color="#d1d5db"
+          color="rgba(148,163,184,0.4)"
         />
       </ReactFlow>
     </div>
@@ -232,7 +235,7 @@ const SystemDesignCanvas = forwardRef<CanvasHandle, SystemDesignCanvasProps>(
     <ReactFlowProvider>
       <CanvasWithRef ref={ref} {...props} />
     </ReactFlowProvider>
-  )
+  ),
 );
 
 SystemDesignCanvas.displayName = "SystemDesignCanvas";

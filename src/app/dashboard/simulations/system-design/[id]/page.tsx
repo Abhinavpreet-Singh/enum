@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
-import React, { useCallback, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Send, Loader2 } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
+import { ArrowLeft, Send, Loader2, TrendingUp, Network } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
 
@@ -19,48 +19,72 @@ import type {
 } from "@/systemDesign";
 import { proxy } from "@/app/proxy";
 
+interface SDSimulation {
+  id: string;
+  title: string;
+  description: string;
+  difficulty: string;
+  tags: string[];
+  maxScore: number;
+  evaluationRules: Array<{
+    description: string;
+    requiredComponent: string;
+    requiredEdge: string;
+    points: number;
+  }>;
+}
+
+const DIFF_COLORS: Record<string, string> = {
+  easy: "text-emerald-500 border-emerald-500/30 bg-emerald-500/10",
+  medium: "text-amber-400 border-amber-400/30 bg-amber-400/10",
+  hard: "text-red-400 border-red-400/30 bg-red-400/10",
+};
+
 export default function SystemDesignSimulationPage() {
   const params = useParams();
-  const router = useRouter();
   const simulationId = params?.id as string;
 
   const canvasRef = useRef<CanvasHandle>(null);
-  const [selectedNode, setSelectedNode] = useState<SystemDesignNode | null>(null);
+  const [selectedNode, setSelectedNode] = useState<SystemDesignNode | null>(
+    null,
+  );
   const [explanation, setExplanation] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<EvaluationResult | null>(null);
 
-  // ---------- Config change ----------
+  const [simulation, setSimulation] = useState<SDSimulation | null>(null);
+  const [loadingMeta, setLoadingMeta] = useState(true);
+
+  useEffect(() => {
+    if (!simulationId) return;
+    axios
+      .get(`${proxy}/api/v1/system-design/simulations/${simulationId}`)
+      .then((r) => setSimulation(r.data.data ?? null))
+      .catch(() => setSimulation(null))
+      .finally(() => setLoadingMeta(false));
+  }, [simulationId]);
+
   const handleConfigChange = useCallback(
     (nodeId: string, config: ComponentConfig) => {
-      // We need to propagate to the canvas. Since ReactFlow nodes are managed
-      // inside the canvas via useNodesState, we update the selected node in
-      // local state and let the canvas pick it up through onNodeSelect refresh.
-      // For a direct approach we re-export via canvas ref — but the simplest
-      // approach is to update the data in a custom event.
-      setSelectedNode((prev) => {
-        if (!prev || prev.id !== nodeId) return prev;
-        return { ...prev, data: { ...prev.data, config } };
-      });
-
-      // Dispatch a custom event the canvas can subscribe to (keeps components decoupled).
+      setSelectedNode((prev) =>
+        !prev || prev.id !== nodeId
+          ? prev
+          : { ...prev, data: { ...prev.data, config } },
+      );
       window.dispatchEvent(
-        new CustomEvent("sd:config-change", { detail: { nodeId, config } })
+        new CustomEvent("sd:config-change", { detail: { nodeId, config } }),
       );
     },
-    []
+    [],
   );
 
-  // ---------- Submit ----------
   const handleSubmit = async () => {
     if (!canvasRef.current) return;
-
     const { nodes, edges } = canvasRef.current.exportGraph();
     if (nodes.length === 0) {
-      alert("Please add at least one component to the canvas.");
+      alert("Add at least one component to the canvas.");
       return;
     }
-
     setSubmitting(true);
     try {
       const res = await axios.post(
@@ -72,9 +96,8 @@ export default function SystemDesignSimulationPage() {
           explanation,
           replayEvents: canvasRef.current.getReplayEvents(),
         },
-        { withCredentials: true }
+        { withCredentials: true },
       );
-
       setResult(res.data.data?.evaluation ?? null);
     } catch (err) {
       console.error("Submission error:", err);
@@ -85,68 +108,122 @@ export default function SystemDesignSimulationPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-white dark:bg-black">
-      {/* Top bar */}
-      <header className="flex items-center justify-between h-14 px-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 shrink-0">
-        <div className="flex items-center gap-3">
+    <div className="flex flex-col h-full overflow-hidden bg-gray-50 dark:bg-black">
+      {/* â”€â”€ Top bar */}
+      <header className="flex items-center justify-between h-11 px-4 border-b border-gray-200 dark:border-white/20 bg-white dark:bg-[#111] shrink-0">
+        <div className="flex items-center gap-2.5 min-w-0">
           <Link
             href="/dashboard/simulations"
-            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5 text-gray-500 dark:text-gray-400 shrink-0 transition-colors"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={15} />
           </Link>
-          <h1 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-            System Design — {simulationId}
+          <Network size={13} className="text-blue-500 shrink-0" />
+          <h1 className="text-xs font-semibold text-black dark:text-white truncate">
+            {loadingMeta
+              ? "Loading..."
+              : (simulation?.title ?? "System Design")}
           </h1>
+          {simulation && (
+            <span
+              className={`px-1.5 py-0.5 text-[9px] font-mono font-bold border shrink-0 ${DIFF_COLORS[simulation.difficulty] ?? "text-gray-400 border-gray-300"}`}
+            >
+              {simulation.difficulty.toUpperCase()}
+            </span>
+          )}
         </div>
 
-        <button
-          onClick={handleSubmit}
-          disabled={submitting}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg
-                     bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
-        >
-          {submitting ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            <Send size={16} />
-          )}
-          Submit
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="flex items-center gap-1.5 px-3 py-1.5 font-mono text-[11px] font-semibold tracking-wide bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-100 disabled:opacity-40 transition-colors"
+          >
+            {submitting ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <Send size={12} />
+            )}
+            SUBMIT
+          </button>
+        </div>
       </header>
 
-      {/* Main content */}
+      {/* â”€â”€ Body */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <ComponentSidebar />
+        {/* LEFT: Problem pane â€” fixed width, no inner scroll issues */}
+        <aside className="w-68 shrink-0 flex flex-col border-r border-gray-200 dark:border-white/20 bg-white dark:bg-[#141414] overflow-hidden">
+          {loadingMeta ? (
+            <div className="p-4 space-y-3 animate-pulse">
+              <div className="h-4 bg-gray-100 dark:bg-white/8 rounded w-3/4" />
+              <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-1/2" />
+              <div className="h-24 bg-gray-100 dark:bg-white/5 rounded" />
+            </div>
+          ) : simulation ? (
+            <>
+              {/* Header block */}
+              <div className="px-4 pt-4 pb-3 border-b border-gray-100 dark:border-white/15 shrink-0">
+                <p className="font-mono text-[9px] tracking-[0.3em] text-gray-400 dark:text-gray-400 uppercase mb-1.5">
+                  System Design
+                </p>
+                <h2 className="text-sm font-bold text-black dark:text-white leading-snug mb-2.5">
+                  {simulation.title}
+                </h2>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`px-2 py-0.5 text-[10px] font-mono font-bold border ${DIFF_COLORS[simulation.difficulty] ?? "text-gray-400 border-gray-200"}`}
+                  >
+                    {simulation.difficulty.toUpperCase()}
+                  </span>
+                  <span className="flex items-center gap-1 text-[10px] font-mono text-gray-500 dark:text-gray-300">
+                    <TrendingUp size={10} />
+                    {simulation.maxScore} pts
+                  </span>
+                </div>
+              </div>
 
-        {/* Canvas */}
-        <div className="flex flex-col flex-1">
+              {/* Description — flex-1, no scroll */}
+              <div className="flex-1 overflow-hidden px-4 py-3">
+                <p className="font-mono text-[9px] tracking-[0.3em] text-gray-400 dark:text-gray-400 uppercase mb-2">
+                  Problem
+                </p>
+                <p className="text-[11px] text-gray-900 dark:text-white leading-relaxed">
+                  {simulation.description}
+                </p>
+              </div>
+
+              {/* Explanation â€” pinned bottom */}
+              <div className="border-t border-gray-100 dark:border-white/15 px-4 py-3 shrink-0">
+                <p className="font-mono text-[9px] tracking-[0.3em] text-gray-400 dark:text-gray-400 uppercase mb-1.5">
+                  Your Explanation
+                </p>
+                <textarea
+                  rows={4}
+                  value={explanation}
+                  onChange={(e) => setExplanation(e.target.value)}
+                  placeholder="Trade-offs, decisions, why this architecture..."
+                  className="w-full px-2.5 py-2 text-[11px] font-mono border border-gray-200 dark:border-white/20 bg-white dark:bg-black/60 text-black dark:text-white placeholder-gray-300 dark:placeholder-gray-500 resize-none outline-none focus:border-black dark:focus:border-white/50 transition-colors leading-relaxed"
+                />
+              </div>
+            </>
+          ) : (
+            <p className="p-4 text-xs text-gray-400">
+              Failed to load simulation.
+            </p>
+          )}
+        </aside>
+
+        {/* RIGHT: Canvas */}
+        <div className="flex flex-col flex-1 overflow-hidden min-w-0">
+          <ComponentSidebar horizontal />
           <div className="flex-1 overflow-hidden">
             <SystemDesignCanvas
               ref={canvasRef}
               onNodeSelect={setSelectedNode}
             />
           </div>
-
-          {/* Explanation */}
-          <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 py-3 shrink-0">
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-              Architecture Explanation
-            </label>
-            <textarea
-              rows={3}
-              value={explanation}
-              onChange={(e) => setExplanation(e.target.value)}
-              placeholder="Explain your design decisions, trade-offs, and why you chose this architecture..."
-              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700
-                         bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100
-                         placeholder:text-gray-400 resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-            />
-          </div>
         </div>
 
-        {/* Config panel */}
         {selectedNode && (
           <NodeConfigPanel
             node={selectedNode}
@@ -156,7 +233,6 @@ export default function SystemDesignSimulationPage() {
         )}
       </div>
 
-      {/* Feedback modal */}
       <FeedbackPanel result={result} onClose={() => setResult(null)} />
     </div>
   );

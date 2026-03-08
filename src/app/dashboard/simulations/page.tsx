@@ -14,6 +14,7 @@ import {
   Monitor,
   GitBranch,
   Boxes,
+  Network,
 } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
@@ -23,7 +24,7 @@ import { browserSimulations } from "@/data/browser-simulations";
 interface SimulationItem {
   id: string;
   title: string;
-  category: "frontend" | "backend" | "fullstack" | "devops";
+  category: "frontend" | "backend" | "fullstack" | "devops" | "system-design";
   difficulty: "easy" | "medium" | "hard";
   description: string;
   estimatedTime: number;
@@ -39,6 +40,7 @@ const CATEGORY_META: Record<
   backend: { label: "Backend", Icon: Server },
   fullstack: { label: "Full Stack", Icon: Layers },
   devops: { label: "DevOps", Icon: GitBranch },
+  "system-design": { label: "System Design", Icon: Network },
 };
 
 const DIFFICULTIES = ["easy", "medium", "hard"] as const;
@@ -84,16 +86,31 @@ export default function SimulationsPage() {
       tags: s.tags,
     }));
 
-    axios
-      .get(`${proxy}/api/v1/simulations/getSimulations`)
-      .then((r) => {
-        const backend: SimulationItem[] = r.data.data || [];
-        // Merge: put browser sims first, then backend ones
-        setSimulations([...local, ...backend]);
-      })
-      .catch(() => {
-        // If backend is unavailable, still show browser simulations
-        setSimulations(local);
+    Promise.all([
+      axios.get(`${proxy}/api/v1/simulations/getSimulations`).catch(() => null),
+      axios.get(`${proxy}/api/v1/system-design/simulations`).catch(() => null),
+    ])
+      .then(([simRes, sdRes]) => {
+        const backend: SimulationItem[] = simRes?.data?.data || [];
+        const sdRaw: Array<{
+          id: string;
+          title: string;
+          description: string;
+          difficulty: string;
+          tags: string[];
+          maxScore: number;
+        }> = sdRes?.data?.data || [];
+        const systemDesign: SimulationItem[] = sdRaw.map((s) => ({
+          id: s.id,
+          title: s.title,
+          category: "system-design" as const,
+          difficulty: (s.difficulty || "medium") as "easy" | "medium" | "hard",
+          description: s.description,
+          estimatedTime: 30,
+          xpReward: (s.maxScore ?? 10) * 10,
+          tags: s.tags || [],
+        }));
+        setSimulations([...local, ...systemDesign, ...backend]);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -339,7 +356,11 @@ export default function SimulationsPage() {
               return (
                 <Link
                   key={sim.id}
-                  href={`/dashboard/simulations/${sim.id}`}
+                  href={
+                    sim.category === "system-design"
+                      ? `/dashboard/simulations/system-design/${sim.id}`
+                      : `/dashboard/simulations/${sim.id}`
+                  }
                   className="group flex items-start gap-5 p-5 border border-gray-100 dark:border-white/8 hover:border-gray-300 dark:hover:border-white/30 bg-white dark:bg-[#111] hover:bg-gray-50 dark:hover:bg-[#161616] transition-all duration-200"
                 >
                   {/* Index */}

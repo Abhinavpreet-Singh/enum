@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { CheckCircle, XCircle, Trophy } from "lucide-react";
+import { CheckCircle, XCircle, X, Award } from "lucide-react";
 import type { EvaluationResult } from "@/systemDesign";
 
 interface FeedbackPanelProps {
@@ -13,58 +13,99 @@ export default function FeedbackPanel({ result, onClose }: FeedbackPanelProps) {
   if (!result) return null;
 
   const pct = Math.round((result.score / result.maxScore) * 100);
+  const passed = pct >= 80;
+  const partial = pct >= 50;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-lg mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-md mx-4 bg-white dark:bg-[#111] border border-gray-200 dark:border-white/8 shadow-2xl overflow-hidden">
         {/* Header */}
-        <div
-          className={`px-6 py-5 ${
-            pct >= 80
-              ? "bg-green-500"
-              : pct >= 50
-                ? "bg-yellow-500"
-                : "bg-red-500"
-          } text-white`}
-        >
-          <div className="flex items-center gap-3">
-            <Trophy size={28} />
+        <div className="flex items-start justify-between px-5 py-4 border-b border-gray-100 dark:border-white/6">
+          <div className="flex items-center gap-2.5">
+            <Award
+              size={18}
+              className={
+                passed
+                  ? "text-emerald-500"
+                  : partial
+                    ? "text-amber-400"
+                    : "text-red-400"
+              }
+            />
             <div>
-              <h2 className="text-xl font-bold">Evaluation Result</h2>
-              <p className="text-sm opacity-90">
-                Score: {result.score} / {result.maxScore} ({pct}%)
+              <p className="font-mono text-[9px] tracking-[0.3em] text-gray-400 dark:text-gray-500 uppercase">
+                Evaluation Result
+              </p>
+              <p className="text-sm font-bold text-black dark:text-white mt-0.5">
+                {result.score} / {result.maxScore} pts
+                <span
+                  className={`ml-2 text-xs font-mono ${
+                    passed
+                      ? "text-emerald-500"
+                      : partial
+                        ? "text-amber-400"
+                        : "text-red-400"
+                  }`}
+                >
+                  ({pct}%)
+                </span>
               </p>
             </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Score bar */}
+        <div className="px-5 py-3 border-b border-gray-100 dark:border-white/6">
+          <div className="h-1.5 bg-gray-100 dark:bg-white/8 w-full">
+            <div
+              className={`h-full transition-all duration-500 ${
+                passed
+                  ? "bg-emerald-500"
+                  : partial
+                    ? "bg-amber-400"
+                    : "bg-red-400"
+              }`}
+              style={{ width: `${pct}%` }}
+            />
           </div>
         </div>
 
         {/* Feedback items */}
-        <div className="px-6 py-4 max-h-80 overflow-y-auto space-y-3">
+        <div className="max-h-72 overflow-y-auto px-5 py-3 space-y-1.5">
           {result.feedback.map((item, i) => (
             <div
               key={i}
-              className={`flex items-start gap-3 p-3 rounded-lg ${
+              className={`flex items-start gap-2.5 px-3 py-2 border ${
                 item.passed
-                  ? "bg-green-50 dark:bg-green-900/20"
-                  : "bg-red-50 dark:bg-red-900/20"
+                  ? "border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-500/5"
+                  : "border-red-400/20 bg-red-50/50 dark:bg-red-500/5"
               }`}
             >
               {item.passed ? (
-                <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                <CheckCircle
+                  size={13}
+                  className="text-emerald-500 shrink-0 mt-0.5"
+                />
               ) : (
-                <XCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                <XCircle size={13} className="text-red-400 shrink-0 mt-0.5" />
               )}
-              <div>
+              <div className="min-w-0">
                 <p
-                  className={`text-sm font-medium ${
+                  className={`text-[11px] font-semibold ${
                     item.passed
-                      ? "text-green-700 dark:text-green-300"
-                      : "text-red-700 dark:text-red-300"
+                      ? "text-emerald-700 dark:text-emerald-400"
+                      : "text-red-600 dark:text-red-400"
                   }`}
                 >
                   {item.rule}
                 </p>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                <p className="text-[10px] font-mono text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
                   {item.message}
                 </p>
               </div>
@@ -72,13 +113,20 @@ export default function FeedbackPanel({ result, onClose }: FeedbackPanelProps) {
           ))}
         </div>
 
-        {/* Close */}
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-gray-100 dark:border-white/6 flex items-center justify-between">
+          <p className="font-mono text-[10px] text-gray-400 dark:text-gray-500">
+            {passed
+              ? "Excellent architecture!"
+              : partial
+                ? "Good effort — keep refining."
+                : "Review the requirements."}
+          </p>
           <button
             onClick={onClose}
-            className="px-5 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            className="px-4 py-1.5 font-mono text-[11px] font-semibold tracking-wide bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
           >
-            Close
+            CLOSE
           </button>
         </div>
       </div>

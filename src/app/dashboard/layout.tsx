@@ -13,13 +13,13 @@ export default function DashboardLayout({
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50 dark:bg-black">
+      <div className="h-dvh overflow-hidden bg-gray-50 dark:bg-black">
         <Sidebar pinned={pinned} onTogglePin={() => setPinned((p) => !p)} />
         <main
           style={{ zoom: "110%" }}
           className={`${
             pinned ? "lg:ml-62" : "lg:ml-18"
-          } pb-20 lg:pb-0 transition-[margin] duration-300 ease-in-out`}
+          } h-full overflow-y-auto pb-20 lg:pb-0 transition-[margin] duration-300 ease-in-out`}
         >
           {children}
         </main>
