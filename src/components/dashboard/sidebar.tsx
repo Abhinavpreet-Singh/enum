@@ -8,7 +8,6 @@ import { proxy } from "@/app/proxy";
 import {
   LayoutDashboard,
   Code,
-  Radio,
   Target,
   Trophy,
   Settings,
@@ -42,12 +41,6 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
       icon: Code,
       label: "Simulations",
       href: "/dashboard/simulations",
-      matchExact: false,
-    },
-    {
-      icon: Radio,
-      label: "Tracks",
-      href: "/dashboard/tracks",
       matchExact: false,
     },
     {
