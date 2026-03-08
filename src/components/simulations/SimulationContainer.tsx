@@ -97,6 +97,7 @@ export default function SimulationContainer({
   const [status, setStatus] = useState<SimulationStatus>("idle");
   const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
   const [isResolved, setIsResolved] = useState(false);
+  const [latestXpEarned, setLatestXpEarned] = useState(0);
 
   // Layout state
   const [explorerWidth, setExplorerWidth] = useState(220);
@@ -127,8 +128,6 @@ export default function SimulationContainer({
 
   // Progress state
   const [progressLoaded, setProgressLoaded] = useState(false);
-  const [xpAwarded, setXpAwarded] = useState<number | null>(null);
-  const [xpAlreadyAwarded, setXpAlreadyAwarded] = useState(false);
 
   // ── Check if simulation has Cloudinary-hosted files ───────────────────
   const hasCloudinaryFiles = simulation.initialFiles.some(
@@ -218,10 +217,7 @@ export default function SimulationContainer({
         if (res.ok) {
           const data = await res.json();
           const progress = data.data;
-          if (progress?.solved) {
-            setIsResolved(true);
-            setXpAlreadyAwarded(true);
-          }
+          if (progress?.solved) setIsResolved(true);
           // Restore modified files if user had previous edits
           if (
             progress?.modifiedFiles &&
@@ -245,7 +241,7 @@ export default function SimulationContainer({
     async (solved: boolean) => {
       try {
         const token = localStorage.getItem("accessToken");
-        if (!token) return null;
+        if (!token) return;
 
         const res = await fetch("/api/simulations/progress", {
           method: "POST",
@@ -261,7 +257,7 @@ export default function SimulationContainer({
         });
 
         if (!res.ok) return null;
-        return await res.json();
+        return res.json();
       } catch (err) {
         console.error("Failed to persist progress:", err);
         return null;
@@ -366,13 +362,10 @@ export default function SimulationContainer({
           setConsoleOutput((prev) => [...prev, "", "✓ All tests passed!"]);
           setIsResolved(true);
           const progressRes = await persistProgress(true);
-          const awarded = Number(progressRes?.data?.xpAwarded ?? 0);
-          if (awarded > 0) {
-            setXpAwarded(awarded);
-            setXpAlreadyAwarded(false);
-          } else if (progressRes?.data?.alreadySolved) {
-            setXpAwarded(null);
-            setXpAlreadyAwarded(true);
+          const xpEarned = progressRes?.data?.xpEarned ?? 0;
+          setLatestXpEarned(xpEarned);
+          if (xpEarned > 0) {
+            setConsoleOutput((prev) => [...prev, `+${xpEarned} XP awarded.`]);
           }
         } else {
           setStatus("error");
@@ -381,6 +374,7 @@ export default function SimulationContainer({
             "",
             `✗ ${engineData.totalTests - engineData.passedTests} test(s) failed.`,
           ]);
+          setLatestXpEarned(0);
           await persistProgress(false);
         }
       } else {
@@ -389,6 +383,7 @@ export default function SimulationContainer({
           ...prev,
           `Error: ${data.error || "Execution failed"}`,
         ]);
+        setLatestXpEarned(0);
         await persistProgress(false);
       }
     } catch (err) {
@@ -428,8 +423,7 @@ export default function SimulationContainer({
     setConsoleOutput([]);
     setStatus("idle");
     setIsResolved(false);
-    setXpAwarded(null);
-    setXpAlreadyAwarded(false);
+    setLatestXpEarned(0);
   };
 
   // Save current file state to progress (manual save)
@@ -528,11 +522,9 @@ export default function SimulationContainer({
             <div className="flex items-center gap-1.5 text-green-600">
               <CheckCircle2 className="w-4 h-4" />
               <span className="text-sm font-semibold">
-                {xpAwarded
-                  ? `Solved! +${xpAwarded} XP`
-                  : xpAlreadyAwarded
-                    ? "Solved! XP already counted"
-                    : "Solved!"}
+                {latestXpEarned > 0
+                  ? `Solved! +${latestXpEarned} XP`
+                  : "Solved"}
               </span>
             </div>
           )}
@@ -749,11 +741,9 @@ export default function SimulationContainer({
             <div className="bg-green-50 dark:bg-white/10 border-t border-green-200 dark:border-white/10 px-4 py-2.5 flex items-center gap-2 shrink-0">
               <CheckCircle2 className="w-4 h-4 text-green-500" />
               <span className="text-sm font-semibold text-green-700 dark:text-green-200">
-                {xpAwarded
-                  ? `Simulation solved! +${xpAwarded} XP earned`
-                  : xpAlreadyAwarded
-                    ? "Simulation solved! XP already counted"
-                    : "Simulation solved!"}
+                {latestXpEarned > 0
+                  ? `Simulation solved! +${latestXpEarned} XP earned`
+                  : "Simulation solved!"}
               </span>
             </div>
           )}

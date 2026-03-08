@@ -15,6 +15,7 @@ import Link from "next/link";
 import type { Simulation, SimulationFile } from "@/data/simulations";
 import { useTheme } from "@/providers/theme-provider";
 import LivePreview from "./live-preview";
+import { proxy } from "@/app/proxy";
 
 interface SimulationWorkspaceProps {
   simulation: Simulation;
@@ -52,69 +53,7 @@ export default function SimulationWorkspace({
       initialFiles[file.name] = file.content;
     });
     setFiles(initialFiles);
-    setXpAwarded(null);
-    setXpAlreadyAwarded(false);
   }, [simulation]);
-
-  // Load existing progress for this simulation (if logged in)
-  useEffect(() => {
-    const loadProgress = async () => {
-      try {
-        const token = localStorage.getItem("accessToken");
-        if (!token) return;
-
-        const res = await fetch(
-          `/api/simulations/progress?simulationId=${simulation.id}`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-
-        if (!res.ok) return;
-        const payload = await res.json();
-        const progress = payload?.data;
-
-        if (progress?.solved) {
-          setIsResolved(true);
-          setXpAlreadyAwarded(true);
-        }
-
-        if (
-          progress?.modifiedFiles &&
-          typeof progress.modifiedFiles === "object"
-        ) {
-          setFiles((prev) => ({ ...prev, ...progress.modifiedFiles }));
-        }
-      } catch {
-        // Do not block UI if progress fetch fails.
-      }
-    };
-
-    loadProgress();
-  }, [simulation.id]);
-
-  const persistProgress = async (solved: boolean) => {
-    try {
-      const token = localStorage.getItem("accessToken");
-      if (!token) return null;
-
-      const res = await fetch("/api/simulations/progress", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          simulationId: simulation.id,
-          solved,
-          modifiedFiles: files,
-        }),
-      });
-
-      if (!res.ok) return null;
-      return await res.json();
-    } catch {
-      return null;
-    }
-  };
 
   // Left panel resize handler
   const handleLeftResize = (e: React.MouseEvent) => {
@@ -200,7 +139,6 @@ export default function SimulationWorkspace({
       if (data.error) {
         setError(data.error);
         setConsoleOutput((prev) => [...prev, `Error: ${data.error}`]);
-        await persistProgress(false);
       } else {
         const output =
           data.output || data.stdout || "Code executed successfully";
@@ -208,24 +146,14 @@ export default function SimulationWorkspace({
 
         // Check if solution is correct
         const solvedNow = checkSolution();
-        const progressRes = await persistProgress(solvedNow);
-
         if (solvedNow) {
-          const awarded = Number(progressRes?.data?.xpAwarded ?? 0);
-          if (awarded > 0) {
-            setXpAwarded(awarded);
-            setXpAlreadyAwarded(false);
-          } else if (progressRes?.data?.alreadySolved) {
-            setXpAwarded(null);
-            setXpAlreadyAwarded(true);
-          }
+          await awardFrontendXp();
         }
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Execution failed";
       setError(errorMsg);
       setConsoleOutput((prev) => [...prev, `Error: ${errorMsg}`]);
-      await persistProgress(false);
     } finally {
       setIsRunning(false);
     }
@@ -250,6 +178,51 @@ export default function SimulationWorkspace({
 
     setIsResolved(allCorrect);
     return allCorrect;
+  };
+
+  const awardFrontendXp = async () => {
+    const storageKey = `enum_frontend_xp_awarded_${simulation.id}`;
+    const alreadyLocal =
+      typeof window !== "undefined" && localStorage.getItem(storageKey) === "1";
+
+    if (alreadyLocal) {
+      setXpAlreadyAwarded(true);
+      setXpAwarded(null);
+      return;
+    }
+
+    try {
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("accessToken")
+          : null;
+      if (!token) return;
+
+      const res = await fetch(`${proxy}/api/v1/users/award-browser-xp`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          simulationId: simulation.id,
+          xpAmount: simulation.xpReward,
+        }),
+      });
+
+      const json = await res.json();
+      if (json?.data?.alreadyAwarded) {
+        setXpAlreadyAwarded(true);
+        setXpAwarded(null);
+        localStorage.setItem(storageKey, "1");
+      } else if (json?.data?.xpAwarded) {
+        setXpAwarded(json.data.xpAwarded);
+        setXpAlreadyAwarded(false);
+        localStorage.setItem(storageKey, "1");
+      }
+    } catch {
+      // Ignore network errors so simulation UX is not blocked.
+    }
   };
 
   // View solution - load solution code into editor
@@ -814,10 +787,10 @@ export default function SimulationWorkspace({
               <div className="flex items-center gap-2 text-green-600">
                 <CheckCircle2 className="w-5 h-5" />
                 <span className="font-semibold">
-                  {xpAwarded
+                  {xpAwarded !== null
                     ? `Issue Resolved! +${xpAwarded} XP`
                     : xpAlreadyAwarded
-                      ? "Issue Resolved! XP already counted"
+                      ? "Issue Resolved! XP already claimed"
                       : "Issue Resolved!"}
                 </span>
               </div>

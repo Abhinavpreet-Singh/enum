@@ -17,6 +17,7 @@ import Link from "next/link";
 import useAuth from "@/hooks/useAuth";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
+import { browserSimulations } from "@/data/browser-simulations";
 
 interface DashboardContentProps {
   userName?: string;
@@ -72,7 +73,11 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
   const [currentUsername] = useState<string>(() =>
     typeof window !== "undefined" ? localStorage.getItem("Name") || "" : "",
   );
+  const [currentUserId] = useState<string>(() =>
+    typeof window !== "undefined" ? localStorage.getItem("id") || "" : "",
+  );
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [profileXp, setProfileXp] = useState<number | null>(null);
   const [totalQuestions, setTotalQuestions] = useState<number>(0);
   const [totalSimulations, setTotalSimulations] = useState<number>(0);
   const [dailyChallenge, setDailyChallenge] = useState<{
@@ -141,10 +146,17 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
       const lb: LeaderboardEntry[] = lbRes?.data?.data ?? [];
       setLeaderboard(lb);
       setTotalQuestions((qRes?.data?.data ?? []).length);
-      setTotalSimulations((simRes?.data?.data ?? []).length);
+      const prodSims = (
+        (simRes?.data?.data ?? []) as Array<{
+          category?: string;
+        }>
+      ).filter((s) => s?.category !== "devops");
+      const sdSims = sdRes?.data?.data ?? [];
+      setTotalSimulations(
+        prodSims.length + sdSims.length + browserSimulations.length,
+      );
 
       // Find a hard system design simulation for daily challenge
-      const sdSims = sdRes?.data?.data ?? [];
       const hardSim = sdSims.find((s: any) => s.difficulty === "hard");
       if (hardSim) {
         setDailyChallenge({
@@ -157,11 +169,25 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
         });
       }
 
+      const uid =
+        typeof window !== "undefined" ? localStorage.getItem("id") || "" : "";
       const uname =
         typeof window !== "undefined" ? localStorage.getItem("Name") || "" : "";
-      const idx = lb.findIndex((e) => e.username === uname);
+      const dname =
+        typeof window !== "undefined"
+          ? localStorage.getItem("displayName") || ""
+          : "";
+      const normalize = (v: string) => v.trim().toLowerCase();
+      const idx = lb.findIndex(
+        (e) =>
+          (uid && e._id === uid) ||
+          (uname && normalize(e.username) === normalize(uname)) ||
+          (dname && normalize(e.displayName || "") === normalize(dname)),
+      );
+
       if (idx !== -1) {
         const entry = lb[idx];
+        setProfileXp(entry.xp);
         setStats((prev) => ({
           ...prev,
           totalProblems: entry.problemsSolved,
@@ -173,13 +199,57 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
     });
   }, []);
 
+  useEffect(() => {
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("accessToken")
+        : null;
+    if (!token) return;
+
+    axios
+      .get(`${proxy}/api/v1/users/profile`, {
+        withCredentials: true,
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        const data = res?.data?.data;
+        if (typeof data?.xp === "number") {
+          setProfileXp(data.xp);
+        }
+        if (typeof data?.currentStreak === "number") {
+          setStats((prev) => ({ ...prev, currentStreak: data.currentStreak }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const top3 = useMemo(() => leaderboard.slice(0, 3), [leaderboard]);
+  const userLbEntry = useMemo(() => {
+    const normalize = (v: string) => v.trim().toLowerCase();
+    return (
+      leaderboard.find((e) => currentUserId && e._id === currentUserId) ??
+      leaderboard.find(
+        (e) =>
+          currentUsername &&
+          normalize(e.username) === normalize(currentUsername),
+      ) ??
+      leaderboard.find(
+        (e) =>
+          displayName &&
+          normalize(e.displayName || "") === normalize(displayName),
+      ) ??
+      null
+    );
+  }, [leaderboard, currentUserId, currentUsername, displayName]);
+
   const userRank = useMemo(
-    () => leaderboard.findIndex((e) => e.username === currentUsername),
-    [leaderboard, currentUsername],
+    () =>
+      userLbEntry
+        ? leaderboard.findIndex((e) => e._id === userLbEntry._id)
+        : -1,
+    [leaderboard, userLbEntry],
   );
-  const userLbEntry = userRank !== -1 ? leaderboard[userRank] : null;
-  const userXP = userLbEntry?.xp ?? 0;
+  const userXP = profileXp ?? userLbEntry?.xp ?? 0;
   const lvl = computeLevel(userXP);
   const xpPct =
     lvl.maxXP < 999999
@@ -580,7 +650,13 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
 
           <div className="divide-y divide-gray-50 dark:divide-white/5">
             {top3.map((u, i) => {
-              const isYou = u.username === currentUsername;
+              const normalize = (v: string) => v.trim().toLowerCase();
+              const isYou =
+                (currentUserId && u._id === currentUserId) ||
+                (currentUsername &&
+                  normalize(u.username) === normalize(currentUsername)) ||
+                (displayName &&
+                  normalize(u.displayName || "") === normalize(displayName));
               return (
                 <div
                   key={u._id ?? i}
