@@ -124,6 +124,7 @@ export default function SystemDesignSimulationPage() {
           ...data.evaluation,
           xpEarned: data.xpEarned,
           totalXp: data.totalXp,
+          currentStreak: data.currentStreak,
         });
         // Prepend to local history
         setHistory((prev) =>

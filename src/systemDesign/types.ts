@@ -24,6 +24,7 @@ export interface EvaluationResult {
   feedback: FeedbackItem[];
   xpEarned?: number;
   totalXp?: number;
+  currentStreak?: number;
 }
 
 export interface FeedbackItem {

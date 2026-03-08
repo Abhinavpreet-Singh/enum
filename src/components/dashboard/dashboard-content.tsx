@@ -30,23 +30,7 @@ interface LeaderboardEntry {
   xp: number;
   problemsSolved: number;
   simulationsSolved: number;
-}
-
-interface RecentSubmission {
-  _id: string;
-  question: { _id: string; title: string; level: string } | null;
-  verdict: string;
-  language: string;
-  createdAt: string;
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 172800) return "Yesterday";
-  return `${Math.floor(diff / 86400)}d ago`;
+  currentStreak?: number;
 }
 
 function computeLevel(xp: number) {
@@ -91,7 +75,6 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [totalQuestions, setTotalQuestions] = useState<number>(0);
   const [totalSimulations, setTotalSimulations] = useState<number>(0);
-  const [recentActivity, setRecentActivity] = useState<RecentSubmission[]>([]);
   const [dailyChallenge, setDailyChallenge] = useState<{
     id: string;
     title: string;
@@ -159,7 +142,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
       setLeaderboard(lb);
       setTotalQuestions((qRes?.data?.data ?? []).length);
       setTotalSimulations((simRes?.data?.data ?? []).length);
-      
+
       // Find a hard system design simulation for daily challenge
       const sdSims = sdRes?.data?.data ?? [];
       const hardSim = sdSims.find((s: any) => s.difficulty === "hard");
@@ -173,7 +156,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
           tags: hardSim.tags || [],
         });
       }
-      
+
       const uname =
         typeof window !== "undefined" ? localStorage.getItem("Name") || "" : "";
       const idx = lb.findIndex((e) => e.username === uname);
@@ -184,23 +167,10 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
           totalProblems: entry.problemsSolved,
           totalSimulations: entry.simulationsSolved,
           globalRank: idx + 1,
+          currentStreak: entry.currentStreak ?? 0,
         }));
       }
     });
-  }, []);
-
-  useEffect(() => {
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("accessToken")
-        : null;
-    if (!token) return;
-    fetch("/api/submissions/recent", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((d) => setRecentActivity(d?.data ?? []))
-      .catch(() => {});
   }, []);
 
   const top3 = useMemo(() => leaderboard.slice(0, 3), [leaderboard]);
@@ -680,82 +650,6 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
             Full leaderboard <ArrowRight className="w-3 h-3" />
           </a>
         </div>
-      </div>
-
-      {/* ── Recent Activity ────────────────────────────── */}
-      <div>
-        <h2 className="font-mono text-[9px] tracking-[0.3em] text-gray-400 uppercase mb-3">
-          Recent Activity
-        </h2>
-
-        {recentActivity.length === 0 ? (
-          <div className="border border-gray-100 dark:border-white/8 bg-white dark:bg-[#111] p-8 text-center">
-            <Code2 className="w-8 h-8 text-gray-200 dark:text-white/10 mx-auto mb-3" />
-            <p className="font-mono text-sm text-gray-400 mb-2">
-              No activity yet
-            </p>
-            <a
-              href="/dashboard/dsa-arena"
-              className="inline-flex items-center gap-1 font-mono text-xs text-black dark:text-white hover:underline"
-            >
-              Start solving problems <ArrowRight className="w-3 h-3" />
-            </a>
-          </div>
-        ) : (
-          <div className="border border-gray-100 dark:border-white/8 divide-y divide-gray-50 dark:divide-white/5 overflow-hidden">
-            {recentActivity.map((sub, i) => {
-              const accepted = sub.verdict === "accepted";
-              const title = sub.question?.title ?? "Unknown Question";
-              const level = sub.question?.level ?? "";
-              const levelColor =
-                level === "Easy"
-                  ? "text-emerald-500"
-                  : level === "Medium"
-                    ? "text-amber-400"
-                    : level === "Hard"
-                      ? "text-red-400"
-                      : "text-gray-400";
-              return (
-                <a
-                  key={sub._id ?? i}
-                  href={`/dashboard/dsa-arena/${sub.question?._id ?? ""}`}
-                  className="flex items-center justify-between gap-4 px-4 py-3 bg-white dark:bg-[#111] hover:bg-gray-50 dark:hover:bg-[#161616] transition-colors"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={`w-0.5 self-stretch shrink-0 ${
-                        accepted
-                          ? "bg-emerald-500"
-                          : "bg-gray-200 dark:bg-white/10"
-                      }`}
-                    />
-                    <div className="min-w-0">
-                      <p className="font-semibold text-black dark:text-white text-sm truncate">
-                        {title}
-                      </p>
-                      <p className="font-mono text-[10px] mt-0.5">
-                        {level && <span className={levelColor}>{level}</span>}
-                        {level ? " · " : ""}
-                        <span className="text-gray-400">
-                          {sub.language} · {timeAgo(sub.createdAt)}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                  <span
-                    className={`font-mono text-[10px] px-2 py-0.5 shrink-0 ${
-                      accepted
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                        : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400"
-                    }`}
-                  >
-                    {accepted ? "Accepted" : sub.verdict || "Attempted"}
-                  </span>
-                </a>
-              );
-            })}
-          </div>
-        )}
       </div>
     </div>
   );

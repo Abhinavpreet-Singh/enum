@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { CheckCircle, XCircle, X, Award, Zap } from "lucide-react";
+import { CheckCircle, XCircle, X, Award, Zap, Flame } from "lucide-react";
 import type { EvaluationResult } from "@/systemDesign";
 
 interface FeedbackPanelProps {
@@ -115,7 +115,7 @@ export default function FeedbackPanel({ result, onClose }: FeedbackPanelProps) {
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-gray-100 dark:border-white/6 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-wrap">
             {result.xpEarned !== undefined && result.xpEarned > 0 && (
               <span className="flex items-center gap-1 text-[11px] font-mono font-semibold text-amber-500">
                 <Zap size={11} className="shrink-0" />+{result.xpEarned} XP
@@ -126,15 +126,23 @@ export default function FeedbackPanel({ result, onClose }: FeedbackPanelProps) {
                 )}
               </span>
             )}
-            {(!result.xpEarned || result.xpEarned === 0) && (
-              <p className="font-mono text-[10px] text-gray-400 dark:text-gray-500">
-                {passed
-                  ? "Excellent architecture!"
-                  : partial
-                    ? "Good effort — keep refining."
-                    : "Review the requirements."}
-              </p>
+            {result.currentStreak !== undefined && result.currentStreak > 0 && (
+              <span className="flex items-center gap-1 text-[11px] font-mono font-semibold text-orange-500">
+                <Flame size={11} className="shrink-0" />
+                {result.currentStreak} day
+                {result.currentStreak !== 1 ? "s" : ""} streak
+              </span>
             )}
+            {(!result.xpEarned || result.xpEarned === 0) &&
+              (!result.currentStreak || result.currentStreak === 0) && (
+                <p className="font-mono text-[10px] text-gray-400 dark:text-gray-500">
+                  {passed
+                    ? "Excellent architecture!"
+                    : partial
+                      ? "Good effort — keep refining."
+                      : "Review the requirements."}
+                </p>
+              )}
           </div>
           <button
             onClick={onClose}
