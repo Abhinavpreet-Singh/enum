@@ -36,6 +36,8 @@ export default function SimulationWorkspace({
   const [isResolved, setIsResolved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSolution, setShowSolution] = useState(false);
+  const [xpAwarded, setXpAwarded] = useState<number | null>(null);
+  const [xpAlreadyAwarded, setXpAlreadyAwarded] = useState(false);
 
   // Resizable panels
   const [leftPanelWidth, setLeftPanelWidth] = useState(300);
@@ -50,7 +52,69 @@ export default function SimulationWorkspace({
       initialFiles[file.name] = file.content;
     });
     setFiles(initialFiles);
+    setXpAwarded(null);
+    setXpAlreadyAwarded(false);
   }, [simulation]);
+
+  // Load existing progress for this simulation (if logged in)
+  useEffect(() => {
+    const loadProgress = async () => {
+      try {
+        const token = localStorage.getItem("accessToken");
+        if (!token) return;
+
+        const res = await fetch(
+          `/api/simulations/progress?simulationId=${simulation.id}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+
+        if (!res.ok) return;
+        const payload = await res.json();
+        const progress = payload?.data;
+
+        if (progress?.solved) {
+          setIsResolved(true);
+          setXpAlreadyAwarded(true);
+        }
+
+        if (
+          progress?.modifiedFiles &&
+          typeof progress.modifiedFiles === "object"
+        ) {
+          setFiles((prev) => ({ ...prev, ...progress.modifiedFiles }));
+        }
+      } catch {
+        // Do not block UI if progress fetch fails.
+      }
+    };
+
+    loadProgress();
+  }, [simulation.id]);
+
+  const persistProgress = async (solved: boolean) => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) return null;
+
+      const res = await fetch("/api/simulations/progress", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          simulationId: simulation.id,
+          solved,
+          modifiedFiles: files,
+        }),
+      });
+
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  };
 
   // Left panel resize handler
   const handleLeftResize = (e: React.MouseEvent) => {
@@ -136,18 +200,32 @@ export default function SimulationWorkspace({
       if (data.error) {
         setError(data.error);
         setConsoleOutput((prev) => [...prev, `Error: ${data.error}`]);
+        await persistProgress(false);
       } else {
         const output =
           data.output || data.stdout || "Code executed successfully";
         setConsoleOutput((prev) => [...prev, output]);
 
         // Check if solution is correct
-        checkSolution();
+        const solvedNow = checkSolution();
+        const progressRes = await persistProgress(solvedNow);
+
+        if (solvedNow) {
+          const awarded = Number(progressRes?.data?.xpAwarded ?? 0);
+          if (awarded > 0) {
+            setXpAwarded(awarded);
+            setXpAlreadyAwarded(false);
+          } else if (progressRes?.data?.alreadySolved) {
+            setXpAwarded(null);
+            setXpAlreadyAwarded(true);
+          }
+        }
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Execution failed";
       setError(errorMsg);
       setConsoleOutput((prev) => [...prev, `Error: ${errorMsg}`]);
+      await persistProgress(false);
     } finally {
       setIsRunning(false);
     }
@@ -171,6 +249,7 @@ export default function SimulationWorkspace({
     }
 
     setIsResolved(allCorrect);
+    return allCorrect;
   };
 
   // View solution - load solution code into editor
@@ -198,6 +277,8 @@ export default function SimulationWorkspace({
     setConsoleOutput([]);
     setError(null);
     setIsResolved(false);
+    setXpAwarded(null);
+    setXpAlreadyAwarded(false);
   };
 
   // Render preview based on simulation type
@@ -604,7 +685,9 @@ export default function SimulationWorkspace({
               onChange={handleCodeChange}
               theme={theme === "dark" ? "pitch-black" : "pitch-light"}
               onMount={(editor, monaco) => {
-                monaco.editor.setTheme(theme === "dark" ? "pitch-black" : "pitch-light");
+                monaco.editor.setTheme(
+                  theme === "dark" ? "pitch-black" : "pitch-light",
+                );
               }}
               beforeMount={(monaco) => {
                 // Dark (black) theme
@@ -619,20 +702,26 @@ export default function SimulationWorkspace({
                     "editorLineNumber.activeForeground": "#60a5fa",
                     "editorCursor.foreground": "#60a5fa",
                     "editor.selectionBackground": "rgba(248,250,252,0.12)",
-                    "editor.selectionHighlightBackground": "rgba(148,163,184,0.12)",
+                    "editor.selectionHighlightBackground":
+                      "rgba(148,163,184,0.12)",
                     "editor.findMatchBackground": "rgba(148,163,184,0.16)",
                     "editor.findMatchBorder": "transparent",
-                    "editor.findMatchHighlightBackground": "rgba(148,163,184,0.16)",
+                    "editor.findMatchHighlightBackground":
+                      "rgba(148,163,184,0.16)",
                     "editor.findMatchHighlightBorder": "transparent",
-                    "editor.findRangeHighlightBackground": "rgba(148,163,184,0.12)",
+                    "editor.findRangeHighlightBackground":
+                      "rgba(148,163,184,0.12)",
                     "editor.findRangeHighlightBorder": "transparent",
                     "editor.wordHighlightBackground": "rgba(148,163,184,0.12)",
-                    "editor.wordHighlightStrongBackground": "rgba(148,163,184,0.16)",
-                    "editor.inactiveSelectionBackground": "rgba(248,250,252,0.06)",
+                    "editor.wordHighlightStrongBackground":
+                      "rgba(148,163,184,0.16)",
+                    "editor.inactiveSelectionBackground":
+                      "rgba(248,250,252,0.06)",
                     "editor.lineHighlightBackground": "rgba(148,163,184,0.14)",
                     "editor.lineHighlightBorder": "transparent",
                     "editorIndentGuide.background": "rgba(148,163,184,0.25)",
-                    "editorIndentGuide.activeBackground": "rgba(248,250,252,0.2)",
+                    "editorIndentGuide.activeBackground":
+                      "rgba(248,250,252,0.2)",
                     "editorWhitespace.foreground": "rgba(148,163,184,0.4)",
                     "editorBracketMatch.background": "rgba(255,255,255,0.1)",
                     "editorBracketMatch.border": "rgba(248,250,252,0.2)",
@@ -652,16 +741,21 @@ export default function SimulationWorkspace({
                   rules: [],
                   colors: {
                     "editor.selectionBackground": "rgba(148,163,184,0.22)",
-                    "editor.selectionHighlightBackground": "rgba(148,163,184,0.22)",
+                    "editor.selectionHighlightBackground":
+                      "rgba(148,163,184,0.22)",
                     "editor.findMatchBackground": "rgba(148,163,184,0.18)",
                     "editor.findMatchBorder": "transparent",
-                    "editor.findMatchHighlightBackground": "rgba(148,163,184,0.18)",
+                    "editor.findMatchHighlightBackground":
+                      "rgba(148,163,184,0.18)",
                     "editor.findMatchHighlightBorder": "transparent",
-                    "editor.findRangeHighlightBackground": "rgba(148,163,184,0.14)",
+                    "editor.findRangeHighlightBackground":
+                      "rgba(148,163,184,0.14)",
                     "editor.findRangeHighlightBorder": "transparent",
                     "editor.wordHighlightBackground": "rgba(148,163,184,0.14)",
-                    "editor.wordHighlightStrongBackground": "rgba(148,163,184,0.18)",
-                    "editor.inactiveSelectionBackground": "rgba(148,163,184,0.14)",
+                    "editor.wordHighlightStrongBackground":
+                      "rgba(148,163,184,0.18)",
+                    "editor.inactiveSelectionBackground":
+                      "rgba(148,163,184,0.14)",
                     "editor.lineHighlightBackground": "rgba(148,163,184,0.18)",
                     "editor.lineHighlightBorder": "transparent",
                     "editorError.background": "rgba(148,163,184,0.16)",
@@ -720,7 +814,11 @@ export default function SimulationWorkspace({
               <div className="flex items-center gap-2 text-green-600">
                 <CheckCircle2 className="w-5 h-5" />
                 <span className="font-semibold">
-                  Issue Resolved! +{simulation.xpReward} XP
+                  {xpAwarded
+                    ? `Issue Resolved! +${xpAwarded} XP`
+                    : xpAlreadyAwarded
+                      ? "Issue Resolved! XP already counted"
+                      : "Issue Resolved!"}
                 </span>
               </div>
             )}

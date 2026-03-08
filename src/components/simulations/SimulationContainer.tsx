@@ -127,6 +127,8 @@ export default function SimulationContainer({
 
   // Progress state
   const [progressLoaded, setProgressLoaded] = useState(false);
+  const [xpAwarded, setXpAwarded] = useState<number | null>(null);
+  const [xpAlreadyAwarded, setXpAlreadyAwarded] = useState(false);
 
   // ── Check if simulation has Cloudinary-hosted files ───────────────────
   const hasCloudinaryFiles = simulation.initialFiles.some(
@@ -216,9 +218,15 @@ export default function SimulationContainer({
         if (res.ok) {
           const data = await res.json();
           const progress = data.data;
-          if (progress?.solved) setIsResolved(true);
+          if (progress?.solved) {
+            setIsResolved(true);
+            setXpAlreadyAwarded(true);
+          }
           // Restore modified files if user had previous edits
-          if (progress?.modifiedFiles && typeof progress.modifiedFiles === "object") {
+          if (
+            progress?.modifiedFiles &&
+            typeof progress.modifiedFiles === "object"
+          ) {
             setFiles((prev) => ({ ...prev, ...progress.modifiedFiles }));
           }
         }
@@ -237,9 +245,9 @@ export default function SimulationContainer({
     async (solved: boolean) => {
       try {
         const token = localStorage.getItem("accessToken");
-        if (!token) return;
+        if (!token) return null;
 
-        await fetch("/api/simulations/progress", {
+        const res = await fetch("/api/simulations/progress", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -251,21 +259,22 @@ export default function SimulationContainer({
             modifiedFiles: files,
           }),
         });
+
+        if (!res.ok) return null;
+        return await res.json();
       } catch (err) {
         console.error("Failed to persist progress:", err);
+        return null;
       }
     },
     [simulation.id, files],
   );
 
   // File selection
-  const handleFileSelect = useCallback(
-    (path: string) => {
-      setActiveFilePath(path);
-      setOpenTabs((prev) => (prev.includes(path) ? prev : [...prev, path]));
-    },
-    [],
-  );
+  const handleFileSelect = useCallback((path: string) => {
+    setActiveFilePath(path);
+    setOpenTabs((prev) => (prev.includes(path) ? prev : [...prev, path]));
+  }, []);
 
   // Close tab
   const handleCloseTab = useCallback(
@@ -289,14 +298,17 @@ export default function SimulationContainer({
   // Determine entry file for execution
   const getEntryFile = (): string => {
     // Prefer simulation-specified entry file if it actually exists in the file map
-    if (simulation.entryFile && files[simulation.entryFile]) return simulation.entryFile;
+    if (simulation.entryFile && files[simulation.entryFile])
+      return simulation.entryFile;
     // Auto-detect: backend sims use server.js most often, then index.js etc.
     const candidates = ["server.js", "index.js", "main.js", "app.js"];
     for (const c of candidates) {
       if (files[c]) return c;
     }
     // Fall back to first top-level .js file, then any file
-    const firstJs = Object.keys(files).find(k => k.endsWith(".js") && !k.includes("/"));
+    const firstJs = Object.keys(files).find(
+      (k) => k.endsWith(".js") && !k.includes("/"),
+    );
     return firstJs ?? simulation.initialFiles[0]?.path ?? "";
   };
 
@@ -331,8 +343,12 @@ export default function SimulationContainer({
       const data = await response.json();
 
       if (data.success) {
-        const engineData = data as SimulationEngineResponse & { success: boolean };
-        const allPassed = engineData.passedTests === engineData.totalTests && engineData.totalTests > 0;
+        const engineData = data as SimulationEngineResponse & {
+          success: boolean;
+        };
+        const allPassed =
+          engineData.passedTests === engineData.totalTests &&
+          engineData.totalTests > 0;
 
         // Display Docker logs
         const logLines = (engineData.logs || "")
@@ -347,13 +363,17 @@ export default function SimulationContainer({
 
         if (allPassed) {
           setStatus("success");
-          setConsoleOutput((prev) => [
-            ...prev,
-            "",
-            "✓ All tests passed!",
-          ]);
+          setConsoleOutput((prev) => [...prev, "", "✓ All tests passed!"]);
           setIsResolved(true);
-          await persistProgress(true);
+          const progressRes = await persistProgress(true);
+          const awarded = Number(progressRes?.data?.xpAwarded ?? 0);
+          if (awarded > 0) {
+            setXpAwarded(awarded);
+            setXpAlreadyAwarded(false);
+          } else if (progressRes?.data?.alreadySolved) {
+            setXpAwarded(null);
+            setXpAlreadyAwarded(true);
+          }
         } else {
           setStatus("error");
           setConsoleOutput((prev) => [
@@ -408,15 +428,14 @@ export default function SimulationContainer({
     setConsoleOutput([]);
     setStatus("idle");
     setIsResolved(false);
+    setXpAwarded(null);
+    setXpAlreadyAwarded(false);
   };
 
   // Save current file state to progress (manual save)
   const handleSaveProgress = async () => {
     await persistProgress(isResolved);
-    setConsoleOutput((prev) => [
-      ...prev,
-      "✓ Progress saved.",
-    ]);
+    setConsoleOutput((prev) => [...prev, "✓ Progress saved."]);
   };
 
   // Clear console
@@ -488,9 +507,7 @@ export default function SimulationContainer({
   // Get language for active file
   const activeFileLanguage = (): string => {
     if (!activeFilePath) return "javascript";
-    const file = simulation.initialFiles.find(
-      (f) => f.path === activeFilePath,
-    );
+    const file = simulation.initialFiles.find((f) => f.path === activeFilePath);
     return file?.language ?? "javascript";
   };
 
@@ -511,7 +528,11 @@ export default function SimulationContainer({
             <div className="flex items-center gap-1.5 text-green-600">
               <CheckCircle2 className="w-4 h-4" />
               <span className="text-sm font-semibold">
-                Solved! +{simulation.xpReward} XP
+                {xpAwarded
+                  ? `Solved! +${xpAwarded} XP`
+                  : xpAlreadyAwarded
+                    ? "Solved! XP already counted"
+                    : "Solved!"}
               </span>
             </div>
           )}
@@ -573,7 +594,9 @@ export default function SimulationContainer({
               <div className="flex items-start gap-2">
                 <XCircle className="w-4 h-4 text-red-500" />
                 <div>
-                  <p className="text-xs font-bold text-red-700 dark:text-red-200 mb-1">ERROR:</p>
+                  <p className="text-xs font-bold text-red-700 dark:text-red-200 mb-1">
+                    ERROR:
+                  </p>
                   <p className="text-xs text-red-600 dark:text-red-200 leading-relaxed">
                     {simulation.incident}
                   </p>
@@ -588,8 +611,13 @@ export default function SimulationContainer({
               </h3>
               <ol className="space-y-2">
                 {simulation.steps.map((step, idx) => (
-                  <li key={idx} className="flex gap-2 text-sm text-gray-700 dark:text-gray-200">
-                    <span className="text-gray-400 dark:text-gray-500">{idx + 1}.</span>
+                  <li
+                    key={idx}
+                    className="flex gap-2 text-sm text-gray-700 dark:text-gray-200"
+                  >
+                    <span className="text-gray-400 dark:text-gray-500">
+                      {idx + 1}.
+                    </span>
                     <span>{step.description}</span>
                   </li>
                 ))}
@@ -695,7 +723,9 @@ export default function SimulationContainer({
               <div className="absolute inset-0 bg-black/70 z-10 flex items-center justify-center">
                 <div className="flex items-center gap-2 text-white">
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="font-mono text-sm">Loading files from cloud…</span>
+                  <span className="font-mono text-sm">
+                    Loading files from cloud…
+                  </span>
                 </div>
               </div>
             )}
@@ -719,7 +749,11 @@ export default function SimulationContainer({
             <div className="bg-green-50 dark:bg-white/10 border-t border-green-200 dark:border-white/10 px-4 py-2.5 flex items-center gap-2 shrink-0">
               <CheckCircle2 className="w-4 h-4 text-green-500" />
               <span className="text-sm font-semibold text-green-700 dark:text-green-200">
-                Simulation solved! +{simulation.xpReward} XP earned
+                {xpAwarded
+                  ? `Simulation solved! +${xpAwarded} XP earned`
+                  : xpAlreadyAwarded
+                    ? "Simulation solved! XP already counted"
+                    : "Simulation solved!"}
               </span>
             </div>
           )}
@@ -756,7 +790,6 @@ export default function SimulationContainer({
                 Save
               </button>
             </div>
-
           </div>
 
           {/* Console Panel */}
