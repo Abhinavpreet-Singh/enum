@@ -142,7 +142,7 @@ export default function SystemDesignSimulationPage() {
       if (axios.isAxiosError(err)) {
         if (err.response?.status === 401) {
           const shouldLogin = confirm(
-            "You need to be logged in to submit. Go to login page?"
+            "You need to be logged in to submit. Go to login page?",
           );
           if (shouldLogin) router.push("/login");
         } else {
