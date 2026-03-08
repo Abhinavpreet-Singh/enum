@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { CheckCircle, XCircle, X, Award } from "lucide-react";
+import { CheckCircle, XCircle, X, Award, Zap } from "lucide-react";
 import type { EvaluationResult } from "@/systemDesign";
 
 interface FeedbackPanelProps {
@@ -114,17 +114,31 @@ export default function FeedbackPanel({ result, onClose }: FeedbackPanelProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-gray-100 dark:border-white/6 flex items-center justify-between">
-          <p className="font-mono text-[10px] text-gray-400 dark:text-gray-500">
-            {passed
-              ? "Excellent architecture!"
-              : partial
-                ? "Good effort — keep refining."
-                : "Review the requirements."}
-          </p>
+        <div className="px-5 py-3 border-t border-gray-100 dark:border-white/6 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {result.xpEarned !== undefined && result.xpEarned > 0 && (
+              <span className="flex items-center gap-1 text-[11px] font-mono font-semibold text-amber-500">
+                <Zap size={11} className="shrink-0" />+{result.xpEarned} XP
+                {result.totalXp !== undefined && (
+                  <span className="text-gray-400 dark:text-gray-500 font-normal">
+                    &nbsp;({result.totalXp} total)
+                  </span>
+                )}
+              </span>
+            )}
+            {(!result.xpEarned || result.xpEarned === 0) && (
+              <p className="font-mono text-[10px] text-gray-400 dark:text-gray-500">
+                {passed
+                  ? "Excellent architecture!"
+                  : partial
+                    ? "Good effort — keep refining."
+                    : "Review the requirements."}
+              </p>
+            )}
+          </div>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 font-mono text-[11px] font-semibold tracking-wide bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
+            className="px-4 py-1.5 font-mono text-[11px] font-semibold tracking-wide bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors shrink-0"
           >
             CLOSE
           </button>

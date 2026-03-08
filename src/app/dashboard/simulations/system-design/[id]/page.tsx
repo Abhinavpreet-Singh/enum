@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Send, Loader2, TrendingUp, Network } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
@@ -34,6 +34,13 @@ interface SDSimulation {
   }>;
 }
 
+interface SubmissionEntry {
+  id: string;
+  score: number;
+  maxScore: number;
+  createdAt: string;
+}
+
 const DIFF_COLORS: Record<string, string> = {
   easy: "text-emerald-500 border-emerald-500/30 bg-emerald-500/10",
   medium: "text-amber-400 border-amber-400/30 bg-amber-400/10",
@@ -42,6 +49,7 @@ const DIFF_COLORS: Record<string, string> = {
 
 export default function SystemDesignSimulationPage() {
   const params = useParams();
+  const router = useRouter();
   const simulationId = params?.id as string;
 
   const canvasRef = useRef<CanvasHandle>(null);
@@ -54,6 +62,7 @@ export default function SystemDesignSimulationPage() {
 
   const [simulation, setSimulation] = useState<SDSimulation | null>(null);
   const [loadingMeta, setLoadingMeta] = useState(true);
+  const [history, setHistory] = useState<SubmissionEntry[]>([]);
 
   useEffect(() => {
     if (!simulationId) return;
@@ -62,6 +71,17 @@ export default function SystemDesignSimulationPage() {
       .then((r) => setSimulation(r.data.data ?? null))
       .catch(() => setSimulation(null))
       .finally(() => setLoadingMeta(false));
+  }, [simulationId]);
+
+  // Fetch past submissions (best-effort — silently skip if not authenticated)
+  useEffect(() => {
+    if (!simulationId) return;
+    axios
+      .get(`${proxy}/api/v1/system-design/submissions/${simulationId}`, {
+        withCredentials: true,
+      })
+      .then((r) => setHistory(r.data.data ?? []))
+      .catch(() => {});
   }, [simulationId]);
 
   const handleConfigChange = useCallback(
@@ -98,10 +118,41 @@ export default function SystemDesignSimulationPage() {
         },
         { withCredentials: true },
       );
-      setResult(res.data.data?.evaluation ?? null);
-    } catch (err) {
+      const data = res.data.data;
+      if (data?.evaluation) {
+        setResult({
+          ...data.evaluation,
+          xpEarned: data.xpEarned,
+          totalXp: data.totalXp,
+        });
+        // Prepend to local history
+        setHistory((prev) =>
+          [
+            {
+              id: data.submissionId,
+              score: data.evaluation.score,
+              maxScore: data.evaluation.maxScore,
+              createdAt: new Date().toISOString(),
+            },
+            ...prev,
+          ].slice(0, 10),
+        );
+      }
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 401) {
+          const shouldLogin = confirm(
+            "You need to be logged in to submit. Go to login page?"
+          );
+          if (shouldLogin) router.push("/login");
+        } else {
+          const msg = err.response?.data?.message ?? err.message;
+          alert(`Submission failed: ${msg}`);
+        }
+      } else {
+        alert("Failed to submit. Please try again.");
+      }
       console.error("Submission error:", err);
-      alert("Failed to submit. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -192,7 +243,7 @@ export default function SystemDesignSimulationPage() {
                 </p>
               </div>
 
-              {/* Explanation â€” pinned bottom */}
+              {/* Explanation — pinned bottom */}
               <div className="border-t border-gray-100 dark:border-white/15 px-4 py-3 shrink-0">
                 <p className="font-mono text-[9px] tracking-[0.3em] text-gray-400 dark:text-gray-400 uppercase mb-1.5">
                   Your Explanation
@@ -205,6 +256,44 @@ export default function SystemDesignSimulationPage() {
                   className="w-full px-2.5 py-2 text-[11px] font-mono border border-gray-200 dark:border-white/20 bg-white dark:bg-black/60 text-black dark:text-white placeholder-gray-300 dark:placeholder-gray-500 resize-none outline-none focus:border-black dark:focus:border-white/50 transition-colors leading-relaxed"
                 />
               </div>
+
+              {/* Past Attempts */}
+              {history.length > 0 && (
+                <div className="border-t border-gray-100 dark:border-white/15 px-4 py-2.5 shrink-0">
+                  <p className="font-mono text-[9px] tracking-[0.3em] text-gray-400 dark:text-gray-400 uppercase mb-1.5">
+                    Past Attempts
+                  </p>
+                  <div className="space-y-1">
+                    {history.slice(0, 5).map((s) => {
+                      const pct = Math.round((s.score / s.maxScore) * 100);
+                      return (
+                        <div
+                          key={s.id}
+                          className="flex items-center justify-between"
+                        >
+                          <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500">
+                            {new Date(s.createdAt).toLocaleDateString(
+                              undefined,
+                              { month: "short", day: "numeric" },
+                            )}
+                          </span>
+                          <span
+                            className={`text-[10px] font-mono font-semibold ${
+                              pct >= 80
+                                ? "text-emerald-500"
+                                : pct >= 50
+                                  ? "text-amber-400"
+                                  : "text-red-400"
+                            }`}
+                          >
+                            {s.score}/{s.maxScore} ({pct}%)
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <p className="p-4 text-xs text-gray-400">

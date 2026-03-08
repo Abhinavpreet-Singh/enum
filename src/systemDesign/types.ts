@@ -22,6 +22,8 @@ export interface EvaluationResult {
   score: number;
   maxScore: number;
   feedback: FeedbackItem[];
+  xpEarned?: number;
+  totalXp?: number;
 }
 
 export interface FeedbackItem {
@@ -31,7 +33,12 @@ export interface FeedbackItem {
 }
 
 export interface ReplayEvent {
-  type: "node_add" | "node_remove" | "edge_add" | "edge_remove" | "config_change";
+  type:
+    | "node_add"
+    | "node_remove"
+    | "edge_add"
+    | "edge_remove"
+    | "config_change";
   timestamp: number;
   data: Record<string, unknown>;
 }
