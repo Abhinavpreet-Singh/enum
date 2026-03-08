@@ -108,6 +108,7 @@ export default function SimulationContainer({
   // Task panel
   const [taskPanelWidth, setTaskPanelWidth] = useState(280);
   const [isResizingTask, setIsResizingTask] = useState(false);
+  const [panelTab, setPanelTab] = useState<"task" | "solution">("task");
 
   // File tree
   const [fileTree, setFileTree] = useState<FileNode[]>([]);
@@ -568,74 +569,124 @@ export default function SimulationContainer({
                 {simulation.estimatedTime} min
               </span>
             </div>
+            {/* Task / Solution tabs */}
+            <div className="flex mt-3 border-b border-gray-200 dark:border-white/10">
+              <button
+                onClick={() => setPanelTab("task")}
+                className={`text-xs px-3 py-1.5 font-medium transition-colors ${
+                  panelTab === "task"
+                    ? "border-b-2 border-black dark:border-white text-black dark:text-white"
+                    : "text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white"
+                }`}
+              >
+                Task
+              </button>
+              {simulation.solution &&
+                Object.keys(simulation.solution).length > 0 && (
+                  <button
+                    onClick={() => setPanelTab("solution")}
+                    className={`text-xs px-3 py-1.5 font-medium transition-colors ${
+                      panelTab === "solution"
+                        ? "border-b-2 border-black dark:border-white text-black dark:text-white"
+                        : "text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white"
+                    }`}
+                  >
+                    Solution
+                  </button>
+                )}
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4">
-            {/* Incident */}
-            <div className="mb-5">
-              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                Incident
-              </h3>
-              <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
-                {simulation.description}
-              </p>
-            </div>
-
-            {/* Error */}
-            <div className="mb-5 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded">
-              <div className="flex items-start gap-2">
-                <XCircle className="w-4 h-4 text-red-500" />
-                <div>
-                  <p className="text-xs font-bold text-red-700 dark:text-red-200 mb-1">
-                    ERROR:
-                  </p>
-                  <p className="text-xs text-red-600 dark:text-red-200 leading-relaxed">
-                    {simulation.incident}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Steps */}
-            <div className="mb-5">
-              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-                Steps
-              </h3>
-              <ol className="space-y-2">
-                {simulation.steps.map((step, idx) => (
-                  <li
-                    key={idx}
-                    className="flex gap-2 text-sm text-gray-700 dark:text-gray-200"
-                  >
-                    <span className="text-gray-400 dark:text-gray-500">
-                      {idx + 1}.
-                    </span>
-                    <span>{step.description}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-
-            {/* Hints */}
-            {simulation.hints && simulation.hints.length > 0 && (
-              <div>
-                <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-                  Hints
-                </h3>
-                <div className="space-y-2">
-                  {simulation.hints.map((hint, idx) => (
-                    <details key={idx} className="group">
-                      <summary className="cursor-pointer text-xs text-gray-700 dark:text-gray-200 hover:text-black dark:hover:text-white flex items-center gap-1 font-medium">
-                        <ChevronRight className="w-3 h-3 group-open:rotate-90 transition-transform" />
-                        Hint {idx + 1}
-                      </summary>
-                      <p className="mt-2 ml-4 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-                        {hint}
+            {panelTab === "solution" ? (
+              /* ── Solution Tab ─────────────────────────────────────────── */
+              <div className="space-y-5">
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                  The solution is shown below. Try to solve it yourself first!
+                </p>
+                {simulation.solution &&
+                  Object.entries(
+                    simulation.solution as Record<string, string>,
+                  ).map(([filePath, code]) => (
+                    <div key={filePath}>
+                      <p className="text-xs font-mono font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
+                        {filePath}
                       </p>
-                    </details>
+                      <pre className="text-xs bg-gray-50 dark:bg-neutral-900 border border-gray-200 dark:border-white/10 rounded p-3 overflow-x-auto text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
+                        {code.trim()}
+                      </pre>
+                    </div>
                   ))}
-                </div>
               </div>
+            ) : (
+              <>
+                {/* Incident */}
+                <div className="mb-5">
+                  <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                    Incident
+                  </h3>
+                  <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
+                    {simulation.description}
+                  </p>
+                </div>
+
+                {/* Error */}
+                <div className="mb-5 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded">
+                  <div className="flex items-start gap-2">
+                    <XCircle className="w-4 h-4 text-red-500" />
+                    <div>
+                      <p className="text-xs font-bold text-red-700 dark:text-red-200 mb-1">
+                        ERROR:
+                      </p>
+                      <p className="text-xs text-red-600 dark:text-red-200 leading-relaxed">
+                        {simulation.incident}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Steps */}
+                <div className="mb-5">
+                  <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                    Steps
+                  </h3>
+                  <ol className="space-y-2">
+                    {simulation.steps.map((step, idx) => (
+                      <li
+                        key={idx}
+                        className="flex gap-2 text-sm text-gray-700 dark:text-gray-200"
+                      >
+                        <span className="text-gray-400 dark:text-gray-500">
+                          {idx + 1}.
+                        </span>
+                        <span>{step.description}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                {/* Hints */}
+                {simulation.hints && simulation.hints.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                      Hints
+                    </h3>
+                    <div className="space-y-2">
+                      {simulation.hints.map((hint, idx) => (
+                        <details key={idx} className="group">
+                          <summary className="cursor-pointer text-xs text-gray-700 dark:text-gray-200 hover:text-black dark:hover:text-white flex items-center gap-1 font-medium">
+                            <ChevronRight className="w-3 h-3 group-open:rotate-90 transition-transform" />
+                            Hint {idx + 1}
+                          </summary>
+                          <p className="mt-2 ml-4 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                            {hint}
+                          </p>
+                        </details>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
