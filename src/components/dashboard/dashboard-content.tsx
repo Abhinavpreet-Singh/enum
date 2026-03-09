@@ -10,11 +10,14 @@ import {
   Users,
   ChevronRight,
   Flame,
+  Network,
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import useAuth from "@/hooks/useAuth";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
+import { browserSimulations } from "@/data/browser-simulations";
 
 interface DashboardContentProps {
   userName?: string;
@@ -28,23 +31,7 @@ interface LeaderboardEntry {
   xp: number;
   problemsSolved: number;
   simulationsSolved: number;
-}
-
-interface RecentSubmission {
-  _id: string;
-  question: { _id: string; title: string; level: string } | null;
-  verdict: string;
-  language: string;
-  createdAt: string;
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 172800) return "Yesterday";
-  return `${Math.floor(diff / 86400)}d ago`;
+  currentStreak?: number;
 }
 
 function computeLevel(xp: number) {
@@ -86,10 +73,21 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
   const [currentUsername] = useState<string>(() =>
     typeof window !== "undefined" ? localStorage.getItem("Name") || "" : "",
   );
+  const [currentUserId] = useState<string>(() =>
+    typeof window !== "undefined" ? localStorage.getItem("id") || "" : "",
+  );
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [profileXp, setProfileXp] = useState<number | null>(null);
   const [totalQuestions, setTotalQuestions] = useState<number>(0);
   const [totalSimulations, setTotalSimulations] = useState<number>(0);
-  const [recentActivity, setRecentActivity] = useState<RecentSubmission[]>([]);
+  const [dailyChallenge, setDailyChallenge] = useState<{
+    id: string;
+    title: string;
+    description: string;
+    difficulty: string;
+    maxScore: number;
+    tags: string[];
+  } | null>(null);
   const [stats, setStats] = useState<UserStats>({
     totalProblems: 0,
     totalSimulations: 0,
@@ -143,21 +141,59 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
       axios.get(`${proxy}/api/v1/users/leaderboard`).catch(() => null),
       axios.get(`${proxy}/api/v1/questions/getQuestion`).catch(() => null),
       axios.get(`${proxy}/api/v1/simulations/getSimulations`).catch(() => null),
-    ]).then(([lbRes, qRes, simRes]) => {
+      axios.get(`${proxy}/api/v1/system-design/simulations`).catch(() => null),
+    ]).then(([lbRes, qRes, simRes, sdRes]) => {
       const lb: LeaderboardEntry[] = lbRes?.data?.data ?? [];
       setLeaderboard(lb);
       setTotalQuestions((qRes?.data?.data ?? []).length);
-      setTotalSimulations((simRes?.data?.data ?? []).length);
+      const prodSims = (
+        (simRes?.data?.data ?? []) as Array<{
+          category?: string;
+        }>
+      ).filter((s) => s?.category !== "devops");
+      const sdSims = sdRes?.data?.data ?? [];
+      setTotalSimulations(
+        prodSims.length + sdSims.length + browserSimulations.length,
+      );
+
+      // Find a hard system design simulation for daily challenge
+      const hardSim = sdSims.find((s: any) => s.difficulty === "hard");
+      if (hardSim) {
+        setDailyChallenge({
+          id: hardSim.id,
+          title: hardSim.title,
+          description: hardSim.description,
+          difficulty: hardSim.difficulty,
+          maxScore: hardSim.maxScore,
+          tags: hardSim.tags || [],
+        });
+      }
+
+      const uid =
+        typeof window !== "undefined" ? localStorage.getItem("id") || "" : "";
       const uname =
         typeof window !== "undefined" ? localStorage.getItem("Name") || "" : "";
-      const idx = lb.findIndex((e) => e.username === uname);
+      const dname =
+        typeof window !== "undefined"
+          ? localStorage.getItem("displayName") || ""
+          : "";
+      const normalize = (v: string) => v.trim().toLowerCase();
+      const idx = lb.findIndex(
+        (e) =>
+          (uid && e._id === uid) ||
+          (uname && normalize(e.username) === normalize(uname)) ||
+          (dname && normalize(e.displayName || "") === normalize(dname)),
+      );
+
       if (idx !== -1) {
         const entry = lb[idx];
+        setProfileXp(entry.xp);
         setStats((prev) => ({
           ...prev,
           totalProblems: entry.problemsSolved,
           totalSimulations: entry.simulationsSolved,
           globalRank: idx + 1,
+          currentStreak: entry.currentStreak ?? 0,
         }));
       }
     });
@@ -169,21 +205,51 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
         ? localStorage.getItem("accessToken")
         : null;
     if (!token) return;
-    fetch("/api/submissions/recent", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((d) => setRecentActivity(d?.data ?? []))
+
+    axios
+      .get(`${proxy}/api/v1/users/profile`, {
+        withCredentials: true,
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        const data = res?.data?.data;
+        if (typeof data?.xp === "number") {
+          setProfileXp(data.xp);
+        }
+        if (typeof data?.currentStreak === "number") {
+          setStats((prev) => ({ ...prev, currentStreak: data.currentStreak }));
+        }
+      })
       .catch(() => {});
   }, []);
 
   const top3 = useMemo(() => leaderboard.slice(0, 3), [leaderboard]);
+  const userLbEntry = useMemo(() => {
+    const normalize = (v: string) => v.trim().toLowerCase();
+    return (
+      leaderboard.find((e) => currentUserId && e._id === currentUserId) ??
+      leaderboard.find(
+        (e) =>
+          currentUsername &&
+          normalize(e.username) === normalize(currentUsername),
+      ) ??
+      leaderboard.find(
+        (e) =>
+          displayName &&
+          normalize(e.displayName || "") === normalize(displayName),
+      ) ??
+      null
+    );
+  }, [leaderboard, currentUserId, currentUsername, displayName]);
+
   const userRank = useMemo(
-    () => leaderboard.findIndex((e) => e.username === currentUsername),
-    [leaderboard, currentUsername],
+    () =>
+      userLbEntry
+        ? leaderboard.findIndex((e) => e._id === userLbEntry._id)
+        : -1,
+    [leaderboard, userLbEntry],
   );
-  const userLbEntry = userRank !== -1 ? leaderboard[userRank] : null;
-  const userXP = userLbEntry?.xp ?? 0;
+  const userXP = profileXp ?? userLbEntry?.xp ?? 0;
   const lvl = computeLevel(userXP);
   const xpPct =
     lvl.maxXP < 999999
@@ -513,27 +579,52 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
             <Flame className="w-4 h-4 text-orange-400" />
           </div>
 
-          <div className="border border-gray-100 dark:border-white/8 p-3 mb-3 hover:border-gray-200 dark:hover:border-white/15 transition-colors">
-            <div className="flex items-start justify-between gap-2 mb-1">
-              <p className="font-semibold text-black dark:text-white text-sm">
-                LRU Cache Implementation
+          {dailyChallenge ? (
+            <Link
+              href={`/dashboard/simulations/system-design/${dailyChallenge.id}`}
+              className="block border border-gray-100 dark:border-white/8 p-3 mb-3 hover:border-gray-200 dark:hover:border-white/15 transition-colors"
+            >
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <div className="flex items-start gap-2 flex-1 min-w-0">
+                  <Network className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                  <p className="font-semibold text-black dark:text-white text-sm">
+                    {dailyChallenge.title}
+                  </p>
+                </div>
+                <span className="font-mono text-[9px] px-2 py-0.5 border border-red-400/40 text-red-600 dark:text-red-400 shrink-0">
+                  {dailyChallenge.difficulty.toUpperCase()}
+                </span>
+              </div>
+              <p className="font-mono text-[10px] text-gray-400 line-clamp-2 mb-3">
+                {dailyChallenge.description}
               </p>
-              <span className="font-mono text-[9px] px-2 py-0.5 border border-amber-400/40 text-amber-600 dark:text-amber-400 shrink-0">
-                Medium
-              </span>
+              <div className="flex items-center flex-wrap gap-1.5 mb-3">
+                {dailyChallenge.tags.slice(0, 3).map((tag) => (
+                  <span
+                    key={tag}
+                    className="font-mono text-[9px] px-1.5 py-0.5 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+              <div className="flex items-center justify-between mt-3">
+                <span className="font-mono text-[10px] text-black dark:text-white font-semibold">
+                  +{dailyChallenge.maxScore * 10} XP
+                </span>
+                <span className="flex items-center gap-1 font-mono text-[11px] text-gray-400 hover:text-black dark:hover:text-white transition-colors">
+                  Design <ChevronRight className="w-3 h-3" />
+                </span>
+              </div>
+            </Link>
+          ) : (
+            <div className="border border-gray-100 dark:border-white/8 p-3 mb-3">
+              <div className="animate-pulse space-y-2">
+                <div className="h-4 bg-gray-100 dark:bg-white/5 rounded w-3/4" />
+                <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-1/2" />
+              </div>
             </div>
-            <p className="font-mono text-[10px] text-gray-400">
-              Data Structures · Hash Map + DLL
-            </p>
-            <div className="flex items-center justify-between mt-3">
-              <span className="font-mono text-[10px] text-black dark:text-white font-semibold">
-                +150 XP
-              </span>
-              <button className="flex items-center gap-1 font-mono text-[11px] text-gray-400 hover:text-black dark:hover:text-white transition-colors">
-                Solve <ChevronRight className="w-3 h-3" />
-              </button>
-            </div>
-          </div>
+          )}
 
           <div className="flex items-center gap-2 bg-gray-50 dark:bg-white/4 px-3 py-2">
             <Zap className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
@@ -559,7 +650,13 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
 
           <div className="divide-y divide-gray-50 dark:divide-white/5">
             {top3.map((u, i) => {
-              const isYou = u.username === currentUsername;
+              const normalize = (v: string) => v.trim().toLowerCase();
+              const isYou =
+                (currentUserId && u._id === currentUserId) ||
+                (currentUsername &&
+                  normalize(u.username) === normalize(currentUsername)) ||
+                (displayName &&
+                  normalize(u.displayName || "") === normalize(displayName));
               return (
                 <div
                   key={u._id ?? i}
@@ -629,82 +726,6 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
             Full leaderboard <ArrowRight className="w-3 h-3" />
           </a>
         </div>
-      </div>
-
-      {/* ── Recent Activity ────────────────────────────── */}
-      <div>
-        <h2 className="font-mono text-[9px] tracking-[0.3em] text-gray-400 uppercase mb-3">
-          Recent Activity
-        </h2>
-
-        {recentActivity.length === 0 ? (
-          <div className="border border-gray-100 dark:border-white/8 bg-white dark:bg-[#111] p-8 text-center">
-            <Code2 className="w-8 h-8 text-gray-200 dark:text-white/10 mx-auto mb-3" />
-            <p className="font-mono text-sm text-gray-400 mb-2">
-              No activity yet
-            </p>
-            <a
-              href="/dashboard/dsa-arena"
-              className="inline-flex items-center gap-1 font-mono text-xs text-black dark:text-white hover:underline"
-            >
-              Start solving problems <ArrowRight className="w-3 h-3" />
-            </a>
-          </div>
-        ) : (
-          <div className="border border-gray-100 dark:border-white/8 divide-y divide-gray-50 dark:divide-white/5 overflow-hidden">
-            {recentActivity.map((sub, i) => {
-              const accepted = sub.verdict === "accepted";
-              const title = sub.question?.title ?? "Unknown Question";
-              const level = sub.question?.level ?? "";
-              const levelColor =
-                level === "Easy"
-                  ? "text-emerald-500"
-                  : level === "Medium"
-                    ? "text-amber-400"
-                    : level === "Hard"
-                      ? "text-red-400"
-                      : "text-gray-400";
-              return (
-                <a
-                  key={sub._id ?? i}
-                  href={`/dashboard/dsa-arena/${sub.question?._id ?? ""}`}
-                  className="flex items-center justify-between gap-4 px-4 py-3 bg-white dark:bg-[#111] hover:bg-gray-50 dark:hover:bg-[#161616] transition-colors"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={`w-0.5 self-stretch shrink-0 ${
-                        accepted
-                          ? "bg-emerald-500"
-                          : "bg-gray-200 dark:bg-white/10"
-                      }`}
-                    />
-                    <div className="min-w-0">
-                      <p className="font-semibold text-black dark:text-white text-sm truncate">
-                        {title}
-                      </p>
-                      <p className="font-mono text-[10px] mt-0.5">
-                        {level && <span className={levelColor}>{level}</span>}
-                        {level ? " · " : ""}
-                        <span className="text-gray-400">
-                          {sub.language} · {timeAgo(sub.createdAt)}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                  <span
-                    className={`font-mono text-[10px] px-2 py-0.5 shrink-0 ${
-                      accepted
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                        : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400"
-                    }`}
-                  >
-                    {accepted ? "Accepted" : sub.verdict || "Attempted"}
-                  </span>
-                </a>
-              );
-            })}
-          </div>
-        )}
       </div>
     </div>
   );

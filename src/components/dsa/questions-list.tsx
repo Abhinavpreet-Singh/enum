@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Question, fetchQuestions } from "@/data/dsa-questions";
 import { useEffect, useState, useMemo } from "react";
-import { Search, X, ChevronRight } from "lucide-react";
+import { Search, X, ChevronRight, CheckCircle2, Circle } from "lucide-react";
 
 const DIFFICULTIES = ["Easy", "Medium", "Hard"] as const;
 
@@ -105,6 +105,22 @@ export default function QuestionsList() {
         </span>
         <span className="text-red-400">
           <span className="font-bold">{counts.Hard}</span> Hard
+        </span>
+      </div>
+
+      {/* Status Legend */}
+      <div className="flex items-center gap-4 font-mono text-[10px] text-gray-400 dark:text-gray-500">
+        <span className="flex items-center gap-1.5">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+          Solved
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Circle className="w-3.5 h-3.5 text-amber-400" />
+          Attempted
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Circle className="w-3.5 h-3.5 text-gray-200 dark:text-white/10" />
+          Not Started
         </span>
       </div>
 
@@ -213,7 +229,10 @@ export default function QuestionsList() {
       ) : (
         <div className="border border-gray-100 dark:border-white/8 overflow-hidden">
           {/* Header row */}
-          <div className="hidden md:grid grid-cols-[3rem_1fr_7rem_9rem_2rem] items-center px-5 py-2.5 border-b border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-[#161616]">
+          <div className="hidden md:grid grid-cols-[2.5rem_3rem_1fr_7rem_9rem_2rem] items-center px-5 py-2.5 border-b border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-[#161616]">
+            <span className="font-mono text-[10px] text-gray-400 tracking-widest">
+              STATUS
+            </span>
             <span className="font-mono text-[10px] text-gray-400 tracking-widest">
               #
             </span>
@@ -233,12 +252,21 @@ export default function QuestionsList() {
             <Link
               key={q.id ?? `q-${i}`}
               href={`/dashboard/dsa-arena/${q.id}`}
-              className={`group flex md:grid md:grid-cols-[3rem_1fr_7rem_9rem_2rem] items-center gap-3 md:gap-0 px-5 py-3.5 border-b border-gray-100 dark:border-white/5 last:border-0 transition-colors ${
+              className={`group flex md:grid md:grid-cols-[2.5rem_3rem_1fr_7rem_9rem_2rem] items-center gap-3 md:gap-0 px-5 py-3.5 border-b border-gray-100 dark:border-white/5 last:border-0 transition-colors ${
                 i % 2 === 0
                   ? "bg-white dark:bg-[#111] hover:bg-gray-50 dark:hover:bg-[#161616]"
                   : "bg-gray-50/60 dark:bg-[#0d0d0d] hover:bg-gray-50 dark:hover:bg-[#161616]"
               }`}
             >
+              <span className="flex items-center justify-center">
+                {q.status?.solved ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                ) : q.status?.attempted ? (
+                  <Circle className="w-4 h-4 text-amber-400" />
+                ) : (
+                  <Circle className="w-4 h-4 text-gray-200 dark:text-white/10" />
+                )}
+              </span>
               <span className="hidden md:block font-mono text-xs text-gray-300 dark:text-white/20 tabular-nums">
                 {i + 1}
               </span>

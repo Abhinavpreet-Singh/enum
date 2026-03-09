@@ -19,8 +19,8 @@ export const metadata: Metadata = {
   description:
     "Production simulation platform for software engineers. Learn by fixing real-world engineering issues inside live environments.",
   icons: {
-    icon: "/favicon.png",
-    apple: "/favicon.png",
+    icon: "/lgogo.png",
+    apple: "/lgogo.png",
   },
 };
 

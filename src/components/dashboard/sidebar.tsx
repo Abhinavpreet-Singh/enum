@@ -8,10 +8,8 @@ import { proxy } from "@/app/proxy";
 import {
   LayoutDashboard,
   Code,
-  Radio,
   Target,
   Trophy,
-  Settings,
   LogOut,
   Shield,
   Menu,
@@ -42,12 +40,6 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
       icon: Code,
       label: "Simulations",
       href: "/dashboard/simulations",
-      matchExact: false,
-    },
-    {
-      icon: Radio,
-      label: "Tracks",
-      href: "/dashboard/tracks",
       matchExact: false,
     },
     {
@@ -347,23 +339,6 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
                 {theme === "dark" ? "Light Mode" : "Dark Mode"}
               </span>
             </button>
-            <Link
-              href="/dashboard/settings"
-              title="Settings"
-              onClick={() => {
-                if (!pinned) setHovered(false);
-              }}
-              className="flex items-center gap-3 pl-4 pr-3 py-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-transparent hover:text-gray-800 dark:hover:text-white rounded-lg font-mono text-sm tracking-wide transition-all duration-200 border border-transparent hover:border-gray-200 dark:hover:border-white whitespace-nowrap"
-            >
-              <Settings className="w-4.5 h-4.5 shrink-0" />
-              <span
-                className={`transition-opacity duration-200 ${
-                  expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
-                }`}
-              >
-                Settings
-              </span>
-            </Link>
             <button
               onClick={handleLogout}
               disabled={isLoggingOut}

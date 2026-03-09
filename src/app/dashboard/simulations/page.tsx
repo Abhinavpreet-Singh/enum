@@ -12,9 +12,10 @@ import {
   Layers,
   Server,
   Monitor,
-  GitBranch,
   Boxes,
   Network,
+  CheckCircle2,
+  Circle,
 } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
@@ -30,6 +31,13 @@ interface SimulationItem {
   estimatedTime: number;
   xpReward: number;
   tags: string[];
+  status?: {
+    attempted: boolean;
+    solved: boolean;
+    attempts?: number;
+    bestScore?: number;
+    bestScorePercent?: number;
+  };
 }
 
 const CATEGORY_META: Record<
@@ -39,7 +47,6 @@ const CATEGORY_META: Record<
   frontend: { label: "Frontend", Icon: Monitor },
   backend: { label: "Backend", Icon: Server },
   fullstack: { label: "Full Stack", Icon: Layers },
-  devops: { label: "DevOps", Icon: GitBranch },
   "system-design": { label: "System Design", Icon: Network },
 };
 
@@ -87,8 +94,16 @@ export default function SimulationsPage() {
     }));
 
     Promise.all([
-      axios.get(`${proxy}/api/v1/simulations/getSimulations`).catch(() => null),
-      axios.get(`${proxy}/api/v1/system-design/simulations`).catch(() => null),
+      axios
+        .get(`${proxy}/api/v1/simulations/getSimulations`, {
+          withCredentials: true,
+        })
+        .catch(() => null),
+      axios
+        .get(`${proxy}/api/v1/system-design/simulations`, {
+          withCredentials: true,
+        })
+        .catch(() => null),
     ])
       .then(([simRes, sdRes]) => {
         const backend: SimulationItem[] = simRes?.data?.data || [];
@@ -99,6 +114,12 @@ export default function SimulationsPage() {
           difficulty: string;
           tags: string[];
           maxScore: number;
+          status?: {
+            attempted: boolean;
+            solved: boolean;
+            bestScore?: number;
+            bestScorePercent?: number;
+          };
         }> = sdRes?.data?.data || [];
         const systemDesign: SimulationItem[] = sdRaw.map((s) => ({
           id: s.id,
@@ -109,8 +130,10 @@ export default function SimulationsPage() {
           estimatedTime: 30,
           xpReward: (s.maxScore ?? 10) * 10,
           tags: s.tags || [],
+          status: s.status,
         }));
-        setSimulations([...local, ...systemDesign, ...backend]);
+        const merged = [...local, ...systemDesign, ...backend];
+        setSimulations(merged.filter((s) => s.category !== "devops"));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -177,6 +200,22 @@ export default function SimulationsPage() {
                 : `${filtered.length} of ${simulations.length} simulations`}
             </p>
           </div>
+        </div>
+
+        {/* Status Legend */}
+        <div className="flex items-center gap-4 font-mono text-[10px] text-gray-400 dark:text-gray-500">
+          <span className="flex items-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+            Solved
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Circle className="w-3.5 h-3.5 text-amber-400" />
+            Attempted
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Circle className="w-3.5 h-3.5 text-gray-200 dark:text-white/10" />
+            Not Started
+          </span>
         </div>
 
         {/* Category stat pills */}
@@ -363,10 +402,19 @@ export default function SimulationsPage() {
                   }
                   className="group flex items-start gap-5 p-5 border border-gray-100 dark:border-white/8 hover:border-gray-300 dark:hover:border-white/30 bg-white dark:bg-[#111] hover:bg-gray-50 dark:hover:bg-[#161616] transition-all duration-200"
                 >
-                  {/* Index */}
-                  <span className="font-mono text-xs text-gray-300 dark:text-white/20 w-6 shrink-0 pt-0.5 select-none">
-                    {String(idx + 1).padStart(2, "0")}
-                  </span>
+                  {/* Status + Index */}
+                  <div className="flex flex-col items-center gap-2 shrink-0 pt-0.5">
+                    {sim.status?.solved ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    ) : sim.status?.attempted ? (
+                      <Circle className="w-4 h-4 text-amber-400" />
+                    ) : (
+                      <Circle className="w-4 h-4 text-gray-200 dark:text-white/10" />
+                    )}
+                    <span className="font-mono text-xs text-gray-300 dark:text-white/20 select-none">
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
+                  </div>
 
                   {/* Main */}
                   <div className="flex-1 min-w-0">

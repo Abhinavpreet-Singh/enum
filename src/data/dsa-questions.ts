@@ -24,6 +24,10 @@ export interface Question {
     c?: string;
     cpp?: string;
   };
+  status?: {
+    attempted: boolean;
+    solved: boolean;
+  };
 }
 
 // Backend question interface
@@ -33,7 +37,11 @@ interface BackendQuestion {
   title: string;
   desc: string;
   level: "Easy" | "Medium" | "Hard";
-  testcases: Array<{ input: string[] | string; output?: string; expectedOutput?: string }>;
+  testcases: Array<{
+    input: string[] | string;
+    output?: string;
+    expectedOutput?: string;
+  }>;
   constraints: string;
   topic: string;
   functionName?: string;
@@ -46,13 +54,19 @@ interface BackendQuestion {
     c?: string;
     cpp?: string;
   }>;
+  status?: {
+    attempted: boolean;
+    solved: boolean;
+  };
 }
 
 let questions: Question[] = [];
 
 export const fetchQuestions = async (): Promise<Question[]> => {
   try {
-    const response = await axios.get(`${proxy}/api/v1/questions/getQuestion`);
+    const response = await axios.get(`${proxy}/api/v1/questions/getQuestion`, {
+      withCredentials: true,
+    });
     console.log("Questions fetched:", response.data);
 
     // Map backend data to frontend Question interface
@@ -60,10 +74,10 @@ export const fetchQuestions = async (): Promise<Question[]> => {
       questions = response.data.data.map((q: BackendQuestion) => {
         // Ensure constraints is an array of strings
         let constraintsArray: string[] = [];
-        if (typeof q.constraints === 'string' && q.constraints.trim()) {
-          constraintsArray = q.constraints.split('\n').filter(c => c.trim());
+        if (typeof q.constraints === "string" && q.constraints.trim()) {
+          constraintsArray = q.constraints.split("\n").filter((c) => c.trim());
         } else if (Array.isArray(q.constraints)) {
-          constraintsArray = q.constraints.map(c => String(c));
+          constraintsArray = q.constraints.map((c) => String(c));
         }
 
         // Parse initialCode from backend (auto-generated or manual)
@@ -82,20 +96,24 @@ export const fetchQuestions = async (): Promise<Question[]> => {
         }
 
         // Map testcases - support both old and new format
-        const examples = Array.isArray(q.testcases) ? q.testcases.map((tc) => {
-          const input = tc.input;
-          const expectedOutput = tc.expectedOutput || tc.output || "";
-          // For display, format input nicely
-          const displayInput = Array.isArray(input) ? input.join("\n") : String(input || "");
-          return {
-            input: displayInput,
-            output: String(expectedOutput),
-            expectedOutput: String(expectedOutput),
-          };
-        }) : [];
+        const examples = Array.isArray(q.testcases)
+          ? q.testcases.map((tc) => {
+              const input = tc.input;
+              const expectedOutput = tc.expectedOutput || tc.output || "";
+              // For display, format input nicely
+              const displayInput = Array.isArray(input)
+                ? input.join("\n")
+                : String(input || "");
+              return {
+                input: displayInput,
+                output: String(expectedOutput),
+                expectedOutput: String(expectedOutput),
+              };
+            })
+          : [];
 
         return {
-          id: q._id ?? q.id ?? '',
+          id: q._id ?? q.id ?? "",
           title: q.title || "Untitled",
           difficulty: q.level || "Easy",
           category: q.topic || "General",
@@ -106,7 +124,8 @@ export const fetchQuestions = async (): Promise<Question[]> => {
           returnType: q.returnType || "int",
           examples,
           constraints: constraintsArray,
-          initialCode: initialCodeObj
+          initialCode: initialCodeObj,
+          status: q.status || { attempted: false, solved: false },
         };
       });
     }

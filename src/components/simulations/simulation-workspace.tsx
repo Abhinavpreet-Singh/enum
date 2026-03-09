@@ -15,6 +15,7 @@ import Link from "next/link";
 import type { Simulation, SimulationFile } from "@/data/simulations";
 import { useTheme } from "@/providers/theme-provider";
 import LivePreview from "./live-preview";
+import { proxy } from "@/app/proxy";
 
 interface SimulationWorkspaceProps {
   simulation: Simulation;
@@ -36,6 +37,8 @@ export default function SimulationWorkspace({
   const [isResolved, setIsResolved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSolution, setShowSolution] = useState(false);
+  const [xpAwarded, setXpAwarded] = useState<number | null>(null);
+  const [xpAlreadyAwarded, setXpAlreadyAwarded] = useState(false);
 
   // Resizable panels
   const [leftPanelWidth, setLeftPanelWidth] = useState(300);
@@ -142,7 +145,10 @@ export default function SimulationWorkspace({
         setConsoleOutput((prev) => [...prev, output]);
 
         // Check if solution is correct
-        checkSolution();
+        const solvedNow = checkSolution();
+        if (solvedNow) {
+          await awardFrontendXp();
+        }
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Execution failed";
@@ -171,6 +177,52 @@ export default function SimulationWorkspace({
     }
 
     setIsResolved(allCorrect);
+    return allCorrect;
+  };
+
+  const awardFrontendXp = async () => {
+    const storageKey = `enum_frontend_xp_awarded_${simulation.id}`;
+    const alreadyLocal =
+      typeof window !== "undefined" && localStorage.getItem(storageKey) === "1";
+
+    if (alreadyLocal) {
+      setXpAlreadyAwarded(true);
+      setXpAwarded(null);
+      return;
+    }
+
+    try {
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("accessToken")
+          : null;
+      if (!token) return;
+
+      const res = await fetch(`${proxy}/api/v1/users/award-browser-xp`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          simulationId: simulation.id,
+          xpAmount: simulation.xpReward,
+        }),
+      });
+
+      const json = await res.json();
+      if (json?.data?.alreadyAwarded) {
+        setXpAlreadyAwarded(true);
+        setXpAwarded(null);
+        localStorage.setItem(storageKey, "1");
+      } else if (json?.data?.xpAwarded) {
+        setXpAwarded(json.data.xpAwarded);
+        setXpAlreadyAwarded(false);
+        localStorage.setItem(storageKey, "1");
+      }
+    } catch {
+      // Ignore network errors so simulation UX is not blocked.
+    }
   };
 
   // View solution - load solution code into editor
@@ -198,6 +250,8 @@ export default function SimulationWorkspace({
     setConsoleOutput([]);
     setError(null);
     setIsResolved(false);
+    setXpAwarded(null);
+    setXpAlreadyAwarded(false);
   };
 
   // Render preview based on simulation type
@@ -604,7 +658,9 @@ export default function SimulationWorkspace({
               onChange={handleCodeChange}
               theme={theme === "dark" ? "pitch-black" : "pitch-light"}
               onMount={(editor, monaco) => {
-                monaco.editor.setTheme(theme === "dark" ? "pitch-black" : "pitch-light");
+                monaco.editor.setTheme(
+                  theme === "dark" ? "pitch-black" : "pitch-light",
+                );
               }}
               beforeMount={(monaco) => {
                 // Dark (black) theme
@@ -619,20 +675,26 @@ export default function SimulationWorkspace({
                     "editorLineNumber.activeForeground": "#60a5fa",
                     "editorCursor.foreground": "#60a5fa",
                     "editor.selectionBackground": "rgba(248,250,252,0.12)",
-                    "editor.selectionHighlightBackground": "rgba(148,163,184,0.12)",
+                    "editor.selectionHighlightBackground":
+                      "rgba(148,163,184,0.12)",
                     "editor.findMatchBackground": "rgba(148,163,184,0.16)",
                     "editor.findMatchBorder": "transparent",
-                    "editor.findMatchHighlightBackground": "rgba(148,163,184,0.16)",
+                    "editor.findMatchHighlightBackground":
+                      "rgba(148,163,184,0.16)",
                     "editor.findMatchHighlightBorder": "transparent",
-                    "editor.findRangeHighlightBackground": "rgba(148,163,184,0.12)",
+                    "editor.findRangeHighlightBackground":
+                      "rgba(148,163,184,0.12)",
                     "editor.findRangeHighlightBorder": "transparent",
                     "editor.wordHighlightBackground": "rgba(148,163,184,0.12)",
-                    "editor.wordHighlightStrongBackground": "rgba(148,163,184,0.16)",
-                    "editor.inactiveSelectionBackground": "rgba(248,250,252,0.06)",
+                    "editor.wordHighlightStrongBackground":
+                      "rgba(148,163,184,0.16)",
+                    "editor.inactiveSelectionBackground":
+                      "rgba(248,250,252,0.06)",
                     "editor.lineHighlightBackground": "rgba(148,163,184,0.14)",
                     "editor.lineHighlightBorder": "transparent",
                     "editorIndentGuide.background": "rgba(148,163,184,0.25)",
-                    "editorIndentGuide.activeBackground": "rgba(248,250,252,0.2)",
+                    "editorIndentGuide.activeBackground":
+                      "rgba(248,250,252,0.2)",
                     "editorWhitespace.foreground": "rgba(148,163,184,0.4)",
                     "editorBracketMatch.background": "rgba(255,255,255,0.1)",
                     "editorBracketMatch.border": "rgba(248,250,252,0.2)",
@@ -652,16 +714,21 @@ export default function SimulationWorkspace({
                   rules: [],
                   colors: {
                     "editor.selectionBackground": "rgba(148,163,184,0.22)",
-                    "editor.selectionHighlightBackground": "rgba(148,163,184,0.22)",
+                    "editor.selectionHighlightBackground":
+                      "rgba(148,163,184,0.22)",
                     "editor.findMatchBackground": "rgba(148,163,184,0.18)",
                     "editor.findMatchBorder": "transparent",
-                    "editor.findMatchHighlightBackground": "rgba(148,163,184,0.18)",
+                    "editor.findMatchHighlightBackground":
+                      "rgba(148,163,184,0.18)",
                     "editor.findMatchHighlightBorder": "transparent",
-                    "editor.findRangeHighlightBackground": "rgba(148,163,184,0.14)",
+                    "editor.findRangeHighlightBackground":
+                      "rgba(148,163,184,0.14)",
                     "editor.findRangeHighlightBorder": "transparent",
                     "editor.wordHighlightBackground": "rgba(148,163,184,0.14)",
-                    "editor.wordHighlightStrongBackground": "rgba(148,163,184,0.18)",
-                    "editor.inactiveSelectionBackground": "rgba(148,163,184,0.14)",
+                    "editor.wordHighlightStrongBackground":
+                      "rgba(148,163,184,0.18)",
+                    "editor.inactiveSelectionBackground":
+                      "rgba(148,163,184,0.14)",
                     "editor.lineHighlightBackground": "rgba(148,163,184,0.18)",
                     "editor.lineHighlightBorder": "transparent",
                     "editorError.background": "rgba(148,163,184,0.16)",
@@ -720,7 +787,11 @@ export default function SimulationWorkspace({
               <div className="flex items-center gap-2 text-green-600">
                 <CheckCircle2 className="w-5 h-5" />
                 <span className="font-semibold">
-                  Issue Resolved! +{simulation.xpReward} XP
+                  {xpAwarded !== null
+                    ? `Issue Resolved! +${xpAwarded} XP`
+                    : xpAlreadyAwarded
+                      ? "Issue Resolved! XP already claimed"
+                      : "Issue Resolved!"}
                 </span>
               </div>
             )}

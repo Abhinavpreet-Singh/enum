@@ -97,6 +97,7 @@ export default function SimulationContainer({
   const [status, setStatus] = useState<SimulationStatus>("idle");
   const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
   const [isResolved, setIsResolved] = useState(false);
+  const [latestXpEarned, setLatestXpEarned] = useState(0);
 
   // Layout state
   const [explorerWidth, setExplorerWidth] = useState(220);
@@ -107,6 +108,7 @@ export default function SimulationContainer({
   // Task panel
   const [taskPanelWidth, setTaskPanelWidth] = useState(280);
   const [isResizingTask, setIsResizingTask] = useState(false);
+  const [panelTab, setPanelTab] = useState<"task" | "solution">("task");
 
   // File tree
   const [fileTree, setFileTree] = useState<FileNode[]>([]);
@@ -218,7 +220,10 @@ export default function SimulationContainer({
           const progress = data.data;
           if (progress?.solved) setIsResolved(true);
           // Restore modified files if user had previous edits
-          if (progress?.modifiedFiles && typeof progress.modifiedFiles === "object") {
+          if (
+            progress?.modifiedFiles &&
+            typeof progress.modifiedFiles === "object"
+          ) {
             setFiles((prev) => ({ ...prev, ...progress.modifiedFiles }));
           }
         }
@@ -239,7 +244,7 @@ export default function SimulationContainer({
         const token = localStorage.getItem("accessToken");
         if (!token) return;
 
-        await fetch("/api/simulations/progress", {
+        const res = await fetch("/api/simulations/progress", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -251,21 +256,22 @@ export default function SimulationContainer({
             modifiedFiles: files,
           }),
         });
+
+        if (!res.ok) return null;
+        return res.json();
       } catch (err) {
         console.error("Failed to persist progress:", err);
+        return null;
       }
     },
     [simulation.id, files],
   );
 
   // File selection
-  const handleFileSelect = useCallback(
-    (path: string) => {
-      setActiveFilePath(path);
-      setOpenTabs((prev) => (prev.includes(path) ? prev : [...prev, path]));
-    },
-    [],
-  );
+  const handleFileSelect = useCallback((path: string) => {
+    setActiveFilePath(path);
+    setOpenTabs((prev) => (prev.includes(path) ? prev : [...prev, path]));
+  }, []);
 
   // Close tab
   const handleCloseTab = useCallback(
@@ -289,14 +295,17 @@ export default function SimulationContainer({
   // Determine entry file for execution
   const getEntryFile = (): string => {
     // Prefer simulation-specified entry file if it actually exists in the file map
-    if (simulation.entryFile && files[simulation.entryFile]) return simulation.entryFile;
+    if (simulation.entryFile && files[simulation.entryFile])
+      return simulation.entryFile;
     // Auto-detect: backend sims use server.js most often, then index.js etc.
     const candidates = ["server.js", "index.js", "main.js", "app.js"];
     for (const c of candidates) {
       if (files[c]) return c;
     }
     // Fall back to first top-level .js file, then any file
-    const firstJs = Object.keys(files).find(k => k.endsWith(".js") && !k.includes("/"));
+    const firstJs = Object.keys(files).find(
+      (k) => k.endsWith(".js") && !k.includes("/"),
+    );
     return firstJs ?? simulation.initialFiles[0]?.path ?? "";
   };
 
@@ -331,8 +340,12 @@ export default function SimulationContainer({
       const data = await response.json();
 
       if (data.success) {
-        const engineData = data as SimulationEngineResponse & { success: boolean };
-        const allPassed = engineData.passedTests === engineData.totalTests && engineData.totalTests > 0;
+        const engineData = data as SimulationEngineResponse & {
+          success: boolean;
+        };
+        const allPassed =
+          engineData.passedTests === engineData.totalTests &&
+          engineData.totalTests > 0;
 
         // Display Docker logs
         const logLines = (engineData.logs || "")
@@ -347,13 +360,14 @@ export default function SimulationContainer({
 
         if (allPassed) {
           setStatus("success");
-          setConsoleOutput((prev) => [
-            ...prev,
-            "",
-            "✓ All tests passed!",
-          ]);
+          setConsoleOutput((prev) => [...prev, "", "✓ All tests passed!"]);
           setIsResolved(true);
-          await persistProgress(true);
+          const progressRes = await persistProgress(true);
+          const xpEarned = progressRes?.data?.xpEarned ?? 0;
+          setLatestXpEarned(xpEarned);
+          if (xpEarned > 0) {
+            setConsoleOutput((prev) => [...prev, `+${xpEarned} XP awarded.`]);
+          }
         } else {
           setStatus("error");
           setConsoleOutput((prev) => [
@@ -361,6 +375,7 @@ export default function SimulationContainer({
             "",
             `✗ ${engineData.totalTests - engineData.passedTests} test(s) failed.`,
           ]);
+          setLatestXpEarned(0);
           await persistProgress(false);
         }
       } else {
@@ -369,6 +384,7 @@ export default function SimulationContainer({
           ...prev,
           `Error: ${data.error || "Execution failed"}`,
         ]);
+        setLatestXpEarned(0);
         await persistProgress(false);
       }
     } catch (err) {
@@ -408,15 +424,13 @@ export default function SimulationContainer({
     setConsoleOutput([]);
     setStatus("idle");
     setIsResolved(false);
+    setLatestXpEarned(0);
   };
 
   // Save current file state to progress (manual save)
   const handleSaveProgress = async () => {
     await persistProgress(isResolved);
-    setConsoleOutput((prev) => [
-      ...prev,
-      "✓ Progress saved.",
-    ]);
+    setConsoleOutput((prev) => [...prev, "✓ Progress saved."]);
   };
 
   // Clear console
@@ -488,9 +502,7 @@ export default function SimulationContainer({
   // Get language for active file
   const activeFileLanguage = (): string => {
     if (!activeFilePath) return "javascript";
-    const file = simulation.initialFiles.find(
-      (f) => f.path === activeFilePath,
-    );
+    const file = simulation.initialFiles.find((f) => f.path === activeFilePath);
     return file?.language ?? "javascript";
   };
 
@@ -511,7 +523,9 @@ export default function SimulationContainer({
             <div className="flex items-center gap-1.5 text-green-600">
               <CheckCircle2 className="w-4 h-4" />
               <span className="text-sm font-semibold">
-                Solved! +{simulation.xpReward} XP
+                {latestXpEarned > 0
+                  ? `Solved! +${latestXpEarned} XP`
+                  : "Solved"}
               </span>
             </div>
           )}
@@ -555,67 +569,124 @@ export default function SimulationContainer({
                 {simulation.estimatedTime} min
               </span>
             </div>
+            {/* Task / Solution tabs */}
+            <div className="flex mt-3 border-b border-gray-200 dark:border-white/10">
+              <button
+                onClick={() => setPanelTab("task")}
+                className={`text-xs px-3 py-1.5 font-medium transition-colors ${
+                  panelTab === "task"
+                    ? "border-b-2 border-black dark:border-white text-black dark:text-white"
+                    : "text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white"
+                }`}
+              >
+                Task
+              </button>
+              {simulation.solution &&
+                Object.keys(simulation.solution).length > 0 && (
+                  <button
+                    onClick={() => setPanelTab("solution")}
+                    className={`text-xs px-3 py-1.5 font-medium transition-colors ${
+                      panelTab === "solution"
+                        ? "border-b-2 border-black dark:border-white text-black dark:text-white"
+                        : "text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white"
+                    }`}
+                  >
+                    Solution
+                  </button>
+                )}
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4">
-            {/* Incident */}
-            <div className="mb-5">
-              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                Incident
-              </h3>
-              <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
-                {simulation.description}
-              </p>
-            </div>
-
-            {/* Error */}
-            <div className="mb-5 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded">
-              <div className="flex items-start gap-2">
-                <XCircle className="w-4 h-4 text-red-500" />
-                <div>
-                  <p className="text-xs font-bold text-red-700 dark:text-red-200 mb-1">ERROR:</p>
-                  <p className="text-xs text-red-600 dark:text-red-200 leading-relaxed">
-                    {simulation.incident}
+            {panelTab === "solution" ? (
+              /* ── Solution Tab ─────────────────────────────────────────── */
+              <div className="space-y-5">
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                  The solution is shown below. Try to solve it yourself first!
+                </p>
+                {simulation.solution &&
+                  Object.entries(
+                    simulation.solution as Record<string, string>,
+                  ).map(([filePath, code]) => (
+                    <div key={filePath}>
+                      <p className="text-xs font-mono font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
+                        {filePath}
+                      </p>
+                      <pre className="text-xs bg-gray-50 dark:bg-neutral-900 border border-gray-200 dark:border-white/10 rounded p-3 overflow-x-auto text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
+                        {code.trim()}
+                      </pre>
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <>
+                {/* Incident */}
+                <div className="mb-5">
+                  <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                    Incident
+                  </h3>
+                  <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
+                    {simulation.description}
                   </p>
                 </div>
-              </div>
-            </div>
 
-            {/* Steps */}
-            <div className="mb-5">
-              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-                Steps
-              </h3>
-              <ol className="space-y-2">
-                {simulation.steps.map((step, idx) => (
-                  <li key={idx} className="flex gap-2 text-sm text-gray-700 dark:text-gray-200">
-                    <span className="text-gray-400 dark:text-gray-500">{idx + 1}.</span>
-                    <span>{step.description}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-
-            {/* Hints */}
-            {simulation.hints && simulation.hints.length > 0 && (
-              <div>
-                <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-                  Hints
-                </h3>
-                <div className="space-y-2">
-                  {simulation.hints.map((hint, idx) => (
-                    <details key={idx} className="group">
-                      <summary className="cursor-pointer text-xs text-gray-700 dark:text-gray-200 hover:text-black dark:hover:text-white flex items-center gap-1 font-medium">
-                        <ChevronRight className="w-3 h-3 group-open:rotate-90 transition-transform" />
-                        Hint {idx + 1}
-                      </summary>
-                      <p className="mt-2 ml-4 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-                        {hint}
+                {/* Error */}
+                <div className="mb-5 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded">
+                  <div className="flex items-start gap-2">
+                    <XCircle className="w-4 h-4 text-red-500" />
+                    <div>
+                      <p className="text-xs font-bold text-red-700 dark:text-red-200 mb-1">
+                        ERROR:
                       </p>
-                    </details>
-                  ))}
+                      <p className="text-xs text-red-600 dark:text-red-200 leading-relaxed">
+                        {simulation.incident}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+
+                {/* Steps */}
+                <div className="mb-5">
+                  <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                    Steps
+                  </h3>
+                  <ol className="space-y-2">
+                    {simulation.steps.map((step, idx) => (
+                      <li
+                        key={idx}
+                        className="flex gap-2 text-sm text-gray-700 dark:text-gray-200"
+                      >
+                        <span className="text-gray-400 dark:text-gray-500">
+                          {idx + 1}.
+                        </span>
+                        <span>{step.description}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                {/* Hints */}
+                {simulation.hints && simulation.hints.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                      Hints
+                    </h3>
+                    <div className="space-y-2">
+                      {simulation.hints.map((hint, idx) => (
+                        <details key={idx} className="group">
+                          <summary className="cursor-pointer text-xs text-gray-700 dark:text-gray-200 hover:text-black dark:hover:text-white flex items-center gap-1 font-medium">
+                            <ChevronRight className="w-3 h-3 group-open:rotate-90 transition-transform" />
+                            Hint {idx + 1}
+                          </summary>
+                          <p className="mt-2 ml-4 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                            {hint}
+                          </p>
+                        </details>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -695,7 +766,9 @@ export default function SimulationContainer({
               <div className="absolute inset-0 bg-black/70 z-10 flex items-center justify-center">
                 <div className="flex items-center gap-2 text-white">
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="font-mono text-sm">Loading files from cloud…</span>
+                  <span className="font-mono text-sm">
+                    Loading files from cloud…
+                  </span>
                 </div>
               </div>
             )}
@@ -719,7 +792,9 @@ export default function SimulationContainer({
             <div className="bg-green-50 dark:bg-white/10 border-t border-green-200 dark:border-white/10 px-4 py-2.5 flex items-center gap-2 shrink-0">
               <CheckCircle2 className="w-4 h-4 text-green-500" />
               <span className="text-sm font-semibold text-green-700 dark:text-green-200">
-                Simulation solved! +{simulation.xpReward} XP earned
+                {latestXpEarned > 0
+                  ? `Simulation solved! +${latestXpEarned} XP earned`
+                  : "Simulation solved!"}
               </span>
             </div>
           )}
@@ -756,7 +831,6 @@ export default function SimulationContainer({
                 Save
               </button>
             </div>
-
           </div>
 
           {/* Console Panel */}
