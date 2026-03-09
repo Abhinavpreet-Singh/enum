@@ -1,4 +1,4 @@
-# ENUM360: Production Bug Simulation Platform
+# ENUM: Production Bug Simulation Platform
 
 A modern, interactive learning platform designed to teach developers how to identify, diagnose, and fix real-world production bugs through hands-on simulations. ENUM360 bridges the gap between theoretical programming knowledge and practical debugging skills.
 
@@ -124,7 +124,7 @@ src/
 
 `ash
 git clone <repo-url>
-cd enum360
+cd enum
 npm install
 npm run dev
 `
