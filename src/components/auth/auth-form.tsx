@@ -36,11 +36,13 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
           ? `${proxy}/api/v1/users/login`
           : `${proxy}/api/v1/users/register`;
 
+      const isEmail = formData.email.includes("@");
       const payload =
         mode === "login"
           ? {
-              username: formData.email, // Can be username or email
-              email: formData.email, // Send same value to both fields
+              ...(isEmail
+                ? { email: formData.email }
+                : { username: formData.email.toLowerCase() }),
               password: formData.password,
             }
           : {
@@ -140,13 +142,13 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
             rawError?.toLowerCase().includes("password") ||
             rawError?.toLowerCase().includes("credential")
           ) {
-            refinedError = "Invalid email or password. Please try again.";
+            refinedError = "Invalid email/username or password. Please try again.";
           } else if (
             rawError?.toLowerCase().includes("not found") ||
             rawError?.toLowerCase().includes("doesn't exist")
           ) {
             refinedError =
-              "No account found with this email. Please register first.";
+              "No account found. Please check your email/username or register first.";
           } else {
             refinedError =
               "Login failed. Please check your credentials and try again.";
