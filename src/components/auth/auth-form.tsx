@@ -7,6 +7,7 @@ import axios from "axios";
 import { proxy } from "@/app/proxy.js";
 
 type AuthMode = "login" | "register";
+type RegisterStep = "form" | "otp";
 
 interface AuthFormProps {
   initialMode?: AuthMode;
@@ -15,153 +16,148 @@ interface AuthFormProps {
 export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>(initialMode);
+  const [registerStep, setRegisterStep] = useState<RegisterStep>("form");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>("");
+  const [otpValue, setOtpValue] = useState("");
+  const [otpSentTo, setOtpSentTo] = useState("");
   const [formData, setFormData] = useState({
     username: "",
     email: "",
     password: "",
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("Submitting form...", { mode, email: formData.email });
+  const resetRegister = () => {
+    setRegisterStep("form");
+    setOtpValue("");
+    setOtpSentTo("");
+    setError("");
+  };
 
+  const startOAuth = (provider: "google" | "github") => {
+    setError("");
+    setIsLoading(true);
+    const url = `${proxy}/auth/${provider}`;
+    window.location.assign(url);
+  };
+
+  // Step 1 for register: send OTP
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsLoading(true);
     setError("");
 
     try {
-      const url =
-        mode === "login"
-          ? `${proxy}/api/v1/users/login`
-          : `${proxy}/api/v1/users/register`;
+      await axios.post(`${proxy}/api/v1/users/send-otp`, {
+        email: formData.email,
+      });
+      setOtpSentTo(formData.email);
+      setRegisterStep("otp");
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        const raw =
+          err.response?.data?.message || err.response?.data?.error || err.message;
+        const lower = raw?.toLowerCase() || "";
+        if (lower.includes("already exists") || err.response?.status === 409) {
+          setError("An account with this email already exists. Please log in.");
+        } else {
+          setError(raw || "Failed to send OTP. Please try again.");
+        }
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  // Step 2 for register: verify OTP and create account
+  const handleVerifyAndRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await axios.post(`${proxy}/api/v1/users/register`, {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        otp: otpValue,
+      }, { withCredentials: true });
+
+      localStorage.setItem("Name", response.data.data.username);
+      localStorage.setItem("id", response.data.data.id ?? response.data.data._id);
+      localStorage.setItem("accessToken", response.data.accessToken);
+      router.push("/dashboard");
+    } catch (err) {
+      setIsLoading(false);
+      if (axios.isAxiosError(err)) {
+        const raw =
+          err.response?.data?.message || err.response?.data?.error || err.message;
+        const lower = raw?.toLowerCase() || "";
+        if (lower.includes("invalid otp") || lower.includes("invalid o")) {
+          setError("Invalid OTP. Please check and try again.");
+        } else if (lower.includes("expired")) {
+          setError("OTP has expired. Please go back and request a new one.");
+        } else if (lower.includes("already exists") || err.response?.status === 409) {
+          setError("You're already a user! Please log in to continue.");
+        } else {
+          setError(raw || "Registration failed. Please try again.");
+        }
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
+    }
+  };
+
+  // Login submit
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
       const isEmail = formData.email.includes("@");
-      const payload =
-        mode === "login"
-          ? {
-              ...(isEmail
-                ? { email: formData.email }
-                : { username: formData.email.toLowerCase() }),
-              password: formData.password,
-            }
-          : {
-              username: formData.username,
-              email: formData.email,
-              password: formData.password,
-            };
+      const payload = {
+        ...(isEmail
+          ? { email: formData.email }
+          : { username: formData.email.toLowerCase() }),
+        password: formData.password,
+      };
 
-      console.log("Request URL:", url);
-      console.log("Request Payload:", { ...payload, password: "***" });
-
-      const response = await axios.post(url, payload, {
+      const response = await axios.post(`${proxy}/api/v1/users/login`, payload, {
         withCredentials: true,
       });
 
       localStorage.setItem("Name", response.data.data.username);
-      localStorage.setItem(
-        "id",
-        response.data.data.id ?? response.data.data._id,
-      );
+      localStorage.setItem("id", response.data.data.id ?? response.data.data._id);
       localStorage.setItem("accessToken", response.data.accessToken);
-
-      console.log("✅ Success:", response.data);
-
-      // Redirect to dashboard
       router.push("/dashboard");
-    } catch (error) {
+    } catch (err) {
       setIsLoading(false);
-
-      if (axios.isAxiosError(error)) {
-        console.error("❌ Error Response:", error.response?.data);
-        console.error("Status:", error.response?.status);
-        console.error("Full Error:", error.message);
-
-        const rawError =
-          error.response?.data?.message ||
-          error.response?.data?.error ||
-          error.message;
-
-        console.log("Raw error message:", rawError); // Debug log
-
-        // Refined error messages
-        let refinedError = "";
-
-        if (mode === "register") {
-          const lowerError = rawError?.toLowerCase() || "";
-
-          // Check for username already exists
-          if (
-            lowerError.includes("username") &&
-            (lowerError.includes("exist") ||
-              lowerError.includes("taken") ||
-              lowerError.includes("already") ||
-              lowerError.includes("duplicate"))
-          ) {
-            refinedError =
-              "This username is already taken. Please choose another one.";
-          }
-          // Check for email/user already exists - more comprehensive
-          else if (
-            (lowerError.includes("email") || lowerError.includes("user")) &&
-            (lowerError.includes("exist") ||
-              lowerError.includes("already") ||
-              lowerError.includes("registered") ||
-              lowerError.includes("duplicate") ||
-              lowerError.includes("found"))
-          ) {
-            refinedError = "You're already a user! Please log in to continue.";
-          }
-          // Check for duplicate/conflict errors (HTTP 409 or similar)
-          else if (
-            lowerError.includes("duplicate") ||
-            lowerError.includes("conflict") ||
-            error.response?.status === 409
-          ) {
-            refinedError = "You're already a user! Please log in to continue.";
-          }
-          // Password validation errors
-          else if (lowerError.includes("password")) {
-            refinedError = "Password must be at least 6 characters long.";
-          }
-          // Generic fallback - assume user might already exist
-          else if (
-            error.response?.status === 400 ||
-            error.response?.status === 409
-          ) {
-            refinedError =
-              "Unable to register. If you already have an account, please log in to continue.";
-          }
-          // Last resort fallback
-          else {
-            refinedError =
-              "Registration failed. Please check your information and try again.";
-          }
+      if (axios.isAxiosError(err)) {
+        const raw =
+          err.response?.data?.message || err.response?.data?.error || err.message;
+        const lower = raw?.toLowerCase() || "";
+        if (lower.includes("password") || lower.includes("credential")) {
+          setError("Invalid email/username or password. Please try again.");
+        } else if (lower.includes("not found") || lower.includes("doesn't exist")) {
+          setError("No account found. Please check your email/username or register first.");
         } else {
-          if (
-            rawError?.toLowerCase().includes("password") ||
-            rawError?.toLowerCase().includes("credential")
-          ) {
-            refinedError = "Invalid email/username or password. Please try again.";
-          } else if (
-            rawError?.toLowerCase().includes("not found") ||
-            rawError?.toLowerCase().includes("doesn't exist")
-          ) {
-            refinedError =
-              "No account found. Please check your email/username or register first.";
-          } else {
-            refinedError =
-              "Login failed. Please check your credentials and try again.";
-          }
+          setError("Login failed. Please check your credentials and try again.");
         }
-
-        setError(refinedError);
       } else {
-        console.error("❌ Unexpected Error:", error);
         setError("An unexpected error occurred. Please try again later.");
       }
     }
   };
+
+  const handleSubmit =
+    mode === "login"
+      ? handleLogin
+      : registerStep === "form"
+        ? handleSendOtp
+        : handleVerifyAndRegister;
 
   return (
     <div className="relative h-screen w-full flex items-center justify-center px-4 py-4 bg-gray-50 dark:bg-black overflow-hidden">
@@ -216,7 +212,7 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
             <button
               onClick={() => {
                 setMode("login");
-                setError("");
+                resetRegister();
               }}
               className={`flex-1 pb-2 font-mono text-xs tracking-wider transition-colors ${
                 mode === "login"
@@ -229,7 +225,7 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
             <button
               onClick={() => {
                 setMode("register");
-                setError("");
+                resetRegister();
               }}
               className={`flex-1 pb-2 font-mono text-xs tracking-wider transition-colors ${
                 mode === "register"
@@ -241,6 +237,36 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
             </button>
           </div>
 
+          {/* OAuth */}
+          <div className="mb-3">
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => startOAuth("google")}
+                disabled={isLoading}
+                className="w-full border border-gray-300 dark:border-white px-3 py-2 font-mono text-xs tracking-wider text-black dark:text-white hover:bg-gray-50 dark:hover:bg-neutral-900 transition-colors disabled:opacity-60"
+              >
+                CONTINUE WITH GOOGLE
+              </button>
+              <button
+                type="button"
+                onClick={() => startOAuth("github")}
+                disabled={isLoading}
+                className="w-full border border-gray-300 dark:border-white px-3 py-2 font-mono text-xs tracking-wider text-black dark:text-white hover:bg-gray-50 dark:hover:bg-neutral-900 transition-colors disabled:opacity-60"
+              >
+                CONTINUE WITH GITHUB
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 mt-3">
+              <div className="flex-1 h-px bg-gray-200 dark:bg-neutral-800" />
+              <span className="font-mono text-[10px] tracking-wider text-gray-400 dark:text-neutral-600">
+                OR
+              </span>
+              <div className="flex-1 h-px bg-gray-200 dark:bg-neutral-800" />
+            </div>
+          </div>
+
           {/* Error Message */}
           {error && (
             <div className="mb-3 p-3 border border-red-300 dark:border-red-900 bg-red-50 dark:bg-red-950/30">
@@ -250,110 +276,164 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
             </div>
           )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-3">
-            {/* Username - Only for Register */}
-            {mode === "register" && (
+          {/* OTP Step — shown only during register step 2 */}
+          {mode === "register" && registerStep === "otp" ? (
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="mb-2">
+                <p className="text-xs font-mono text-gray-500 dark:text-neutral-400 leading-relaxed">
+                  A 6-digit code was sent to{" "}
+                  <span className="text-black dark:text-white">{otpSentTo}</span>.
+                  Enter it below to verify your email.
+                </p>
+              </div>
               <div>
                 <label
-                  htmlFor="username"
+                  htmlFor="otp"
                   className="block font-mono text-xs tracking-wider text-gray-700 dark:text-neutral-400 mb-1"
                 >
-                  USERNAME
+                  VERIFICATION CODE
                 </label>
                 <input
                   type="text"
-                  id="username"
-                  value={formData.username}
+                  id="otp"
+                  value={otpValue}
                   onChange={(e) =>
-                    setFormData({ ...formData, username: e.target.value })
+                    setOtpValue(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-black dark:text-white font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white transition-colors tracking-[0.5em] text-center"
+                  placeholder="000000"
+                  maxLength={6}
+                  required
+                  autoFocus
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isLoading || otpValue.length !== 6}
+                className="w-full px-4 py-2 bg-black dark:bg-white text-white dark:text-black font-mono text-xs tracking-wider hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors mt-3 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isLoading && (
+                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                )}
+                {isLoading ? "VERIFYING..." : "VERIFY & CREATE ACCOUNT"}
+              </button>
+              <button
+                type="button"
+                onClick={resetRegister}
+                className="w-full text-center text-xs font-mono text-gray-500 dark:text-neutral-500 hover:text-black dark:hover:text-white transition-colors mt-1"
+              >
+                ← Back / Resend OTP
+              </button>
+            </form>
+          ) : (
+            /* Login form OR Register step 1 form */
+            <form onSubmit={handleSubmit} className="space-y-3">
+              {/* Username - Only for Register */}
+              {mode === "register" && (
+                <div>
+                  <label
+                    htmlFor="username"
+                    className="block font-mono text-xs tracking-wider text-gray-700 dark:text-neutral-400 mb-1"
+                  >
+                    USERNAME
+                  </label>
+                  <input
+                    type="text"
+                    id="username"
+                    value={formData.username}
+                    onChange={(e) =>
+                      setFormData({ ...formData, username: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-black dark:text-white font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white transition-colors"
+                    placeholder="Username"
+                    required
+                  />
+                </div>
+              )}
+
+              {/* Email or Username */}
+              <div>
+                <label
+                  htmlFor="email"
+                  className="block font-mono text-xs tracking-wider text-gray-700 dark:text-neutral-400 mb-1"
+                >
+                  {mode === "login" ? "USERNAME OR EMAIL" : "EMAIL"}
+                </label>
+                <input
+                  type={mode === "login" ? "text" : "email"}
+                  id="email"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
                   }
                   className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-black dark:text-white font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white transition-colors"
-                  placeholder="Username"
+                  placeholder={mode === "login" ? "Username or Email" : "Email"}
                   required
                 />
               </div>
-            )}
 
-            {/* Email or Username */}
-            <div>
-              <label
-                htmlFor="email"
-                className="block font-mono text-xs tracking-wider text-gray-700 dark:text-neutral-400 mb-1"
-              >
-                {mode === "login" ? "USERNAME OR EMAIL" : "EMAIL"}
-              </label>
-              <input
-                type={mode === "login" ? "text" : "email"}
-                id="email"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-black dark:text-white font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white transition-colors"
-                placeholder={mode === "login" ? "Username or Email" : "Email"}
-                required
-              />
-            </div>
-
-            {/* Password */}
-            <div>
-              <label
-                htmlFor="password"
-                className="block font-mono text-xs tracking-wider text-gray-700 dark:text-neutral-400 mb-1"
-              >
-                PASSWORD
-              </label>
-              <input
-                type="password"
-                id="password"
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-black dark:text-white font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white transition-colors"
-                placeholder="Password"
-                required
-              />
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full px-4 py-2 bg-black dark:bg-white text-white dark:text-black font-mono text-xs tracking-wider hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors mt-3 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {isLoading && (
-                <svg
-                  className="animate-spin h-4 w-4 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
+              {/* Password */}
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block font-mono text-xs tracking-wider text-gray-700 dark:text-neutral-400 mb-1"
                 >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-              )}
-              {isLoading
-                ? mode === "login"
-                  ? "LOGGING IN..."
-                  : "CREATING ACCOUNT..."
-                : mode === "login"
-                  ? "LOGIN"
-                  : "CREATE ACCOUNT"}
-            </button>
-          </form>
+                  PASSWORD
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-black dark:text-white font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white transition-colors"
+                  placeholder="Password"
+                  required
+                />
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full px-4 py-2 bg-black dark:bg-white text-white dark:text-black font-mono text-xs tracking-wider hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors mt-3 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isLoading && (
+                  <svg
+                    className="animate-spin h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                )}
+                {isLoading
+                  ? mode === "login"
+                    ? "LOGGING IN..."
+                    : "SENDING OTP..."
+                  : mode === "login"
+                    ? "LOGIN"
+                    : "SEND OTP"}
+              </button>
+            </form>
+          )}
 
           {/* Footer Text */}
           {mode === "login" ? (
@@ -362,7 +442,7 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
               <button
                 onClick={() => {
                   setMode("register");
-                  setError("");
+                  resetRegister();
                 }}
                 className="text-black dark:text-white font-mono tracking-wider underline"
               >
@@ -375,7 +455,7 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
               <button
                 onClick={() => {
                   setMode("login");
-                  setError("");
+                  resetRegister();
                 }}
                 className="text-black dark:text-white font-mono tracking-wider underline"
               >

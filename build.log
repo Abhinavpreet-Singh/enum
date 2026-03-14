@@ -1,0 +1,50 @@
+▲ Next.js 16.1.6 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 29.3s
+  Running TypeScript ...
+  Collecting page data using 15 workers ...
+  Generating static pages using 15 workers (0/28) ...
+  Generating static pages using 15 workers (7/28) 
+  Generating static pages using 15 workers (14/28) 
+  Generating static pages using 15 workers (21/28) 
+✓ Generating static pages using 15 workers (28/28) in 563.9ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /about
+├ ƒ /api/complexity/analyze
+├ ƒ /api/contact
+├ ƒ /api/judge
+├ ƒ /api/run
+├ ƒ /api/simulations/engine/run
+├ ƒ /api/simulations/progress
+├ ƒ /api/simulations/run
+├ ƒ /api/submissions
+├ ƒ /api/submissions/my/[questionId]
+├ ƒ /api/submissions/recent
+├ ○ /contact
+├ ○ /dashboard
+├ ○ /dashboard/admin
+├ ○ /dashboard/dsa-arena
+├ ƒ /dashboard/dsa-arena/[id]
+├ ○ /dashboard/leaderboard
+├ ○ /dashboard/profile
+├ ○ /dashboard/settings
+├ ○ /dashboard/simulations
+├ ƒ /dashboard/simulations/[id]
+├ ƒ /dashboard/simulations/system-design/[id]
+├ ○ /dashboard/tracks
+├ ○ /demo
+├ ○ /login
+├ ○ /oauth-success
+├ ○ /privacy
+├ ○ /start
+└ ○ /terms
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
