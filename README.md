@@ -6,7 +6,6 @@ A modern, interactive learning platform designed to teach developers how to iden
 
 Most programming courses teach syntax and algorithms, but they don't prepare developers for the reality of production environments:
 
-- **Hydration mismatches** in server-side rendered apps
 - **Memory leaks** from improper event listener cleanup
 - **Infinite loops** caused by missing useEffect dependencies
 - **Race conditions** in async operations
