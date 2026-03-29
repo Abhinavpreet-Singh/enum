@@ -1,8 +1,9 @@
-let useLocalPath = false;
-
 const LOCAL_PROXY = "http://localhost:8000";
-const REMOTE_PROXY = "https://enum-backend.onrender.com"
+const REMOTE_PROXY = "https://enum-backend.onrender.com";
 
-let proxy = useLocalPath==true ? LOCAL_PROXY : REMOTE_PROXY;
+const configuredProxy = process.env.NEXT_PUBLIC_API_BASE_URL || REMOTE_PROXY;
+const useLocalPath = process.env.NEXT_PUBLIC_USE_LOCAL_API === "true";
 
-export {proxy};
+const proxy = (useLocalPath ? LOCAL_PROXY : configuredProxy).replace(/\/$/, "");
+
+export { proxy };

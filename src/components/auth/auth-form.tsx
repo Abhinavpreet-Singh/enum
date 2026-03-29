@@ -37,8 +37,17 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
   const startOAuth = (provider: "google" | "github") => {
     setError("");
     setIsLoading(true);
-    const url = `${proxy}/auth/${provider}`;
-    window.location.assign(url);
+    const successRedirect = `${window.location.origin}/oauth-success`;
+    const failureRedirect = `${window.location.origin}/login?oauthError=1`;
+    const url = new URL(`/auth/${provider}`, proxy);
+
+    // Different backend implementations use different query key names.
+    url.searchParams.set("redirect", successRedirect);
+    url.searchParams.set("redirect_uri", successRedirect);
+    url.searchParams.set("successRedirect", successRedirect);
+    url.searchParams.set("failureRedirect", failureRedirect);
+
+    window.location.assign(url.toString());
   };
 
   // Step 1 for register: send OTP
