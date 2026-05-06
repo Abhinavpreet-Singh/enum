@@ -5,6 +5,7 @@ import {
   Bug,
   Clock,
   TrendingUp,
+  Code2,
   ChevronRight,
   Loader2,
   Search,
@@ -200,6 +201,14 @@ export default function SimulationsPage() {
                 : `${filtered.length} of ${simulations.length} simulations`}
             </p>
           </div>
+
+          <Link
+            href="/linux-arena"
+            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-white/10 bg-white dark:bg-[#111] text-black dark:text-white font-mono text-xs tracking-wide hover:border-black dark:hover:border-white/40 transition-colors shrink-0"
+          >
+            <Code2 className="w-3.5 h-3.5" />
+            Linux Arena
+          </Link>
         </div>
 
         {/* Status Legend */}
