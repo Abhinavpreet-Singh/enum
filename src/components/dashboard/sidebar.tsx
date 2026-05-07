@@ -12,6 +12,7 @@ import {
   Trophy,
   LogOut,
   Shield,
+  HandshakeIcon,
   Menu,
   Sun,
   Moon,
@@ -52,6 +53,12 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
       icon: Trophy,
       label: "Leaderboard",
       href: "/dashboard/leaderboard",
+      matchExact: false,
+    },
+    {
+      icon: HandshakeIcon,
+      label: "Collaboration",
+      href: "/dashboard/collab",
       matchExact: false,
     },
   ]);
