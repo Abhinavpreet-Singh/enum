@@ -1,4 +1,4 @@
-# Enum Platform - Complete Codebase Exploration
+# Enum Platform
 
 **Platform Purpose**: A competitive learning platform for DSA, System Design,
 and DevOps Simulations with real-time collaborative features.
