@@ -24,9 +24,11 @@ export default function CollabRoomPage() {
     const stored = sessionStorage.getItem("collab_username");
     if (!stored) {
       // No username — redirect back to landing
-      router.replace("/collab");
+      router.replace("/dashboard/collab");
       return;
     }
+    // Username is restored once on room entry from session storage.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setUsername(stored);
   }, [router]);
 
@@ -39,7 +41,7 @@ export default function CollabRoomPage() {
   }
 
   function handleLeave() {
-    router.push("/collab");
+    router.push("/dashboard/collab");
   }
 
   // Wait for username to load
