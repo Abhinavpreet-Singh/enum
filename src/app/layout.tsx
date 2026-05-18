@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/providers/theme-provider";
+import { AxiosProvider } from "@/providers/axios-provider";
 import LoadingBar from "@/components/loading-bar";
 import "./globals.css";
 
@@ -54,8 +55,10 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <ThemeProvider>
-          <LoadingBar />
-          {children}
+          <AxiosProvider>
+            <LoadingBar />
+            {children}
+          </AxiosProvider>
         </ThemeProvider>
       </body>
     </html>
