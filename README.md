@@ -4,7 +4,6 @@
 and DevOps Simulations with real-time collaborative features.
 
 ---
-
 ## 1. Frontend Pages & Features
 
 ### Location: `enum_frontend/src/app/`
