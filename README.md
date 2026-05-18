@@ -37,7 +37,7 @@ and DevOps Simulations with real-time collaborative features.
 **DSA Arena Components** (`dsa/`):
 
 - `code-editor.tsx` — Multi-language code editor (JavaScript, Python, Java, C++,
-  C)
+  C, Bash)
 - `complexity-analysis-modal.tsx` — Shows time/space complexity analysis results
 - `problem-tabs.tsx` — Tab navigation (Problem Description, Solutions,
   Submissions)
@@ -57,6 +57,10 @@ and DevOps Simulations with real-time collaborative features.
 - `ConsolePanel.tsx` — Output/console display
 - `live-preview.tsx` — Live preview for frontend simulations
 - `browser/` — Browser simulation preview components
+- `terminal-emulator.tsx` — Embedded terminal UI (xterm.js) for Linux/Bash
+  simulations
+- `bash-simulation-adapter.tsx` — UI glue to run/inspect Bash scripts and
+  simulated filesystem tasks
 
 **Home Page Components** (`home/`):
 
@@ -132,7 +136,7 @@ GET    /api/v1/questions/getQuestion         — Fetch question details (ID, con
 
 ```
 POST   /api/v1/judge/run                     — Execute user code against test cases
-                                              Languages: Java, C++, C, Python
+                                              Languages: Java, C++, C, Python, Bash (shell scripts)
                                               Returns: Test results, verdict, runtime
 ```
 
@@ -176,8 +180,9 @@ POST   /api/v1/simulations/uploadFiles/:id  — Upload simulation files to Cloud
 
 ```
 POST   /api/v1/simulation-engine/run         — Execute simulation files and compare output
-                                              Bundles files, runs in Docker compiler
-                                              Returns: Score, logs, verdict
+                                              Bundles files, runs in Docker or Linux sandbox (supports Node, frontend bundles, and Bash/shell scripts)
+                                              Supports running `sh`/`bash` scenarios in isolated containers or pty-backed sandboxes for interactive terminal simulations
+                                              Returns: Score, logs, verdict, exitCode, and optional terminal session transcript
 ```
 
 #### **Simulation Progress** (`simulationProgress.route.js`)
@@ -541,6 +546,16 @@ SystemDesignSimulation ──1:N── SystemDesignSubmission
 - **Implementation**: `simulationEngine.controller.js` sends bundled ESM code
   via POST
 
+### **Terminal & Shell Integration**
+
+- **Frontend Terminal**: `xterm.js` (embedded terminal UI) used for interactive
+  Linux/Bash simulations and replaying transcripts.
+- **Backend PTY**: `node-pty` (or similar) to spawn pseudo-terminals inside
+  isolated sandboxes or Docker containers; sessions are proxied over Socket.IO
+  events (`terminal:data`).
+- **Security**: PTYs run inside ephemeral containers or restricted chroots;
+  transcripts are sanitized before storage.
+
 ---
 
 ## 6. Real-Time Features (WebSocket/Socket.IO)
@@ -558,14 +573,19 @@ SystemDesignSimulation ──1:N── SystemDesignSubmission
 - **Room-based Architecture**: Multiple code sharing rooms
 - **Events**:
 
-| Event         | Direction       | Payload                             | Purpose                              |
-| ------------- | --------------- | ----------------------------------- | ------------------------------------ |
-| `room:join`   | Client → Server | `{roomId, userId, username, tabId}` | Join a collaboration room, get color |
-| `room:users`  | Server → Client | Array of users with colors          | Broadcast participant list           |
-| `code:sync`   | Server → Client | `{code: string}`                    | Send code snapshot to joining user   |
-| `code:update` | Client → Server | Code changes                        | Broadcast code changes to room       |
-| `cursor:move` | Client → Server | Cursor position + user info         | Share cursor positions for awareness |
-| `room:leave`  | On disconnect   | N/A                                 | Clean up room state                  |
+| Event              | Direction            | Payload                             | Purpose                                       |
+| ------------------ | -------------------- | ----------------------------------- | --------------------------------------------- |
+| `room:join`        | Client → Server      | `{roomId, userId, username, tabId}` | Join a collaboration room, get color          |
+| `room:users`       | Server → Client      | Array of users with colors          | Broadcast participant list                    |
+| `code:sync`        | Server → Client      | `{code: string}`                    | Send code snapshot to joining user            |
+| `code:update`      | Client → Server      | Code changes                        | Broadcast code changes to room                |
+| `cursor:move`      | Client → Server      | Cursor position + user info         | Share cursor positions for awareness          |
+| `room:leave`       | On disconnect        | N/A                                 | Clean up room state                           |
+| `terminal:connect` | Client → Server      | `{roomId, termId, cols, rows}`      | Open/attach to a shared terminal session      |
+| `terminal:data`    | Bi-directional       | `{termId, data}`                    | Stream terminal I/O (pty bridge)              |
+| `terminal:close`   | Client/Server → Both | `{termId}`                          | Close terminal session and persist transcript |
+| `file:lock`        | Client → Server      | `{filePath, userId}`                | Lock a file for exclusive edits               |
+| `file:unlock`      | Client → Server      | `{filePath, userId}`                | Release file lock                             |
 
 #### **State Management**
 
@@ -574,6 +594,10 @@ SystemDesignSimulation ──1:N── SystemDesignSubmission
 - **Code Snapshots**: Latest code per room cached
 - **Color Assignment**: Random HSL colors for user cursors
 - **Auto Cleanup**: Empty rooms deleted automatically
+- **Terminal/PTYSessions**:
+  `Map<termId, {ptyProcess, roomId, viewers, transcript}>` for shared shell
+  sessions
+- **File Locks**: `Map<filePath, socketId>` to prevent write conflicts
 
 #### **Real-Time Features**
 
@@ -581,6 +605,10 @@ SystemDesignSimulation ──1:N── SystemDesignSubmission
 2. **Cursor Decorations**: Visual cursor positions with user colors
 3. **Code Synchronization**: Share code as edits happen
 4. **Multi-tab Support**: Tab IDs for multi-window sessions
+5. **Shared Terminal Sessions**: Real-time terminal streams for Linux/Bash
+   simulations (interactive replay, transcript, per-user permissions)
+6. **File-level Locking**: Prevent concurrent conflicting edits on simulation
+   files
 
 ---
 
@@ -730,6 +758,7 @@ User's Edited Files
 - Full Stack (Combined challenges)
 - DevOps (Deployment scenarios)
 - System Design (Architecture diagrams)
+- Linux / Bash (Shell scripting, command-line debugging, file-system tasks)
 
 ---
 
@@ -899,18 +928,20 @@ XP = (Score / MaxScore) × BaseXP × DifficultyMultiplier
 
 ## Summary Statistics
 
-| Aspect                          | Count                                         |
-| ------------------------------- | --------------------------------------------- |
-| **Frontend Pages**              | 16+                                           |
-| **API Endpoints**               | 50+                                           |
-| **Database Models**             | 10                                            |
-| **Controllers**                 | 12                                            |
-| **Routes**                      | 13                                            |
-| **Real-time Events**            | 5+                                            |
-| **Supported Languages**         | 5 (JS, Python, Java, C++, C)                  |
-| **Authentication Methods**      | 3 (Email, Google, GitHub)                     |
-| **Third-party Services**        | 4 (Cloudinary, Resend, MongoDB, enumcompiler) |
-| **Analysis Complexity Classes** | 9                                             |
-| **Algorithmic Patterns**        | 15+                                           |
+| Aspect                          | Count                                                         |
+| ------------------------------- | ------------------------------------------------------------- |
+| **Frontend Pages**              | 16+                                                           |
+| **API Endpoints**               | 50+                                                           |
+| **Database Models**             | 10                                                            |
+| **Controllers**                 | 12                                                            |
+| **Routes**                      | 13                                                            |
+| **Real-time Events**            | 5+                                                            |
+| **Supported Languages**         | 6 (JS, Python, Java, C++, C, Bash)                            |
+| **Authentication Methods**      | 3 (Email, Google, GitHub)                                     |
+| **Third-party Services**        | 5 (Cloudinary, Resend, MongoDB, enumcompiler, xterm/node-pty) |
+| **Analysis Complexity Classes** | 9                                                             |
+| **Algorithmic Patterns**        | 15+                                                           |
 
 ---
+
+**Generated**: April 27, 2026
