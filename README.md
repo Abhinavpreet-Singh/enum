@@ -2,7 +2,6 @@
 
 **Platform Purpose**: A competitive learning platform for DSA, System Design,
 and DevOps Simulations with real-time collaborative features.
-
 ---
 ## 1. Frontend Pages & Features
 
