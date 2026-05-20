@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CircleCheck, Clock, Code2 } from "lucide-react";
+import { proxy } from "@/app/proxy";
 
 interface Submission {
   _id: string;
@@ -75,7 +76,7 @@ export default function SubmissionsList({
         return;
       }
 
-      const response = await fetch(`/api/submissions/my/${questionId}`, {
+      const response = await fetch(`${proxy}/api/v1/submissions/my/${questionId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

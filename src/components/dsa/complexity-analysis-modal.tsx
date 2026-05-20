@@ -14,6 +14,7 @@ import {
   ChevronUp,
   Zap,
 } from "lucide-react";
+import { proxy } from "@/app/proxy";
 
 interface ComplexityAnalysisResult {
   analysisId: string;
@@ -62,7 +63,7 @@ export default function ComplexityAnalysisModal({
 
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await fetch("/api/complexity/analyze", {
+      const response = await fetch(`${proxy}/api/v1/complexity/analyze`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -124,7 +124,7 @@ export default function SimulationWorkspace({
       // Prepare code to run - combine all files if needed
       const mainFile = files[activeFile.name] || "";
 
-      const response = await fetch("/api/run", {
+      const response = await fetch("http://enumcompiler.duckdns.org/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

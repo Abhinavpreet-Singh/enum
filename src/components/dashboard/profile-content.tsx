@@ -341,10 +341,6 @@ export default function ProfileContent() {
   const [streakBadges, setStreakBadges] = useState<Array<{ day: number; label: string; unlocked: boolean }>>(
     generateStreakBadges(0)
   );
-  const [lastLoginDate, setLastLoginDate] = useState<string>(
-    typeof window !== "undefined" ? localStorage.getItem("lastLoginDate") || "" : ""
-  );
-
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
 
@@ -353,7 +349,6 @@ export default function ProfileContent() {
     const storedLastLogin = localStorage.getItem("lastLoginDate") || "";
     if (storedLastLogin !== today) {
       localStorage.setItem("lastLoginDate", today);
-      setLastLoginDate(today);
     }
 
     // Fetch leaderboard + submissions in parallel so setStats is called ONCE
@@ -362,7 +357,7 @@ export default function ProfileContent() {
     Promise.all([
       axios.get(`${proxy}/api/v1/users/leaderboard`).catch(() => null),
       token
-        ? fetch("/api/submissions/recent", {
+        ? fetch(`${proxy}/api/v1/submissions/recent`, {
             headers: { Authorization: `Bearer ${token}` },
           })
             .then((r) => r.json())
@@ -377,7 +372,12 @@ export default function ProfileContent() {
       // ── Submissions → two maps ─────────────────────────────────────────
       // allSubmissionsMap  → ALL submissions per day  (drives heatmap color)
       // activityMap        → days with ACCEPTED submissions (drives streak)
-      const submissions: any[] = subData?.data ?? [];
+      const submissions = (subData?.data ?? []) as Array<{
+        createdAt?: string;
+        verdict?: string;
+        question?: { _id?: string };
+        _id?: string;
+      }>;
       const allSubmissionsMap = new Map<string, number>();
       const acceptedByDate = new Map<string, Set<string>>();
 
@@ -388,8 +388,8 @@ export default function ProfileContent() {
         allSubmissionsMap.set(date, (allSubmissionsMap.get(date) ?? 0) + 1);
         // Accepted-only for streak
         const isAccepted = sub.verdict?.toLowerCase() === "accepted";
-        const uniqueKey = sub.question?._id || sub._id;
-        if (isAccepted) {
+        const uniqueKey = sub.question?._id ?? sub._id;
+        if (isAccepted && uniqueKey) {
           if (!acceptedByDate.has(date)) acceptedByDate.set(date, new Set());
           acceptedByDate.get(date)!.add(uniqueKey);
         }
@@ -430,7 +430,6 @@ export default function ProfileContent() {
         return next;
       });
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registeredUsername]);
 
   async function persistProfile(data: ProfileData) {

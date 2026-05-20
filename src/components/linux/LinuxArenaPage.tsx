@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Loader2, RotateCcw, Play, Send } from "lucide-react";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
@@ -27,10 +28,14 @@ function normalizeLines(value: string) {
 }
 
 export default function LinuxArenaPage({ initialQuestionId }: LinuxArenaPageProps) {
+  const searchParams = useSearchParams();
+  const questionIdFromUrl = searchParams.get("id") ?? undefined;
+  const resolvedInitialId = initialQuestionId ?? questionIdFromUrl;
+
   const [questions, setQuestions] = useState<LinuxQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(
-    initialQuestionId ?? null,
+    resolvedInitialId ?? null,
   );
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<ExecutionStatus>("idle");
@@ -98,7 +103,7 @@ export default function LinuxArenaPage({ initialQuestionId }: LinuxArenaPageProp
     setOutputLines(["$ Running Bash command...", ""]);
 
     try {
-      const response = await fetch("/api/run", {
+      const response = await fetch("http://enumcompiler.duckdns.org/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ language: "bash", code }),

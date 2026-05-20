@@ -1,12 +1,16 @@
+import { Suspense } from "react";
 import LinuxArenaPage from "@/components/linux/LinuxArenaPage";
 
-interface LinuxArenaRouteProps {
-  searchParams?: Promise<{
-    id?: string;
-  }>;
-}
-
-export default async function Page({ searchParams }: LinuxArenaRouteProps) {
-  const resolvedSearchParams = await searchParams;
-  return <LinuxArenaPage initialQuestionId={resolvedSearchParams?.id} />;
+export default function Page() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[60vh] items-center justify-center font-mono text-sm text-gray-500">
+          Loading Linux arena...
+        </div>
+      }
+    >
+      <LinuxArenaPage />
+    </Suspense>
+  );
 }

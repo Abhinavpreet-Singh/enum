@@ -17,6 +17,7 @@ import Editor from "@monaco-editor/react";
 import PublishSolutionModal from "./publish-solution-modal";
 import ComplexityAnalysisModal from "./complexity-analysis-modal";
 import { useTheme } from "@/providers/theme-provider";
+import { proxy } from "@/app/proxy";
 
 interface TestCase {
   input: string;
@@ -52,7 +53,7 @@ const languageOptions = [
   { label: "C++", value: "cpp" },
 ];
 
-const JUDGE_API_URL = "/api/judge";
+const JUDGE_API_URL = `${proxy}/api/v1/judge/run`;
 
 type Language = "python" | "java" | "c" | "cpp";
 type BottomTab = "testcase" | "result";
@@ -361,7 +362,7 @@ export default function CodeEditor({
     // Save all submissions to backend (accepted AND failed)
     try {
       const token = localStorage.getItem("accessToken");
-      await fetch("/api/submissions", {
+      await fetch(`${proxy}/api/v1/submissions/save`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

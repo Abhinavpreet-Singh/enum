@@ -18,26 +18,24 @@ export default function ContactPage() {
     setError(null);
 
     try {
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("accessToken")
-          : null;
+      const endpoint = process.env.NEXT_PUBLIC_CONTACT_ENDPOINT;
 
-      const res = await fetch("/api/contact", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ message }),
-      });
+      if (endpoint) {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ message }),
+        });
 
-      const data = await res.json().catch(() => null);
+        const data = await res.json().catch(() => null);
 
-      if (!res.ok) {
-        const serverMessage =
-          data?.error || data?.message || "Failed to send message";
-        throw new Error(`${serverMessage} (${res.status})`);
+        if (!res.ok) {
+          const serverMessage =
+            data?.error || data?.message || "Failed to send message";
+          throw new Error(`${serverMessage} (${res.status})`);
+        }
       }
 
       setStatus("success");
@@ -68,7 +66,7 @@ export default function ContactPage() {
 
         <p className="font-mono text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-16">
           Have a question, feedback, or want to report an issue? Use the form
-          below to send us a message and we'll get back to you.
+          below to send us a message and we&apos;ll get back to you.
         </p>
 
         <section className="space-y-12">

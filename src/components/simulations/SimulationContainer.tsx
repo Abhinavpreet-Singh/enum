@@ -9,8 +9,6 @@ import {
   ChevronLeft,
   ChevronRight,
   XCircle,
-  PanelBottomClose,
-  PanelBottomOpen,
   Save,
 } from "lucide-react";
 import Link from "next/link";
@@ -18,11 +16,11 @@ import type { Simulation, SimulationFile } from "@/data/simulations";
 import type {
   FileNode,
   FileMap,
-  SimulationRunResponse,
   SimulationEngineResponse,
   SimulationStatus,
 } from "@/types/simulation";
 import { fetchSimulationFiles } from "@/services/cloudinary";
+import { proxy } from "@/app/proxy";
 import FileExplorer from "./FileExplorer";
 import CodeEditor from "./CodeEditor";
 import ConsolePanel from "./ConsolePanel";
@@ -128,7 +126,6 @@ export default function SimulationContainer({
   }, []);
 
   // Progress state
-  const [progressLoaded, setProgressLoaded] = useState(false);
 
   // ── Check if simulation has Cloudinary-hosted files ───────────────────
   const hasCloudinaryFiles = simulation.initialFiles.some(
@@ -230,7 +227,6 @@ export default function SimulationContainer({
       } catch (err) {
         console.error("Failed to load progress:", err);
       } finally {
-        setProgressLoaded(true);
       }
     };
 
@@ -244,18 +240,20 @@ export default function SimulationContainer({
         const token = localStorage.getItem("accessToken");
         if (!token) return;
 
-        const res = await fetch("/api/simulations/progress", {
+        const res = await fetch(
+          `${proxy}/api/v1/simulation-progress/${simulation.id}`,
+          {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            simulationId: simulation.id,
             solved,
             modifiedFiles: files,
           }),
-        });
+          },
+        );
 
         if (!res.ok) return null;
         return res.json();
@@ -324,7 +322,7 @@ export default function SimulationContainer({
         content,
       }));
 
-      const response = await fetch("/api/simulations/engine/run", {
+      const response = await fetch(`${proxy}/api/v1/simulation-engine/run`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
