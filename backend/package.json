@@ -1,0 +1,48 @@
+{
+  "name": "prisma-backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "prisma:generate": "npx prisma generate",
+    "prisma:push": "npx prisma db push",
+    "seed:questions": "node scripts/seed-questions.js",
+    "seed:simulations": "node scripts/seed-simulations.js",
+    "seed:system-design": "node scripts/seed-system-design.js",
+    "seed:linux": "node scripts/seed-linux-questions.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:complexity": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathPattern=complexity"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@prisma/client": "^6.19.2",
+    "acorn": "^8.14.1",
+    "acorn-walk": "^8.3.4",
+    "bcrypt": "^6.0.0",
+    "bull": "^4.16.5",
+    "cloudinary": "^2.5.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "ioredis": "^5.6.1",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
+    "passport": "^0.7.0",
+    "passport-github2": "^0.1.12",
+    "passport-google-oauth20": "^2.0.0",
+    "resend": "^6.9.3",
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "@jest/globals": "^29.7.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.8.1",
+    "prisma": "^6.19.2"
+  }
+}

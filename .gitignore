@@ -38,3 +38,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Tauri
+/.tauri
+/src-tauri/target/
+/src-tauri/**/target/
+/src-tauri/*.db
+/src-tauri/*.sqlite
+/src-tauri/*.lock
+/target/

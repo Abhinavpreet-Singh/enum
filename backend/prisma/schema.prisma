@@ -1,0 +1,278 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// ─── User ────────────────────────────────────────────────────────────────────
+
+type UserLinks {
+  github  String @default("")
+  linkedin String @default("")
+  website String @default("")
+}
+
+type UserCert {
+  name   String
+  issuer String
+  date   String
+  done   Boolean @default(false)
+}
+
+model User {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  username     String   @unique
+  email        String   @unique
+  password     String?
+  refreshToken String?
+  displayName  String?
+  bio          String   @default("")
+  college      String   @default("")
+  role         String   @default("Student")
+  location     String   @default("")
+  resume       String   @default("")
+  skills       String[] @default([])
+  links        UserLinks?
+  certs        UserCert[]
+  avatar           String    @default("")
+  provider         String?
+  xp               Int       @default(0)
+  browserXpClaims  String[]  @default([])
+  currentStreak    Int       @default(0)
+  lastActivityDate DateTime?
+  solutions              Solution[]
+  submissions            Submission[]
+  simulationProgress     UserSimulationProgress[]
+  systemDesignSubmissions SystemDesignSubmission[]
+
+  @@map("users")
+}
+
+// ─── OTP Verification ────────────────────────────────────────────────────────
+
+model OtpVerification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String
+  otp       String
+  expiresAt DateTime
+
+  @@map("otp_verifications")
+}
+
+// ─── Question ────────────────────────────────────────────────────────────────
+
+model Question {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  title          String?
+  desc           String?
+  level          String   @default("Easy") // "Easy" | "Medium" | "Hard"
+  testcases      Json[]
+  constraints    String?
+  topic          String?
+  functionName   String
+  parameterNames String[] @default([])
+  parameterTypes String[]
+  returnType     String
+  initialCode    Json[]   @default([])
+
+  solutions      Solution[]
+  submissions    Submission[]
+  editorials     Editorial[]
+
+  @@map("questions")
+}
+
+// ─── Linux Question ────────────────────────────────────────────────────────
+
+model LinuxQuestion {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  slug           String   @unique
+  title          String
+  description    String
+  difficulty     String   @default("easy")
+  examples       Json[]   @default([])
+  starterCode    String   @default("#!/usr/bin/env bash\n# Write your command here")
+  expectedOutput String   @default("")
+  constraints    String[] @default([])
+  hints          String[] @default([])
+  language       String   @default("bash")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("linuxquestions")
+}
+
+// ─── Solution ────────────────────────────────────────────────────────────────
+
+model Solution {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  questionId String   @db.ObjectId
+  userId     String   @db.ObjectId
+  code       String
+  language   String   @default("javascript")
+  upvotes    Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  question Question @relation(fields: [questionId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@map("solutions")
+}
+
+// ─── Submission ──────────────────────────────────────────────────────────────
+
+model Submission {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  questionId  String   @db.ObjectId
+  userId      String   @db.ObjectId
+  code        String
+  language    String   @default("python")
+  verdict     String   @default("wrong_answer") // accepted | wrong_answer | runtime_error | compile_error | error | partial
+  passedCount Int      @default(0)
+  totalCount  Int      @default(0)
+  runtime     Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  question Question @relation(fields: [questionId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@map("submissions")
+}
+
+// ─── Editorial ───────────────────────────────────────────────────────────────
+
+model Editorial {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  questionId      String   @unique @db.ObjectId
+  title           String
+  intuition       String?
+  approach        String?
+  algorithm       String?
+  code            String?
+  timeComplexity  String?
+  spaceComplexity String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@map("editorials")
+}
+
+// ─── Simulation ──────────────────────────────────────────────────────────────
+
+type SimulationFile {
+  name              String @default("")
+  path              String @default("")
+  content           String @default("")
+  language          String @default("javascript")
+  cloudinaryUrl     String @default("")
+  cloudinaryPublicId String @default("")
+}
+
+type SimulationStep {
+  description String @default("")
+}
+
+model Simulation {
+  id             String           @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  category       String           // "frontend" | "backend" | "fullstack" | "devops"
+  difficulty     String           @default("easy") // "easy" | "medium" | "hard"
+  description    String
+  incident       String
+  steps          SimulationStep[]
+  initialFiles   SimulationFile[]
+  solution       Json             @default("{}")
+  hints          String[]         @default([])
+  estimatedTime  Int              @default(15)
+  tags           String[]         @default([])
+  xpReward       Int              @default(50)
+  entryFile      String           @default("index.js")
+  expectedOutput String           @default("")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  progress UserSimulationProgress[]
+
+  @@map("simulations")
+}
+
+// ─── UserSimulationProgress ──────────────────────────────────────────────────
+
+model UserSimulationProgress {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String    @db.ObjectId
+  simulationId  String    @db.ObjectId
+  solved        Boolean   @default(false)
+  attempts      Int       @default(0)
+  lastAttemptAt DateTime?
+  modifiedFiles Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id])
+  simulation Simulation @relation(fields: [simulationId], references: [id])
+
+  @@unique([userId, simulationId])
+  @@map("usersimulationprogresses")
+}
+
+// ─── System Design ───────────────────────────────────────────────────────────
+
+type EvaluationRule {
+  description String
+  /// Component type that must exist (e.g. "load_balancer")
+  requiredComponent String  @default("")
+  /// "source→target" component id pair (e.g. "client→load_balancer")
+  requiredEdge      String  @default("")
+  points            Int     @default(1)
+}
+
+model SystemDesignSimulation {
+  id              String           @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  description     String
+  difficulty      String           @default("medium")
+  evaluationRules EvaluationRule[]
+  maxScore        Int              @default(10)
+  tags            String[]         @default([])
+  templateUrl     String           @default("")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  submissions SystemDesignSubmission[]
+
+  @@map("systemdesignsimulations")
+}
+
+type SDFeedbackItem {
+  rule    String
+  passed  Boolean
+  message String
+}
+
+model SystemDesignSubmission {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  simulationId  String         @db.ObjectId
+  userId        String         @db.ObjectId
+  nodes         Json
+  edges         Json
+  explanation   String         @default("")
+  replayEvents  Json?
+  score         Int            @default(0)
+  maxScore      Int            @default(0)
+  feedback      SDFeedbackItem[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  simulation SystemDesignSimulation @relation(fields: [simulationId], references: [id])
+  user       User                   @relation(fields: [userId], references: [id])
+
+  @@map("systemdesignsubmissions")
+}
