@@ -1,5 +1,5 @@
 const LOCAL_PROXY = "http://localhost:8000";
-const REMOTE_PROXY = "https://enum-backend.onrender.com";
+const REMOTE_PROXY = "https://enum-backend-hi2n9.ondigitalocean.app";
 
 const isVercelProduction = process.env.VERCEL_ENV === "production";
 const isNodeProduction = process.env.NODE_ENV === "production";
