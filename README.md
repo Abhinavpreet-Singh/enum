@@ -1,4 +1,4 @@
-# Enum Platform
+# Enum Platform 
 
 **Platform Purpose**: A competitive learning platform for DSA, System Design, Frontend, Backend
 and DevOps Simulations with real-time collaborative features.
