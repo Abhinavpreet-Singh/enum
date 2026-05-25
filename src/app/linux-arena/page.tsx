@@ -1,4 +1,4 @@
-import LinuxArenaPage from "@/components/linux/LinuxArenaPage";
+import { redirect } from "next/navigation";
 
 interface LinuxArenaRouteProps {
   searchParams?: Promise<{
@@ -8,5 +8,9 @@ interface LinuxArenaRouteProps {
 
 export default async function Page({ searchParams }: LinuxArenaRouteProps) {
   const resolvedSearchParams = await searchParams;
-  return <LinuxArenaPage initialQuestionId={resolvedSearchParams?.id} />;
+  redirect(
+    resolvedSearchParams?.id
+      ? `/dashboard/simulations/linux?id=${encodeURIComponent(resolvedSearchParams.id)}`
+      : "/dashboard/simulations/linux",
+  );
 }

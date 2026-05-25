@@ -496,21 +496,6 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
             Open simulations <ChevronRight className="w-3.5 h-3.5" />
           </div>
         </Link>
-
-        <Link
-          href="/linux-arena"
-          className="group border border-gray-100 dark:border-white/8 bg-white dark:bg-[#111] p-4 hover:border-black dark:hover:border-white transition-colors"
-        >
-          <p className="font-mono text-[9px] tracking-[0.3em] text-gray-400 uppercase mb-2">
-            Linux Arena
-          </p>
-          <p className="text-sm text-black dark:text-white font-medium">
-            Run Bash commands, inspect stdout, and submit exact matches.
-          </p>
-          <div className="mt-3 flex items-center gap-2 font-mono text-xs text-gray-400 group-hover:text-black dark:group-hover:text-white transition-colors">
-            Open bash arena <ChevronRight className="w-3.5 h-3.5" />
-          </div>
-        </Link>
       </div>
 
       {/* ── XP Level — Futuristic HUD ──────────────────── */}

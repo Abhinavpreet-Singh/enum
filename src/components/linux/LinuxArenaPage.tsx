@@ -3,10 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, RotateCcw, Play, Send } from "lucide-react";
 import axios from "axios";
+import Link from "next/link";
 import { proxy } from "@/app/proxy";
 import QuestionPanel, { type LinuxQuestion } from "./QuestionPanel";
 import MonacoCodeEditor from "./MonacoCodeEditor";
 import OutputTerminal from "./OutputTerminal";
+import { linuxQuestionsFallback } from "@/data/linux-questions";
 
 interface LinuxArenaPageProps {
   initialQuestionId?: string;
@@ -23,10 +25,14 @@ function normalizeLines(value: string) {
   return String(value || "")
     .replace(/\r\n/g, "\n")
     .split("\n")
-    .filter((line, index, array) => line.length > 0 || index < array.length - 1);
+    .filter(
+      (line, index, array) => line.length > 0 || index < array.length - 1,
+    );
 }
 
-export default function LinuxArenaPage({ initialQuestionId }: LinuxArenaPageProps) {
+export default function LinuxArenaPage({
+  initialQuestionId,
+}: LinuxArenaPageProps) {
   const [questions, setQuestions] = useState<LinuxQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(
@@ -35,25 +41,43 @@ export default function LinuxArenaPage({ initialQuestionId }: LinuxArenaPageProp
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<ExecutionStatus>("idle");
   const [outputLines, setOutputLines] = useState<string[]>([
-    "Linux arena ready. Pick a question and run your Bash command.",
+    "Linux / Bash arena ready. Pick a question and run your Bash command.",
   ]);
   const [actualOutput, setActualOutput] = useState<string | null>(null);
   const [expectedOutput, setExpectedOutput] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [leftPanelWidth, setLeftPanelWidth] = useState(26);
+  const [terminalHeight, setTerminalHeight] = useState(300);
+  const [isResizingLeft, setIsResizingLeft] = useState(false);
+  const [isResizingTerminal, setIsResizingTerminal] = useState(false);
+
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
 
   useEffect(() => {
     const fetchQuestions = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(`${proxy}/api/v1/questions/linux`, {
+        const response = await axios.get(`${proxy}/api/v1/simulations/linux`, {
           withCredentials: true,
         });
         const nextQuestions = (response.data?.data ?? []) as LinuxQuestion[];
-        setQuestions(nextQuestions);
+        const resolvedQuestions =
+          nextQuestions.length > 0 ? nextQuestions : linuxQuestionsFallback;
+        setQuestions(resolvedQuestions);
 
         const requested =
-          nextQuestions.find((question) => question.id === initialQuestionId || question.slug === initialQuestionId) ??
-          nextQuestions[0] ??
+          resolvedQuestions.find(
+            (question) =>
+              question.id === initialQuestionId ||
+              question.slug === initialQuestionId,
+          ) ??
+          resolvedQuestions[0] ??
           null;
 
         if (requested) {
@@ -62,7 +86,7 @@ export default function LinuxArenaPage({ initialQuestionId }: LinuxArenaPageProp
           setExpectedOutput(requested.expectedOutput || "");
         }
       } catch {
-        setQuestions([]);
+        setQuestions(linuxQuestionsFallback);
       } finally {
         setLoading(false);
       }
@@ -73,7 +97,9 @@ export default function LinuxArenaPage({ initialQuestionId }: LinuxArenaPageProp
 
   useEffect(() => {
     if (!selectedQuestionId || questions.length === 0) return;
-    const selected = questions.find((question) => question.id === selectedQuestionId);
+    const selected = questions.find(
+      (question) => question.id === selectedQuestionId,
+    );
     if (!selected) return;
 
     setCode(selected.starterCode || "");
@@ -87,7 +113,10 @@ export default function LinuxArenaPage({ initialQuestionId }: LinuxArenaPageProp
   }, [questions, selectedQuestionId]);
 
   const selectedQuestion = useMemo(
-    () => questions.find((question) => question.id === selectedQuestionId) ?? questions[0] ?? null,
+    () =>
+      questions.find((question) => question.id === selectedQuestionId) ??
+      questions[0] ??
+      null,
     [questions, selectedQuestionId],
   );
 
@@ -108,10 +137,14 @@ export default function LinuxArenaPage({ initialQuestionId }: LinuxArenaPageProp
       const output = String(data.output ?? data.stdout ?? data.error ?? "");
       setActualOutput(output);
       const nextLines = normalizeLines(output);
-      setOutputLines((prev) => [...prev, ...(nextLines.length ? nextLines : ["(no output)"])]);
+      setOutputLines((prev) => [
+        ...prev,
+        ...(nextLines.length ? nextLines : ["(no output)"]),
+      ]);
       setStatus("idle");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Execution failed";
+      const message =
+        error instanceof Error ? error.message : "Execution failed";
       setActualOutput(message);
       setOutputLines((prev) => [...prev, `Error: ${message}`]);
       setStatus("error");
@@ -126,11 +159,14 @@ export default function LinuxArenaPage({ initialQuestionId }: LinuxArenaPageProp
     setOutputLines(["$ Submitting Bash solution...", ""]);
 
     try {
-      const response = await axios.post(`${proxy}/api/v1/submit/linux`, {
-        questionId: selectedQuestion.id,
-        code,
-        language: "bash",
-      });
+      const response = await axios.post(
+        `${proxy}/api/v1/simulations/linux/submit`,
+        {
+          questionId: selectedQuestion.id,
+          code,
+          language: "bash",
+        },
+      );
 
       const result = response.data?.data as RunResult & {
         passed: boolean;
@@ -140,7 +176,9 @@ export default function LinuxArenaPage({ initialQuestionId }: LinuxArenaPageProp
       };
 
       setActualOutput(result?.output ?? null);
-      setExpectedOutput(result?.expectedOutput ?? selectedQuestion.expectedOutput ?? null);
+      setExpectedOutput(
+        result?.expectedOutput ?? selectedQuestion.expectedOutput ?? null,
+      );
       setOutputLines([
         `Submission ${result?.passed ? "passed" : "failed"}`,
         "",
@@ -174,12 +212,60 @@ export default function LinuxArenaPage({ initialQuestionId }: LinuxArenaPageProp
     ]);
   };
 
+  const handleLeftResizeMouseDown = (
+    event: React.MouseEvent<HTMLDivElement>,
+  ) => {
+    event.preventDefault();
+    setIsResizingLeft(true);
+    const startX = event.clientX;
+    const startWidth = leftPanelWidth;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const nextWidth = Math.min(Math.max(22, startWidth + deltaX / 16), 34);
+      setLeftPanelWidth(nextWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingLeft(false);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const handleTerminalResizeMouseDown = (
+    event: React.MouseEvent<HTMLDivElement>,
+  ) => {
+    event.preventDefault();
+    setIsResizingTerminal(true);
+    const startY = event.clientY;
+    const startHeight = terminalHeight;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaY = startY - moveEvent.clientY;
+      const nextHeight = Math.min(Math.max(200, startHeight + deltaY), 420);
+      setTerminalHeight(nextHeight);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingTerminal(false);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full w-full">
         <div className="flex items-center gap-2 font-mono text-sm text-gray-500">
           <Loader2 className="w-4 h-4 animate-spin" />
-          Loading Linux arena...
+          Loading Linux questions...
         </div>
       </div>
     );
@@ -187,31 +273,41 @@ export default function LinuxArenaPage({ initialQuestionId }: LinuxArenaPageProp
 
   if (!selectedQuestion) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full w-full">
         <div className="text-center space-y-3">
-          <p className="font-mono text-sm text-gray-500">No Linux questions available.</p>
+          <p className="font-mono text-sm text-gray-500">
+            No Linux questions available.
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full bg-white dark:bg-black overflow-hidden">
-      <div className="h-full max-w-400 mx-auto p-4 lg:p-6 flex flex-col gap-4">
-        <div className="flex items-end justify-between gap-4 shrink-0">
-          <div>
+    <div
+      className="w-full bg-white dark:bg-black overflow-hidden"
+      style={{ height: "calc(100vh - 5rem)" }}
+    >
+      <div className="h-full w-full p-4 lg:p-6 flex flex-col gap-4 overflow-hidden">
+        <div className="flex items-center justify-between gap-3 shrink-0">
+          <Link
+            href="/dashboard/simulations"
+            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-white/10 font-mono text-xs tracking-wide text-black dark:text-white hover:border-gray-400 dark:hover:border-white/30 transition-colors shrink-0"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Back
+          </Link>
+
+          <div className="min-w-0 flex-1 px-2">
             <p className="font-mono text-[10px] tracking-[0.32em] text-gray-400 uppercase">
-              Dashboard / Linux Arena
+              Linux / Bash Workspace
             </p>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-black dark:text-white">
-              Bash Arena
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-black dark:text-white truncate">
+              Code Workspace
             </h1>
-            <p className="font-mono text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Execute real Bash commands, inspect stdout, and submit against expected output.
-            </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleReset}
               className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-white/10 font-mono text-xs tracking-wide text-black dark:text-white hover:border-gray-400 dark:hover:border-white/30 transition-colors"
@@ -242,42 +338,48 @@ export default function LinuxArenaPage({ initialQuestionId }: LinuxArenaPageProp
           </div>
         </div>
 
-        <div className="grid flex-1 min-h-0 gap-4 lg:grid-cols-[minmax(320px,420px)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)_auto]">
-          <div className="min-h-0 lg:row-span-2">
-            <QuestionPanel
-              questions={questions}
-              activeQuestionId={selectedQuestion.id}
-              onSelectQuestion={(questionId) => setSelectedQuestionId(questionId)}
-            />
+        <div className="flex flex-1 min-h-0 gap-0 overflow-hidden border border-gray-100 dark:border-white/8 bg-white dark:bg-[#0a0a0a] rounded-md">
+          <div
+            className="h-full min-h-0 overflow-hidden shrink-0"
+            style={{ width: `${leftPanelWidth}%` }}
+          >
+            <QuestionPanel question={selectedQuestion} />
           </div>
 
-          <div className="min-h-0 flex flex-col gap-3">
-            <div className="flex items-center justify-between border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] px-4 py-3 shrink-0">
-              <div>
-                <p className="font-mono text-[10px] tracking-[0.28em] uppercase text-gray-400">
-                  Bash Editor
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {selectedQuestion.slug.replace(/-/g, " ")}
-                </p>
-              </div>
-              <div className="font-mono text-[10px] uppercase tracking-[0.24em] text-gray-400">
-                shell syntax
-              </div>
-            </div>
+          <div
+            onMouseDown={handleLeftResizeMouseDown}
+            className={`w-1 shrink-0 cursor-col-resize transition-colors ${
+              isResizingLeft
+                ? "bg-black dark:bg-white"
+                : "bg-transparent hover:bg-gray-300 dark:hover:bg-white/20"
+            }`}
+          />
 
-            <div className="flex-1 min-h-0">
+          <div className="flex-1 min-w-0 h-full min-h-0 overflow-hidden flex flex-col">
+            <div className="flex-1 min-h-0 overflow-hidden">
               <MonacoCodeEditor value={code} onChange={setCode} />
             </div>
-          </div>
 
-          <div className="lg:col-start-2">
-            <OutputTerminal
-              status={status}
-              outputLines={outputLines}
-              expectedOutput={expectedOutput}
-              actualOutput={actualOutput}
+            <div
+              onMouseDown={handleTerminalResizeMouseDown}
+              className={`h-1 shrink-0 cursor-row-resize transition-colors ${
+                isResizingTerminal
+                  ? "bg-black dark:bg-white"
+                  : "bg-transparent hover:bg-gray-300 dark:hover:bg-white/20"
+              }`}
             />
+
+            <div
+              style={{ height: `${terminalHeight}px` }}
+              className="min-h-[200px] overflow-hidden rounded-b-md"
+            >
+              <OutputTerminal
+                status={status}
+                outputLines={outputLines}
+                expectedOutput={expectedOutput}
+                actualOutput={actualOutput}
+              />
+            </div>
           </div>
         </div>
       </div>

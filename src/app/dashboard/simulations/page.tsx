@@ -5,23 +5,24 @@ import {
   Bug,
   Clock,
   TrendingUp,
-  Code2,
   ChevronRight,
   Loader2,
   Search,
   X,
-  Layers,
   Server,
   Monitor,
   Boxes,
   Network,
   CheckCircle2,
   Circle,
+  Terminal,
 } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
 import { browserSimulations } from "@/data/browser-simulations";
+import type { LinuxQuestion } from "@/components/linux/QuestionPanel";
+import { linuxQuestionsFallback } from "@/data/linux-questions";
 
 interface SimulationItem {
   id: string;
@@ -47,9 +48,35 @@ const CATEGORY_META: Record<
 > = {
   frontend: { label: "Frontend", Icon: Monitor },
   backend: { label: "Backend", Icon: Server },
-  fullstack: { label: "Full Stack", Icon: Layers },
+  fullstack: { label: "Linux / Bash", Icon: Terminal },
   "system-design": { label: "System Design", Icon: Network },
 };
+
+function normalizeDifficulty(value: string): "easy" | "medium" | "hard" {
+  const normalized = String(value || "").toLowerCase();
+  if (normalized === "medium" || normalized === "hard") return normalized;
+  return "easy";
+}
+
+function estimateLinuxTime(difficulty: string, constraintCount: number) {
+  const base = {
+    easy: 8,
+    medium: 12,
+    hard: 16,
+  }[normalizeDifficulty(difficulty)];
+
+  return base + Math.min(constraintCount, 3);
+}
+
+function estimateLinuxXp(difficulty: string, constraintCount: number) {
+  const base = {
+    easy: 50,
+    medium: 75,
+    hard: 100,
+  }[normalizeDifficulty(difficulty)];
+
+  return base + Math.min(constraintCount, 3) * 5;
+}
 
 const DIFFICULTIES = ["easy", "medium", "hard"] as const;
 
@@ -101,13 +128,47 @@ export default function SimulationsPage() {
         })
         .catch(() => null),
       axios
+        .get(`${proxy}/api/v1/simulations/linux`, {
+          withCredentials: true,
+        })
+        .catch(() => null),
+      axios
         .get(`${proxy}/api/v1/system-design/simulations`, {
           withCredentials: true,
         })
         .catch(() => null),
     ])
-      .then(([simRes, sdRes]) => {
+      .then(([simRes, linuxRes, sdRes]) => {
         const backend: SimulationItem[] = simRes?.data?.data || [];
+        const rawLinuxQuestions = (linuxRes?.data?.data ||
+          []) as LinuxQuestion[];
+        const linuxSource =
+          rawLinuxQuestions.length > 0
+            ? rawLinuxQuestions
+            : linuxQuestionsFallback;
+        const linuxQuestions: SimulationItem[] = linuxSource.map(
+          (question) => ({
+            id: question.id,
+            title: question.title,
+            category: "fullstack" as const,
+            difficulty: normalizeDifficulty(question.difficulty),
+            description: question.description,
+            estimatedTime: estimateLinuxTime(
+              question.difficulty,
+              question.constraints.length,
+            ),
+            xpReward: estimateLinuxXp(
+              question.difficulty,
+              question.constraints.length,
+            ),
+            tags: [
+              "Linux",
+              "Bash",
+              question.language.toUpperCase(),
+              ...question.constraints.slice(0, 2),
+            ].filter(Boolean),
+          }),
+        );
         const sdRaw: Array<{
           id: string;
           title: string;
@@ -133,7 +194,12 @@ export default function SimulationsPage() {
           tags: s.tags || [],
           status: s.status,
         }));
-        const merged = [...local, ...systemDesign, ...backend];
+        const merged = [
+          ...local,
+          ...linuxQuestions,
+          ...systemDesign,
+          ...backend,
+        ];
         setSimulations(merged.filter((s) => s.category !== "devops"));
       })
       .finally(() => setLoading(false));
@@ -201,14 +267,6 @@ export default function SimulationsPage() {
                 : `${filtered.length} of ${simulations.length} simulations`}
             </p>
           </div>
-
-          <Link
-            href="/linux-arena"
-            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-white/10 bg-white dark:bg-[#111] text-black dark:text-white font-mono text-xs tracking-wide hover:border-black dark:hover:border-white/40 transition-colors shrink-0"
-          >
-            <Code2 className="w-3.5 h-3.5" />
-            Linux Arena
-          </Link>
         </div>
 
         {/* Status Legend */}
@@ -407,7 +465,9 @@ export default function SimulationsPage() {
                   href={
                     sim.category === "system-design"
                       ? `/dashboard/simulations/system-design/${sim.id}`
-                      : `/dashboard/simulations/${sim.id}`
+                      : sim.category === "fullstack"
+                        ? `/dashboard/simulations/linux?id=${sim.id}`
+                        : `/dashboard/simulations/${sim.id}`
                   }
                   className="group flex items-start gap-5 p-5 border border-gray-100 dark:border-white/8 hover:border-gray-300 dark:hover:border-white/30 bg-white dark:bg-[#111] hover:bg-gray-50 dark:hover:bg-[#161616] transition-all duration-200"
                 >
