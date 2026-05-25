@@ -47,4 +47,4 @@ COPY . .
 # Default port (Render overrides this)
 EXPOSE 3000
 
-CMD ["node", "src/index.js"]
+CMD ["node", "--env-file=.env", "src/index.js"]

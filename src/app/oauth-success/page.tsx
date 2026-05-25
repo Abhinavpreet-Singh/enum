@@ -62,7 +62,9 @@ export default function OAuthSuccessPage() {
       if (!params.get("code")) return "";
 
       const callbacks = [
+        `${proxy}/api/auth/google/callback${search}`,
         `${proxy}/auth/google/callback${search}`,
+        `${proxy}/api/auth/github/callback${search}`,
         `${proxy}/auth/github/callback${search}`,
       ];
 

@@ -37,9 +37,9 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
   const startOAuth = (provider: "google" | "github") => {
     setError("");
     setIsLoading(true);
-    const successRedirect = `${window.location.origin}/oauth-success`;
-    const failureRedirect = `${window.location.origin}/login?oauthError=1`;
-    const url = new URL(`/auth/${provider}`, proxy);
+    const successRedirect = `${window.location.origin}/auth/success`;
+    const failureRedirect = `${window.location.origin}/login?error=google_auth_failed`;
+    const url = new URL(`/api/auth/${provider}`, proxy);
 
     // Different backend implementations use different query key names.
     url.searchParams.set("redirect", successRedirect);

@@ -6,39 +6,50 @@ import { env } from "./config/env.js"
 
 const app = express()
 
-const normalizeOrigin = (origin) => origin.replace(/\/+$/, "");
+if (process.env.NODE_ENV === "production") {
+    app.set("trust proxy", 1)
+}
+app.disable("x-powered-by")
+
+const normalizeOrigin = (origin) => origin.replace(/\/+$|\/?$/, "");
 
 const allowedOrigins = [
     "http://localhost:3000",
-    "https://enum.live/",
-    "https://www.enum.live/",
+    "http://localhost:3001",
+    "https://enum.live",
+    "https://www.enum.live",
     "https://enum0.vercel.app",
+    env.FRONTEND_URL,
     ...(env.FRONTEND_URLS || []),
 ]
     .filter(Boolean)
     .map(normalizeOrigin);
 
-app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
-        const normalizedOrigin = normalizeOrigin(origin);
+app.use(
+    cors({
+        origin: function (origin, callback) {
+            if (!origin) return callback(null, true)
+            const normalizedOrigin = normalizeOrigin(origin)
 
-        if (allowedOrigins.indexOf(normalizedOrigin) !== -1) {
-            callback(null, true);
-        } else {
-            callback(new Error("CORS not allowed"));
-        }
-    },
-    credentials: true,
-    methods: ["GET","POST","PUT","DELETE","OPTIONS"],
-    allowedHeaders: ["Content-Type","Authorization"]
-}));
+            if (allowedOrigins.indexOf(normalizedOrigin) !== -1) {
+                callback(null, true)
+            } else {
+                callback(new Error("CORS origin not allowed"))
+            }
+        },
+        credentials: true,
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization", "Set-Cookie"],
+    }),
+)
 
 app.use(express.json({ limit: "16kb" }))
 app.use(express.urlencoded({ extended: true, limit: "16kb" }))
 app.use(cookieParser())
 
 app.use(passport.initialize())
+
+console.log("[app] Passport initialized");
 
 app.get("/", (req, res) => {
 	res.send("Hello from the server!")
@@ -59,7 +70,9 @@ import complexityRouter from "./routes/complexity.route.js";
 import systemDesignRouter from "./routes/systemDesign.route.js";
 import authRouter from "./routes/auth.routes.js";
 
+app.use("/api/auth", authRouter)
 app.use("/auth", authRouter)
+console.log("[app] Auth routes mounted at /api/auth and /auth")
 app.use("/api/v1/users", userRouter)
 app.use("/api/v1/admin", adminRouter)
 app.use("/api/v1/questions", questionRouter)

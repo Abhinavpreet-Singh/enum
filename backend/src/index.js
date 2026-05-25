@@ -13,6 +13,7 @@ const allowedOrigins = [
     "https://enum.live",
     "https://www.enum.live",
     "https://enum0.vercel.app",
+    env.FRONTEND_URL,
     ...(env.FRONTEND_URLS || []),
 ]
     .filter(Boolean)
