@@ -99,7 +99,7 @@ export default function SimulationDetailPage() {
   // ── Browser sandbox (local-only, no backend) ──────────────────────────
   if (browserSim) {
     return (
-      <div className="h-[calc(100vh-theme(spacing.20))] lg:h-screen -mb-20 lg:mb-0">
+      <div className="h-[calc(100vh-(--spacing(20)))] lg:h-screen -mb-20 lg:mb-0">
         <BrowserSandboxWorkspace simulation={browserSim} />
       </div>
     );
@@ -143,7 +143,7 @@ export default function SimulationDetailPage() {
   const useBackendWorkspace = BACKEND_CATEGORIES.has(simulation.category);
 
   return (
-    <div className="h-[calc(100vh-theme(spacing.20))] lg:h-screen -mb-20 lg:mb-0">
+    <div className="h-[calc(100vh-(--spacing(20)))] lg:h-screen -mb-20 lg:mb-0">
       {useBackendWorkspace ? (
         <SimulationContainer simulation={simulation} />
       ) : (

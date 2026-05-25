@@ -1,19 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import useAuth from "@/hooks/useAuth";
 
 export default function PublicRoute({
   children,
+  returnTo,
 }: {
   children: React.ReactNode;
+  returnTo?: string;
 }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const isAuthenticated = useAuth();
-
-  const returnTo = searchParams.get("returnTo");
 
   useEffect(() => {
     if (isAuthenticated === true) {

@@ -125,7 +125,13 @@ export default function CollabRoomPage() {
             aria-hidden
           />
 
-          <div className="flex h-9 max-w-[10rem] items-center gap-2 rounded-md border border-black/10 bg-black/[0.03] px-2.5 text-xs font-medium text-black/75 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/75 sm:max-w-[12rem]">
+          <div
+            className="flex h-9 items-center gap-2 rounded-md border border-black/10 px-2.5 text-xs font-medium text-black/75 dark:border-white/10 dark:text-white/75"
+            style={{
+              maxWidth: "10rem",
+              backgroundColor: "rgba(0,0,0,0.03)",
+            }}
+          >
             <Users className="h-3.5 w-3.5 shrink-0 text-black/40 dark:text-white/40" />
             <span className="truncate">{username}</span>
           </div>

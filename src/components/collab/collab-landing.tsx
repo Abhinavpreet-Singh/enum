@@ -184,7 +184,8 @@ export default function CollabLanding() {
                 />
                 <button
                   type="submit"
-                  className={`${btnSecondaryClass} sm:min-w-[9.5rem]`}
+                  className={btnSecondaryClass}
+                  style={{ minWidth: "9.5rem" }}
                 >
                   {nameSaved ? (
                     <>
@@ -203,7 +204,8 @@ export default function CollabLanding() {
             {error ? (
               <p
                 role="alert"
-                className="rounded border border-black/15 bg-black/[0.03] px-3 py-2 text-xs text-black/70 dark:border-white/15 dark:bg-white/[0.03] dark:text-white/70"
+                className="rounded border border-black/15 px-3 py-2 text-xs text-black/70 dark:border-white/15 dark:text-white/70"
+                style={{ backgroundColor: "rgba(0,0,0,0.03)" }}
               >
                 {error}
               </p>
@@ -212,7 +214,10 @@ export default function CollabLanding() {
 
           {/* Create / Join cards */}
           <div className="grid gap-4 md:grid-cols-2 md:gap-5">
-            <article className="flex min-h-[17rem] flex-col border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-black md:min-h-[18rem] md:p-6">
+            <article
+              className="flex flex-col border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-black md:p-6"
+              style={{ minHeight: "17rem" }}
+            >
               <div className="flex items-start justify-between gap-3">
                 <span className="border border-black/10 px-2.5 py-1 text-xs font-semibold tracking-[0.2em] text-black/60 dark:border-white/10 dark:text-white/60">
                   01
@@ -242,7 +247,10 @@ export default function CollabLanding() {
               </div>
             </article>
 
-            <article className="flex min-h-[17rem] flex-col border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-black md:min-h-[18rem] md:p-6">
+            <article
+              className="flex flex-col border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-black md:p-6"
+              style={{ minHeight: "17rem" }}
+            >
               <div className="flex items-start justify-between gap-3">
                 <span className="border border-black/10 px-2.5 py-1 text-xs font-semibold tracking-[0.2em] text-black/60 dark:border-white/10 dark:text-white/60">
                   02

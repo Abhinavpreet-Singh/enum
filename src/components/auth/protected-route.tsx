@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import useAuth from "@/hooks/useAuth";
 
 export default function ProtectedRoute({
@@ -12,19 +12,17 @@ export default function ProtectedRoute({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const isAuthenticated = useAuth();
-
-  const buildReturnTo = () => {
-    const query = searchParams.toString();
-    return query ? `${pathname}?${query}` : pathname;
-  };
 
   useEffect(() => {
     if (isAuthenticated === false) {
-      router.push(`/login?returnTo=${encodeURIComponent(buildReturnTo())}`);
+      const query =
+        typeof window !== "undefined" ? window.location.search : "";
+      const returnTo = query ? `${pathname}${query}` : pathname;
+
+      router.push(`/login?returnTo=${encodeURIComponent(returnTo)}`);
     }
-  }, [isAuthenticated, router, pathname, searchParams]);
+  }, [isAuthenticated, router, pathname]);
 
   // Show loading while checking authentication
   if (isAuthenticated === null) {

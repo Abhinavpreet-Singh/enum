@@ -1,14 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import useAuth from "@/hooks/useAuth";
 
 export default function HeroSection() {
-  const [isAuthenticated] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const token = localStorage.getItem("accessToken");
-    return !!token;
-  });
+  const isAuthenticated = useAuth();
+  const launchHref = isAuthenticated === true ? "/dashboard" : "/start";
 
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center px-4 md:px-6 overflow-hidden bg-white dark:bg-black pt-20 md:pt-14">
@@ -58,7 +55,7 @@ export default function HeroSection() {
 
         {/* Launch Environment Button */}
         <Link
-          href={isAuthenticated ? "/dashboard" : "/start"}
+          href={launchHref}
           className="px-6 md:px-12 py-2 md:py-3 bg-black dark:bg-white text-white dark:text-black font-mono text-xs md:text-sm tracking-[0.15em] hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors whitespace-nowrap"
         >
           LAUNCH ENVIRONMENT

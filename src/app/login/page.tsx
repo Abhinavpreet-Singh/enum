@@ -1,15 +1,16 @@
 import AuthForm from "@/components/auth/auth-form";
 import PublicRoute from "@/components/auth/public-route";
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams?: { returnTo?: string };
+  searchParams?: Promise<{ returnTo?: string }>;
 }) {
-  const returnTo = searchParams?.returnTo;
+  const resolvedSearchParams = await searchParams;
+  const returnTo = resolvedSearchParams?.returnTo;
 
   return (
-    <PublicRoute>
+    <PublicRoute returnTo={returnTo}>
       <AuthForm initialReturnTo={returnTo} />
     </PublicRoute>
   );
