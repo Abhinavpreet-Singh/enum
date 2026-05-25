@@ -5,14 +5,15 @@ const isVercelProduction = process.env.VERCEL_ENV === "production";
 const isNodeProduction = process.env.NODE_ENV === "production";
 const isProductionRuntime = isVercelProduction || isNodeProduction;
 
-// Only use local proxy if explicitly enabled AND not in production
-const shouldUseLocal =
-	process.env.NEXT_PUBLIC_USE_LOCAL_API === "true" &&
-	!isProductionRuntime;
+const configuredProxy = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-// Always prefer explicitly configured API base URL, or fallback to remote
-const configuredProxy = process.env.NEXT_PUBLIC_API_BASE_URL || REMOTE_PROXY;
-const proxy = (shouldUseLocal ? LOCAL_PROXY : configuredProxy).replace(/\/$/, "");
+// In local development, default to the local backend unless an explicit API URL is set.
+// Production keeps the remote default so deployed builds do not accidentally point at localhost.
+const proxy = (
+  isProductionRuntime
+    ? configuredProxy || REMOTE_PROXY
+    : configuredProxy || LOCAL_PROXY
+).replace(/\/$/, "");
 
 console.log("API Proxy:", proxy);
 
