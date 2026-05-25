@@ -4,8 +4,8 @@
   "description": "",
   "main": "src/index.js",
   "scripts": {
-    "dev": "node --env-file=.env --watch src/index.js",
-    "start": "node --env-file=.env src/index.js",
+    "dev": "node src/index.js",
+    "start": "node src/index.js",
     "prisma:generate": "npx prisma generate",
     "prisma:push": "npx prisma db push",
     "seed:questions": "node scripts/seed-questions.js",
