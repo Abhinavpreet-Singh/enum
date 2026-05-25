@@ -40,6 +40,21 @@ function initials(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
+function monochromeTone(seed: string) {
+  const palette = [
+    "#111111",
+    "#2f2f2f",
+    "#4b4b4b",
+    "#6b6b6b",
+    "#8a8a8a",
+    "#b0b0b0",
+  ];
+  const hash = seed
+    .split("")
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return palette[hash % palette.length];
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function CollaborativeEditor({
@@ -132,15 +147,17 @@ export default function CollaborativeEditor({
       document.head.appendChild(styleEl);
     }
     const css = cursorList
-      .map(
-        (c) => `
+      .map((c) => {
+        const tone = monochromeTone(c.socketId);
+        const labelColor = tone === "#b0b0b0" ? "#111111" : "#ffffff";
+        return `
         .remote-cursor-${c.socketId.replace(/[^a-zA-Z0-9]/g, "")}::after {
           content: "${initials(c.username)}";
           position: absolute;
           top: -18px;
           left: 0;
-          background: ${c.color};
-          color: #fff;
+          background: ${tone};
+          color: ${labelColor};
           font-size: 10px;
           font-weight: 700;
           padding: 1px 4px;
@@ -151,10 +168,10 @@ export default function CollaborativeEditor({
           font-family: var(--font-geist-sans), sans-serif;
         }
         .remote-cursor-${c.socketId.replace(/[^a-zA-Z0-9]/g, "")} {
-          border-left: 2px solid ${c.color};
+          border-left: 2px solid ${tone};
         }
-      `,
-      )
+      `;
+      })
       .join("\n");
     styleEl.textContent = css;
 
@@ -213,47 +230,51 @@ export default function CollaborativeEditor({
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-full w-full flex-col" id="collaborative-editor">
-      {/* ── Top bar: connection status + user presence ─────────────────── */}
+    <div
+      className="flex h-full min-h-0 w-full flex-col overflow-hidden"
+      id="collaborative-editor"
+    >
+      {/* Top bar: connection status + user presence */}
       <div
-        className="flex items-center justify-between border-b px-4 py-2"
+        className="flex h-10 shrink-0 items-center justify-between gap-4 border-b border-black/10 px-4 dark:border-white/10"
         style={{
-          borderColor: theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-          background: theme === "dark" ? "#0a0a0a" : "#fafafa",
+          background: theme === "dark" ? "#000000" : "#ffffff",
         }}
       >
         {/* Connection badge */}
-        <div className="flex items-center gap-2 text-xs font-medium">
+        <div className="flex min-w-0 items-center gap-2 text-xs font-medium">
           <span
-            className="inline-block h-2 w-2 rounded-full"
+            className="inline-block h-2 w-2 shrink-0 rounded-full"
             style={{
-              background: isConnected ? "#22c55e" : "#ef4444",
-              boxShadow: isConnected
-                ? "0 0 6px rgba(34,197,94,0.5)"
-                : "0 0 6px rgba(239,68,68,0.5)",
+              background: isConnected
+                ? theme === "dark"
+                  ? "#ffffff"
+                  : "#111111"
+                : "#8a8a8a",
+              boxShadow: isConnected ? "0 0 6px rgba(0,0,0,0.18)" : "none",
             }}
           />
-          <span style={{ color: theme === "dark" ? "#a1a1aa" : "#71717a" }}>
-            {isConnected ? "Connected" : "Disconnected"}
-          </span>
           <span
-            className="ml-2 rounded px-1.5 py-0.5 text-[10px] font-mono"
-            style={{
-              background: theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-              color: theme === "dark" ? "#71717a" : "#a1a1aa",
-            }}
+            className="shrink-0"
+            style={{ color: theme === "dark" ? "#d4d4d4" : "#525252" }}
           >
-            {roomId}
+            {isConnected ? "Connected" : "Disconnected"}
           </span>
         </div>
 
         {/* User avatars */}
-        <div className="flex items-center gap-1">
+        <div className="flex min-w-0 items-center justify-end gap-1.5">
           {users.map((user) => (
             <div
               key={user.socketId}
               className="relative flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold text-white"
-              style={{ background: user.color }}
+              style={{
+                background: monochromeTone(user.socketId),
+                color:
+                  monochromeTone(user.socketId) === "#b0b0b0"
+                    ? "#111111"
+                    : "#ffffff",
+              }}
               title={user.username}
             >
               {initials(user.username)}
@@ -261,8 +282,8 @@ export default function CollaborativeEditor({
           ))}
           {users.length > 0 && (
             <span
-              className="ml-2 text-xs"
-              style={{ color: theme === "dark" ? "#71717a" : "#a1a1aa" }}
+              className="ml-1 text-xs"
+              style={{ color: theme === "dark" ? "#bdbdbd" : "#737373" }}
             >
               {users.length} online
             </span>
@@ -270,8 +291,8 @@ export default function CollaborativeEditor({
         </div>
       </div>
 
-      {/* ── Monaco Editor ──────────────────────────────────────────────── */}
-      <div className="flex-1 relative">
+      {/* Monaco Editor */}
+      <div className="relative min-h-0 flex-1">
         <Editor
           height="100%"
           language={resolveLanguage(language)}
@@ -280,7 +301,6 @@ export default function CollaborativeEditor({
           onMount={handleEditorMount}
           theme={theme === "dark" ? "pitch-black" : "pitch-light"}
           beforeMount={(monaco) => {
-            // Dark (black) theme
             monaco.editor.defineTheme("pitch-black", {
               base: "vs-dark",
               inherit: true,
@@ -288,39 +308,46 @@ export default function CollaborativeEditor({
               colors: {
                 "editor.background": "#000000",
                 "editor.foreground": "#f8fafc",
-                "editorLineNumber.foreground": "#64748b",
-                "editorLineNumber.activeForeground": "#60a5fa",
-                "editorCursor.foreground": "#60a5fa",
-                "editor.selectionBackground": "rgba(248,250,252,0.12)",
-                "editor.selectionHighlightBackground": "rgba(148,163,184,0.12)",
-                "editor.findMatchBackground": "rgba(148,163,184,0.16)",
+                "editorLineNumber.foreground": "#525252",
+                "editorLineNumber.activeForeground": "#f5f5f5",
+                "editorCursor.foreground": "#f5f5f5",
+                "editor.selectionBackground": "rgba(255,255,255,0.14)",
+                "editor.selectionHighlightBackground": "rgba(255,255,255,0.1)",
+                "editor.findMatchBackground": "rgba(255,255,255,0.12)",
                 "editor.findMatchBorder": "transparent",
-                "editor.findMatchHighlightBackground": "rgba(148,163,184,0.16)",
+                "editor.findMatchHighlightBackground": "rgba(255,255,255,0.12)",
                 "editor.findMatchHighlightBorder": "transparent",
-                "editor.lineHighlightBackground": "rgba(148,163,184,0.14)",
+                "editor.lineHighlightBackground": "transparent",
                 "editor.lineHighlightBorder": "transparent",
-                "editorIndentGuide.background": "rgba(148,163,184,0.25)",
-                "editorIndentGuide.activeBackground": "rgba(248,250,252,0.2)",
-                "editorBracketMatch.background": "rgba(255,255,255,0.1)",
-                "editorBracketMatch.border": "rgba(248,250,252,0.2)",
+                "editorIndentGuide.background": "rgba(255,255,255,0.2)",
+                "editorIndentGuide.activeBackground": "rgba(255,255,255,0.32)",
+                "editorBracketMatch.background": "transparent",
+                "editorBracketMatch.border": "transparent",
               },
             });
 
-            // Light theme
             monaco.editor.defineTheme("pitch-light", {
               base: "vs",
               inherit: true,
               rules: [],
               colors: {
-                "editor.selectionBackground": "rgba(148,163,184,0.22)",
-                "editor.selectionHighlightBackground": "rgba(148,163,184,0.22)",
-                "editor.findMatchBackground": "rgba(148,163,184,0.18)",
+                "editor.background": "#ffffff",
+                "editor.foreground": "#111111",
+                "editorLineNumber.foreground": "#737373",
+                "editorLineNumber.activeForeground": "#111111",
+                "editorCursor.foreground": "#111111",
+                "editor.selectionBackground": "rgba(0,0,0,0.12)",
+                "editor.selectionHighlightBackground": "rgba(0,0,0,0.12)",
+                "editor.findMatchBackground": "rgba(0,0,0,0.1)",
                 "editor.findMatchBorder": "transparent",
-                "editor.findMatchHighlightBackground": "rgba(148,163,184,0.18)",
+                "editor.findMatchHighlightBackground": "rgba(0,0,0,0.1)",
                 "editor.findMatchHighlightBorder": "transparent",
-                "editor.lineHighlightBackground": "rgba(148,163,184,0.18)",
+                "editor.lineHighlightBackground": "transparent",
                 "editor.lineHighlightBorder": "transparent",
-                "editorLineNumber.activeForeground": "#60a5fa",
+                "editorIndentGuide.background": "rgba(0,0,0,0.12)",
+                "editorIndentGuide.activeBackground": "rgba(0,0,0,0.2)",
+                "editorBracketMatch.background": "transparent",
+                "editorBracketMatch.border": "transparent",
               },
             });
           }}
@@ -335,7 +362,8 @@ export default function CollaborativeEditor({
             padding: { top: 8 },
             renderLineHighlight: "none",
             renderValidationDecorations: "off",
-            bracketPairColorization: { enabled: true },
+            matchBrackets: "never",
+            bracketPairColorization: { enabled: false },
             smoothScrolling: true,
             cursorBlinking: "smooth",
             fontFamily:
@@ -346,21 +374,29 @@ export default function CollaborativeEditor({
         />
       </div>
 
-      {/* ── Typing indicator bar ───────────────────────────────────────── */}
+      {/* Typing indicator bar */}
       {typingUsers.length > 0 && (
         <div
-          className="flex items-center gap-2 px-4 py-1.5 text-xs border-t"
+          className="flex shrink-0 items-center gap-2 border-t border-black/10 px-4 py-1.5 text-xs dark:border-white/10"
           style={{
-            borderColor: theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-            background: theme === "dark" ? "#0a0a0a" : "#fafafa",
-            color: theme === "dark" ? "#a1a1aa" : "#71717a",
+            background: theme === "dark" ? "#000000" : "#ffffff",
+            color: theme === "dark" ? "#d4d4d4" : "#525252",
           }}
         >
           {/* Animated dots */}
           <span className="flex gap-0.5">
-            <span className="inline-block h-1 w-1 rounded-full animate-bounce" style={{ background: "currentColor", animationDelay: "0ms" }} />
-            <span className="inline-block h-1 w-1 rounded-full animate-bounce" style={{ background: "currentColor", animationDelay: "150ms" }} />
-            <span className="inline-block h-1 w-1 rounded-full animate-bounce" style={{ background: "currentColor", animationDelay: "300ms" }} />
+            <span
+              className="inline-block h-1 w-1 rounded-full animate-bounce"
+              style={{ background: "currentColor", animationDelay: "0ms" }}
+            />
+            <span
+              className="inline-block h-1 w-1 rounded-full animate-bounce"
+              style={{ background: "currentColor", animationDelay: "150ms" }}
+            />
+            <span
+              className="inline-block h-1 w-1 rounded-full animate-bounce"
+              style={{ background: "currentColor", animationDelay: "300ms" }}
+            />
           </span>
           <span>
             {typingUsers.length === 1

@@ -16,13 +16,18 @@ const normalizeToken = (value: string | null) => {
     // Keep original when value is already decoded.
   }
 
-  token = token.replace(/^Bearer\s+/i, "").replace(/^"|"$/g, "").trim();
+  token = token
+    .replace(/^Bearer\s+/i, "")
+    .replace(/^"|"$/g, "")
+    .trim();
   return token;
 };
 
 const findTokenFromUrl = () => {
   const searchParams = new URLSearchParams(window.location.search);
-  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const hashParams = new URLSearchParams(
+    window.location.hash.replace(/^#/, ""),
+  );
 
   const candidates = [
     searchParams.get("token"),
@@ -78,7 +83,7 @@ export default function OAuthSuccessPage() {
             response?.data?.token ||
               response?.data?.accessToken ||
               response?.data?.data?.token ||
-              null
+              null,
           );
 
           if (resolved) return resolved;
@@ -92,7 +97,10 @@ export default function OAuthSuccessPage() {
 
     const run = async () => {
       const searchParams = new URLSearchParams(window.location.search);
-      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const hashParams = new URLSearchParams(
+        window.location.hash.replace(/^#/, ""),
+      );
+      const returnTo = searchParams.get("returnTo") || "/dashboard";
       let token = findTokenFromUrl();
 
       const oauthError =
@@ -130,7 +138,7 @@ export default function OAuthSuccessPage() {
           const user = profileRes?.data?.data;
           if (user) {
             const responseToken = normalizeToken(
-              profileRes?.data?.accessToken || profileRes?.data?.token || null
+              profileRes?.data?.accessToken || profileRes?.data?.token || null,
             );
 
             if (!token && responseToken) {
@@ -138,10 +146,12 @@ export default function OAuthSuccessPage() {
             }
 
             if (user.username) localStorage.setItem("Name", user.username);
-            if (user.id || user._id) localStorage.setItem("id", user.id ?? user._id);
-            if (user.displayName) localStorage.setItem("displayName", user.displayName);
+            if (user.id || user._id)
+              localStorage.setItem("id", user.id ?? user._id);
+            if (user.displayName)
+              localStorage.setItem("displayName", user.displayName);
             if (user.avatar) localStorage.setItem("userAvatar", user.avatar);
-            router.replace("/dashboard");
+            router.replace(returnTo);
             return;
           }
         } catch {
@@ -150,7 +160,7 @@ export default function OAuthSuccessPage() {
 
         const storedToken = normalizeToken(localStorage.getItem("accessToken"));
         if (storedToken) {
-          router.replace("/dashboard");
+          router.replace(returnTo);
           return;
         }
 

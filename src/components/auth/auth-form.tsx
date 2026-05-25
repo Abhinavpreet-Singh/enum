@@ -11,9 +11,13 @@ type RegisterStep = "form" | "otp";
 
 interface AuthFormProps {
   initialMode?: AuthMode;
+  initialReturnTo?: string;
 }
 
-export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
+export default function AuthForm({
+  initialMode = "login",
+  initialReturnTo = "/dashboard",
+}: AuthFormProps) {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [registerStep, setRegisterStep] = useState<RegisterStep>("form");
@@ -27,6 +31,8 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
     password: "",
   });
 
+  const returnTo = initialReturnTo || "/dashboard";
+
   const resetRegister = () => {
     setRegisterStep("form");
     setOtpValue("");
@@ -37,7 +43,7 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
   const startOAuth = (provider: "google" | "github") => {
     setError("");
     setIsLoading(true);
-    const successRedirect = `${window.location.origin}/auth/success`;
+    const successRedirect = `${window.location.origin}/auth/success?returnTo=${encodeURIComponent(returnTo)}`;
     const failureRedirect = `${window.location.origin}/login?error=${provider}_auth_failed`;
     const url = new URL(`/auth/${provider}`, proxy);
 
@@ -106,7 +112,7 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
         response.data.data.id ?? response.data.data._id,
       );
       localStorage.setItem("accessToken", response.data.accessToken);
-      router.push("/dashboard");
+      router.push(returnTo);
     } catch (err) {
       setIsLoading(false);
       if (axios.isAxiosError(err)) {
@@ -162,7 +168,7 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
         response.data.data.id ?? response.data.data._id,
       );
       localStorage.setItem("accessToken", response.data.accessToken);
-      router.push("/dashboard");
+      router.push(returnTo);
     } catch (err) {
       setIsLoading(false);
       if (axios.isAxiosError(err)) {

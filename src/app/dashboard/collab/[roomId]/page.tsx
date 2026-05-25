@@ -2,8 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useTheme } from "@/providers/theme-provider";
+import { ArrowLeft, Check, Copy, Users } from "lucide-react";
 import CollaborativeEditor from "@/components/simulations/CollaborativeEditor";
+
+const toolbarBtn =
+  "inline-flex h-9 items-center justify-center gap-2 rounded-md border px-3 text-xs font-medium transition-colors";
+
+const toolbarBtnGhost = `${toolbarBtn} border-black/10 bg-transparent text-black hover:bg-black hover:text-white dark:border-white/10 dark:text-white dark:hover:bg-white dark:hover:text-black`;
+
+const toolbarBtnActive = `${toolbarBtn} border-black bg-black text-white dark:border-white dark:bg-white dark:text-black`;
 
 /**
  * Dynamic room page — renders the collaborative editor for a given roomId.
@@ -12,24 +19,26 @@ import CollaborativeEditor from "@/components/simulations/CollaborativeEditor";
 export default function CollabRoomPage() {
   const params = useParams<{ roomId: string }>();
   const router = useRouter();
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
 
   const [username, setUsername] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const roomId = params.roomId;
 
-  // Read username from sessionStorage
   useEffect(() => {
-    const stored = sessionStorage.getItem("collab_username");
-    if (!stored) {
-      // No username — redirect back to landing
+    const stored =
+      sessionStorage.getItem("collab_username") ||
+      localStorage.getItem("displayName") ||
+      localStorage.getItem("Name") ||
+      "";
+
+    if (!stored.trim()) {
       router.replace("/dashboard/collab");
       return;
     }
-    // Username is restored once on room entry from session storage.
+
+    sessionStorage.setItem("collab_username", stored.trim());
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setUsername(stored);
+    setUsername(stored.trim());
   }, [router]);
 
   function handleCopyLink() {
@@ -44,20 +53,14 @@ export default function CollabRoomPage() {
     router.push("/dashboard/collab");
   }
 
-  // Wait for username to load
   if (!username) {
     return (
-      <div
-        className="flex h-screen items-center justify-center"
-        style={{ background: isDark ? "#000" : "#fff" }}
-      >
+      <div className="flex h-full min-h-0 items-center justify-center bg-white text-black dark:bg-black dark:text-white">
         <div
           className="h-6 w-6 animate-spin rounded-full border-2"
           style={{
-            borderColor: isDark
-              ? "rgba(255,255,255,0.1)"
-              : "rgba(0,0,0,0.1)",
-            borderTopColor: isDark ? "#f8fafc" : "#0f172a",
+            borderColor: "rgba(0,0,0,0.12)",
+            borderTopColor: "#111111",
           }}
         />
       </div>
@@ -65,99 +68,71 @@ export default function CollabRoomPage() {
   }
 
   return (
-    <div
-      className="flex h-screen flex-col"
-      style={{ background: isDark ? "#000" : "#fff" }}
-    >
-      {/* ── Top navigation bar ───────────────────────────────────────── */}
-      <header
-        className="flex items-center justify-between border-b px-4 py-2"
-        style={{
-          borderColor: isDark
-            ? "rgba(255,255,255,0.08)"
-            : "rgba(0,0,0,0.08)",
-          background: isDark ? "#0a0a0a" : "#fafafa",
-        }}
-      >
-        <div className="flex items-center gap-3">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-white text-black dark:bg-black dark:text-white">
+      <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-black/10 bg-white px-4 dark:border-white/10 dark:bg-black">
+        {/* Left: navigation + room identity */}
+        <div className="flex min-w-0 items-center gap-3">
           <button
+            type="button"
             onClick={handleLeave}
-            className="rounded-md px-2 py-1 text-xs font-medium transition-colors hover:opacity-80"
-            style={{
-              background: isDark
-                ? "rgba(255,255,255,0.06)"
-                : "rgba(0,0,0,0.04)",
-              color: isDark ? "#a1a1aa" : "#71717a",
-            }}
+            className={toolbarBtnGhost}
+            aria-label="Back to collaboration home"
           >
-            ← Back
+            <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
+            <span className="hidden sm:inline">Back</span>
           </button>
-          <div className="flex items-center gap-2">
-            <span
-              className="text-sm font-semibold"
-              style={{ color: isDark ? "#f8fafc" : "#0f172a" }}
-            >
-              ⚡ Debug Room
+
+          <div
+            className="hidden h-5 w-px shrink-0 bg-black/10 dark:bg-white/10 sm:block"
+            aria-hidden
+          />
+
+          <div className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
+            <span className="truncate text-sm font-semibold tracking-tight">
+              Collab room
             </span>
             <span
-              className="rounded-md px-2 py-0.5 text-xs font-mono"
-              style={{
-                background: isDark
-                  ? "rgba(255,255,255,0.06)"
-                  : "rgba(0,0,0,0.04)",
-                color: isDark ? "#71717a" : "#a1a1aa",
-              }}
+              className="truncate font-mono text-[11px] text-black/55 dark:text-white/55"
+              title={roomId}
             >
               {roomId}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Copy invite link */}
+        {/* Right: actions + identity */}
+        <div className="flex shrink-0 items-center gap-2">
           <button
+            type="button"
             onClick={handleCopyLink}
-            className="rounded-md border px-3 py-1.5 text-xs font-medium transition-all hover:opacity-80"
-            style={{
-              borderColor: isDark
-                ? "rgba(255,255,255,0.1)"
-                : "rgba(0,0,0,0.1)",
-              background: copied
-                ? isDark
-                  ? "rgba(34,197,94,0.1)"
-                  : "rgba(34,197,94,0.05)"
-                : "transparent",
-              color: copied
-                ? "#22c55e"
-                : isDark
-                  ? "#a1a1aa"
-                  : "#71717a",
-            }}
+            className={copied ? toolbarBtnActive : toolbarBtnGhost}
           >
-            {copied ? "✓ Copied!" : "📋 Copy Invite Link"}
+            {copied ? (
+              <>
+                <Check className="h-3.5 w-3.5 shrink-0" />
+                <span className="hidden sm:inline">Copied</span>
+              </>
+            ) : (
+              <>
+                <Copy className="h-3.5 w-3.5 shrink-0" />
+                <span className="hidden sm:inline">Copy invite</span>
+              </>
+            )}
           </button>
 
-          {/* Current user badge */}
           <div
-            className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium"
-            style={{
-              background: isDark
-                ? "rgba(255,255,255,0.06)"
-                : "rgba(0,0,0,0.04)",
-              color: isDark ? "#d4d4d8" : "#52525b",
-            }}
-          >
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ background: "#22c55e" }}
-            />
-            {username}
+            className="hidden h-5 w-px shrink-0 bg-black/10 dark:bg-white/10 md:block"
+            aria-hidden
+          />
+
+          <div className="flex h-9 max-w-[10rem] items-center gap-2 rounded-md border border-black/10 bg-black/[0.03] px-2.5 text-xs font-medium text-black/75 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/75 sm:max-w-[12rem]">
+            <Users className="h-3.5 w-3.5 shrink-0 text-black/40 dark:text-white/40" />
+            <span className="truncate">{username}</span>
           </div>
         </div>
       </header>
 
-      {/* ── Collaborative Editor ─────────────────────────────────────── */}
-      <div className="flex-1">
+      <div className="min-h-0 flex-1 overflow-hidden">
         <CollaborativeEditor
           roomId={roomId}
           username={username}
