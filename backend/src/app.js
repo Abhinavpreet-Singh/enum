@@ -49,6 +49,10 @@ app.use(cookieParser())
 
 app.use(passport.initialize())
 
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 console.log("[app] Passport initialized");
 
 app.get("/", (req, res) => {
