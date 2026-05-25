@@ -22,7 +22,6 @@ import axios from "axios";
 import { proxy } from "@/app/proxy";
 import { browserSimulations } from "@/data/browser-simulations";
 import type { LinuxQuestion } from "@/components/linux/QuestionPanel";
-import { linuxQuestionsFallback } from "@/data/linux-questions";
 
 interface SimulationItem {
   id: string;
@@ -125,28 +124,21 @@ export default function SimulationsPage() {
       axios
         .get(`${proxy}/api/v1/simulations/getSimulations`, {
           withCredentials: true,
-        })
-        .catch(() => null),
+        }),
       axios
         .get(`${proxy}/api/v1/simulations/linux`, {
           withCredentials: true,
-        })
-        .catch(() => null),
+        }),
       axios
         .get(`${proxy}/api/v1/system-design/simulations`, {
           withCredentials: true,
-        })
-        .catch(() => null),
+        }),
     ])
       .then(([simRes, linuxRes, sdRes]) => {
         const backend: SimulationItem[] = simRes?.data?.data || [];
         const rawLinuxQuestions = (linuxRes?.data?.data ||
           []) as LinuxQuestion[];
-        const linuxSource =
-          rawLinuxQuestions.length > 0
-            ? rawLinuxQuestions
-            : linuxQuestionsFallback;
-        const linuxQuestions: SimulationItem[] = linuxSource.map(
+        const linuxQuestions: SimulationItem[] = rawLinuxQuestions.map(
           (question) => ({
             id: question.id,
             title: question.title,

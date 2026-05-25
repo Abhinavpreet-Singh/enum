@@ -7,8 +7,8 @@ import {
 
 const router = express.Router();
 
-router.get("/questions/linux", getLinuxQuestions);
-router.get("/questions/linux/:id", getLinuxQuestionById);
-router.post("/submit/linux", submitLinuxQuestion);
+router.get("/simulations/linux", getLinuxQuestions);
+router.get("/simulations/linux/:id", getLinuxQuestionById);
+router.post("/simulations/linux/submit", submitLinuxQuestion);
 
 export default router;

@@ -9,11 +9,13 @@ const configuredProxy = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 // In local development, default to the local backend unless an explicit API URL is set.
 // Production keeps the remote default so deployed builds do not accidentally point at localhost.
-const proxy = (
-  isProductionRuntime
-    ? configuredProxy || REMOTE_PROXY
-    : configuredProxy || LOCAL_PROXY
-).replace(/\/$/, "");
+// const proxy = (
+//   isProductionRuntime
+//     ? configuredProxy || REMOTE_PROXY
+//     : configuredProxy || LOCAL_PROXY
+// ).replace(/\/$/, "");
+
+const proxy = LOCAL_PROXY;
 
 console.log("API Proxy:", proxy);
 

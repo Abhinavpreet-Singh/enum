@@ -8,7 +8,6 @@ import { proxy } from "@/app/proxy";
 import QuestionPanel, { type LinuxQuestion } from "./QuestionPanel";
 import MonacoCodeEditor from "./MonacoCodeEditor";
 import OutputTerminal from "./OutputTerminal";
-import { linuxQuestionsFallback } from "@/data/linux-questions";
 
 interface LinuxArenaPageProps {
   initialQuestionId?: string;
@@ -62,37 +61,33 @@ export default function LinuxArenaPage({
   useEffect(() => {
     const fetchQuestions = async () => {
       setLoading(true);
-      try {
-        const response = await axios.get(`${proxy}/api/v1/simulations/linux`, {
-          withCredentials: true,
-        });
-        const nextQuestions = (response.data?.data ?? []) as LinuxQuestion[];
-        const resolvedQuestions =
-          nextQuestions.length > 0 ? nextQuestions : linuxQuestionsFallback;
-        setQuestions(resolvedQuestions);
+      const response = await axios.get(`${proxy}/api/v1/simulations/linux`, {
+        withCredentials: true,
+      });
+      const nextQuestions = (response.data?.data ?? []) as LinuxQuestion[];
+      setQuestions(nextQuestions);
 
-        const requested =
-          resolvedQuestions.find(
-            (question) =>
-              question.id === initialQuestionId ||
-              question.slug === initialQuestionId,
-          ) ??
-          resolvedQuestions[0] ??
-          null;
+      const requested =
+        nextQuestions.find(
+          (question) =>
+            question.id === initialQuestionId ||
+            question.slug === initialQuestionId,
+        ) ??
+        nextQuestions[0] ??
+        null;
 
-        if (requested) {
-          setSelectedQuestionId(requested.id);
-          setCode(requested.starterCode || "");
-          setExpectedOutput(requested.expectedOutput || "");
-        }
-      } catch {
-        setQuestions(linuxQuestionsFallback);
-      } finally {
-        setLoading(false);
+      if (requested) {
+        setSelectedQuestionId(requested.id);
+        setCode(requested.starterCode || "");
+        setExpectedOutput(requested.expectedOutput || "");
       }
+      setLoading(false);
     };
 
-    fetchQuestions();
+    fetchQuestions().catch((err) => {
+      console.error("Failed to fetch Linux questions:", err);
+      setLoading(false);
+    });
   }, [initialQuestionId]);
 
   useEffect(() => {
