@@ -38,8 +38,8 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
     setError("");
     setIsLoading(true);
     const successRedirect = `${window.location.origin}/auth/success`;
-    const failureRedirect = `${window.location.origin}/login?error=google_auth_failed`;
-    const url = new URL(`/api/auth/${provider}`, proxy);
+    const failureRedirect = `${window.location.origin}/login?error=${provider}_auth_failed`;
+    const url = new URL(`/auth/${provider}`, proxy);
 
     // Different backend implementations use different query key names.
     url.searchParams.set("redirect", successRedirect);
@@ -65,7 +65,9 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const raw =
-          err.response?.data?.message || err.response?.data?.error || err.message;
+          err.response?.data?.message ||
+          err.response?.data?.error ||
+          err.message;
         const lower = raw?.toLowerCase() || "";
         if (lower.includes("already exists") || err.response?.status === 409) {
           setError("An account with this email already exists. Please log in.");
@@ -87,28 +89,40 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
     setError("");
 
     try {
-      const response = await axios.post(`${proxy}/api/v1/users/register`, {
-        username: formData.username,
-        email: formData.email,
-        password: formData.password,
-        otp: otpValue,
-      }, { withCredentials: true });
+      const response = await axios.post(
+        `${proxy}/api/v1/users/register`,
+        {
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          otp: otpValue,
+        },
+        { withCredentials: true },
+      );
 
       localStorage.setItem("Name", response.data.data.username);
-      localStorage.setItem("id", response.data.data.id ?? response.data.data._id);
+      localStorage.setItem(
+        "id",
+        response.data.data.id ?? response.data.data._id,
+      );
       localStorage.setItem("accessToken", response.data.accessToken);
       router.push("/dashboard");
     } catch (err) {
       setIsLoading(false);
       if (axios.isAxiosError(err)) {
         const raw =
-          err.response?.data?.message || err.response?.data?.error || err.message;
+          err.response?.data?.message ||
+          err.response?.data?.error ||
+          err.message;
         const lower = raw?.toLowerCase() || "";
         if (lower.includes("invalid otp") || lower.includes("invalid o")) {
           setError("Invalid OTP. Please check and try again.");
         } else if (lower.includes("expired")) {
           setError("OTP has expired. Please go back and request a new one.");
-        } else if (lower.includes("already exists") || err.response?.status === 409) {
+        } else if (
+          lower.includes("already exists") ||
+          err.response?.status === 409
+        ) {
           setError("You're already a user! Please log in to continue.");
         } else {
           setError(raw || "Registration failed. Please try again.");
@@ -134,26 +148,42 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
         password: formData.password,
       };
 
-      const response = await axios.post(`${proxy}/api/v1/users/login`, payload, {
-        withCredentials: true,
-      });
+      const response = await axios.post(
+        `${proxy}/api/v1/users/login`,
+        payload,
+        {
+          withCredentials: true,
+        },
+      );
 
       localStorage.setItem("Name", response.data.data.username);
-      localStorage.setItem("id", response.data.data.id ?? response.data.data._id);
+      localStorage.setItem(
+        "id",
+        response.data.data.id ?? response.data.data._id,
+      );
       localStorage.setItem("accessToken", response.data.accessToken);
       router.push("/dashboard");
     } catch (err) {
       setIsLoading(false);
       if (axios.isAxiosError(err)) {
         const raw =
-          err.response?.data?.message || err.response?.data?.error || err.message;
+          err.response?.data?.message ||
+          err.response?.data?.error ||
+          err.message;
         const lower = raw?.toLowerCase() || "";
         if (lower.includes("password") || lower.includes("credential")) {
           setError("Invalid email/username or password. Please try again.");
-        } else if (lower.includes("not found") || lower.includes("doesn't exist")) {
-          setError("No account found. Please check your email/username or register first.");
+        } else if (
+          lower.includes("not found") ||
+          lower.includes("doesn't exist")
+        ) {
+          setError(
+            "No account found. Please check your email/username or register first.",
+          );
         } else {
-          setError("Login failed. Please check your credentials and try again.");
+          setError(
+            "Login failed. Please check your credentials and try again.",
+          );
         }
       } else {
         setError("An unexpected error occurred. Please try again later.");
@@ -291,8 +321,10 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
               <div className="mb-2">
                 <p className="text-xs font-mono text-gray-500 dark:text-neutral-400 leading-relaxed">
                   A 6-digit code was sent to{" "}
-                  <span className="text-black dark:text-white">{otpSentTo}</span>.
-                  Enter it below to verify your email.
+                  <span className="text-black dark:text-white">
+                    {otpSentTo}
+                  </span>
+                  . Enter it below to verify your email.
                 </p>
               </div>
               <div>
@@ -322,9 +354,25 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
                 className="w-full px-4 py-2 bg-black dark:bg-white text-white dark:text-black font-mono text-xs tracking-wider hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors mt-3 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isLoading && (
-                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  <svg
+                    className="animate-spin h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
                   </svg>
                 )}
                 {isLoading ? "VERIFYING..." : "VERIFY & CREATE ACCOUNT"}
