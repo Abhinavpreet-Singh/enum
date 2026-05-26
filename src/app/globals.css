@@ -198,17 +198,20 @@ html {
 }
 
 /* Dark mode scrollbar */
+.dark::-webkit-scrollbar-thumb,
 .dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.75);
   border-radius: 3px;
 }
 
+.dark::-webkit-scrollbar-thumb:hover,
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 1);
 }
 
+.dark,
 .dark * {
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.75) transparent;
 }
 
 /* Monaco selection / find highlight overrides */
@@ -229,13 +232,16 @@ html {
 }
 
 /* Smooth transitions for theme switching */
-*,
-*::before,
-*::after {
-  transition-property:
-    background-color, border-color, color, box-shadow, outline-color;
-  transition-duration: 250ms;
-  transition-timing-function: ease;
+.theme-transitioning,
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition:
+    background-color 250ms ease,
+    border-color 250ms ease,
+    color 250ms ease,
+    box-shadow 250ms ease,
+    outline-color 250ms ease !important;
 }
 
 /* DSA arena dashboard — GitHub-style contribution cell pulse */

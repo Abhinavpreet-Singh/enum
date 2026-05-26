@@ -10,20 +10,17 @@ import { useTheme } from "@/providers/theme-provider";
 import { Menu, Moon, Sun, X } from "lucide-react";
 
 function ThemeButton() {
-  const { theme, toggleTheme } = useTheme();
+  const { toggleTheme } = useTheme();
 
   return (
     <button
       type="button"
       onClick={toggleTheme}
       aria-label="Toggle dark mode"
-      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-black transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-sm dark:border-gray-700 dark:bg-black dark:text-white dark:hover:border-gray-500 dark:hover:bg-gray-900 cursor-pointer"
+      className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-black transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-sm dark:border-gray-700 dark:bg-black dark:text-white dark:hover:border-gray-500 dark:hover:bg-gray-900 cursor-pointer"
     >
-      {theme === "dark" ? (
-        <Sun className="h-4.5 w-4.5" />
-      ) : (
-        <Moon className="h-4.5 w-4.5" />
-      )}
+      <Sun className="h-4.5 w-4.5 rotate-0 scale-100 transition-all duration-300 dark:-rotate-90 dark:scale-0" />
+      <Moon className="absolute h-4.5 w-4.5 rotate-90 scale-0 transition-all duration-300 dark:rotate-0 dark:scale-100" />
     </button>
   );
 }
@@ -216,6 +213,8 @@ export default function Header() {
           </nav>
 
           <div className="flex items-center justify-end gap-2 md:gap-3">
+            <ThemeButton />
+
             {!isAuthenticated ? (
               <div className="hidden items-center gap-3 md:flex md:gap-4">
                 <DownloadButton />
@@ -280,7 +279,6 @@ export default function Header() {
             )}
 
             <div className="flex items-center gap-2 md:hidden">
-              <ThemeButton />
               <button
                 type="button"
                 onClick={() => setIsMobileMenuOpen((open) => !open)}

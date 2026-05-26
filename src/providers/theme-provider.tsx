@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useLayoutEffect, useState } from "react";
 
 type Theme = "light" | "dark";
 
@@ -11,6 +11,15 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+function applyTheme(theme: Theme) {
+  const root = document.documentElement;
+  const isDark = theme === "dark";
+
+  root.classList.toggle("dark", isDark);
+  root.style.colorScheme = isDark ? "dark" : "light";
+  root.style.backgroundColor = isDark ? "#000000" : "#ffffff";
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window === "undefined") return "light";
@@ -18,14 +27,28 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return savedTheme === "dark" ? "dark" : "light";
   });
 
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
+  useLayoutEffect(() => {
+    applyTheme(theme);
+    localStorage.setItem("theme", theme);
   }, [theme]);
 
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
+    
+    if (typeof window !== "undefined") {
+      const root = document.documentElement;
+      root.classList.add("theme-transitioning");
+      
+      applyTheme(newTheme);
+      setTheme(newTheme);
+      
+      setTimeout(() => {
+        root.classList.remove("theme-transitioning");
+      }, 250);
+    } else {
+      applyTheme(newTheme);
+      setTheme(newTheme);
+    }
   };
 
   return (

@@ -5,6 +5,7 @@ import LatestIncidentsSection from "@/components/home/latest-incidents-section";
 import WhyEnumSection from "@/components/home/why-enum-section";
 import HowItWorksSection from "@/components/home/how-it-works-section";
 import BenefitsSection from "@/components/home/benefits-section";
+import FeaturesSection from "@/components/home/features-section";
 
 export default function Home() {
   return (
@@ -13,6 +14,7 @@ export default function Home() {
       <main>
         <HeroSection />
         <HowItWorksSection />
+        <FeaturesSection />
         <LatestIncidentsSection />
         <BenefitsSection />
         <WhyEnumSection />
