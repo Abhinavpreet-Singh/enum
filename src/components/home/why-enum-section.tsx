@@ -1,11 +1,12 @@
 "use client";
 
 const features = [
-  "Real codebases, not snippets",
-  "Live preview + production logs",
-  "Multiple valid solutions accepted",
-  "Replay-based evaluation",
-  "Job-ready technical training",
+  "Real codebases & environments, not snippets",
+  "Interactive terminals, live preview + production logs",
+  "React Flow-based system design challenges",
+  "LeetCode-style DSA Arena with complexity analysis",
+  "Real-time multiplayer coding collaboration",
+  "Production incident triage & incident ops simulations",
 ];
 
 export default function WhyEnumSection() {

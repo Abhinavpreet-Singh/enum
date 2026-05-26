@@ -1,25 +1,43 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import useAuth from "@/hooks/useAuth";
 
 export default function Footer() {
   const isAuthenticated = useAuth();
   const simulationsHref = isAuthenticated ? "/dashboard/simulations" : "/login";
-  const tracksHref = isAuthenticated ? "/dashboard/tracks" : "/login";
+  const incidentsHref = isAuthenticated ? "/dashboard/incidents" : "/login";
   const dsaHref = isAuthenticated ? "/dashboard/dsa-arena" : "/login";
+  const leaderboardHref = isAuthenticated ? "/dashboard/leaderboard" : "/login";
+  const collabHref = isAuthenticated ? "/dashboard/collab" : "/login";
 
   return (
-    <footer className="border-t border-white dark:border-white bg-gray-50 dark:bg-black">
-      <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-12 md:py-16">
+    <footer className="border-t border-white dark:border-white bg-gray-50 dark:bg-black px-4 md:px-6">
+      <div className="max-w-7xl mx-auto py-12 md:py-16">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-12">
           {/* Brand column */}
           <div className="md:col-span-1">
             <Link
               href="/"
-              className="text-lg md:text-xl font-bold mb-3 md:mb-4 inline-block text-black dark:text-white"
+              className="flex min-w-0 items-center gap-1 text-black transition-opacity hover:opacity-80 dark:text-white mb-4"
             >
-              ENUM
+              <Image
+                src="/lgogo.png"
+                alt="Enum logo"
+                width={34}
+                height={34}
+                className="h-8 w-8 shrink-0 -translate-y-0.5 object-contain md:h-9 md:w-9"
+              />
+              <span
+                className="flex items-center select-none text-[24px] font-bold leading-none md:text-[26px]"
+                style={{ letterSpacing: "-0.085em", transform: "scaleX(0.9)" }}
+              >
+                <span>E</span>
+                <span className="font-medium italic">N</span>
+                <span>U</span>
+                <span>M</span>
+              </span>
             </Link>
             <p className="text-xs md:text-sm text-gray-700 dark:text-gray-400 leading-relaxed">
               The flight simulator for software engineers.
@@ -44,10 +62,10 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href={tracksHref}
+                  href={incidentsHref}
                   className="text-xs md:text-sm text-gray-700 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
                 >
-                  Tracks
+                  Incidents
                 </Link>
               </li>
               <li>
@@ -56,6 +74,22 @@ export default function Footer() {
                   className="text-xs md:text-sm text-gray-700 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
                 >
                   DSA Arena
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href={leaderboardHref}
+                  className="text-xs md:text-sm text-gray-700 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
+                >
+                  Leaderboard
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href={collabHref}
+                  className="text-xs md:text-sm text-gray-700 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
+                >
+                  Collaboration
                 </Link>
               </li>
             </ul>

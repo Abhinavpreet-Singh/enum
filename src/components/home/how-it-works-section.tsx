@@ -17,9 +17,9 @@ const steps = [
         />
       </svg>
     ),
-    title: "1. Choose a role",
+    title: "1. Choose a track",
     description:
-      "Select from Frontend, Backend, or DevOps tracks. Each simulation mirrors a real job ticket.",
+      "Select from Frontend, Backend, Linux, or System Design. Every simulation mirrors a real-world scenario.",
   },
   {
     icon: (
@@ -37,9 +37,9 @@ const steps = [
         />
       </svg>
     ),
-    title: "2. Debug live apps",
+    title: "2. Investigate & debug",
     description:
-      "No puzzles. You get full access to a codebase, logs, and a broken production environment.",
+      "Access a live terminal, read logs, edit code, or design architecture graphs inside an interactive sandbox.",
   },
   {
     icon: (
@@ -57,9 +57,9 @@ const steps = [
         />
       </svg>
     ),
-    title: "3. Fix & Verify",
+    title: "3. Verify & deploy",
     description:
-      "Deploy your fix. Our engine runs regression tests and evaluates your solution instantly.",
+      "Submit your solution. Our automated tests evaluate your code or design instantly to award XP.",
   },
 ];
 

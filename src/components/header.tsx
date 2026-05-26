@@ -41,8 +41,9 @@ export default function Header() {
 
   const navLinks = [
     { href: "/#how-it-works", label: "HOW IT WORKS" },
-    { href: "/#simulations", label: "LATEST INCIDENTS" },
-    { href: "/#colleges", label: "WHO BENEFITS" },
+    { href: "/#features", label: "FEATURES" },
+    { href: "/#simulations", label: "SIMULATIONS" },
+    { href: "/#colleges", label: "BENEFITS" },
   ];
 
   const handleHomeAnchorClick = (
@@ -60,7 +61,7 @@ export default function Header() {
     e.preventDefault();
     section.scrollIntoView({
       behavior: "smooth",
-      block: hash === "colleges" ? "start" : "center",
+      block: "start",
     });
     window.history.replaceState({}, "", href);
   };
@@ -172,8 +173,8 @@ export default function Header() {
   );
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-md dark:border-gray-600 dark:bg-black/95">
-      <div className="mx-auto max-w-7xl px-3 py-3 md:px-4 md:py-4">
+    <header className="fixed top-0 left-0 right-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-md dark:border-gray-600 dark:bg-black/95 px-4 md:px-6">
+      <div className="mx-auto max-w-7xl py-3 md:py-4">
         <div className="grid grid-cols-[1fr_auto] items-center gap-3 md:grid-cols-3">
           <Link
             href="/"
@@ -205,7 +206,7 @@ export default function Header() {
                 key={href}
                 href={href}
                 onClick={(e) => handleHomeAnchorClick(e, href)}
-                className="font-mono text-xs font-medium tracking-[0.03em] text-gray-500 transition-colors hover:text-black dark:text-gray-400 dark:hover:text-white"
+                className="font-mono text-xs font-medium tracking-[0.03em] text-gray-500 transition-colors hover:text-black dark:text-gray-400 dark:hover:text-white whitespace-nowrap"
               >
                 {label}
               </Link>
