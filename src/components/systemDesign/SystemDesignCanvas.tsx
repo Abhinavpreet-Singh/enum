@@ -42,10 +42,11 @@ export interface CanvasHandle {
 
 interface SystemDesignCanvasProps {
   onNodeSelect?: (node: SystemDesignNode | null) => void;
+  onGraphChange?: (nodes: SystemDesignNode[], edges: SystemDesignEdge[]) => void;
 }
 
 function CanvasInner(
-  { onNodeSelect }: SystemDesignCanvasProps,
+  { onNodeSelect, onGraphChange }: SystemDesignCanvasProps,
   ref: React.Ref<CanvasHandle>,
 ) {
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -55,6 +56,11 @@ function CanvasInner(
   );
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const replayLog = useRef<ReplayEvent[]>([]);
+
+  // Trigger real-time callback when nodes or edges change
+  useEffect(() => {
+    onGraphChange?.(nodes as SystemDesignNode[], edges as SystemDesignEdge[]);
+  }, [nodes, edges, onGraphChange]);
 
   const nodeTypes = useMemo(() => NODE_TYPES, []);
 
@@ -190,6 +196,18 @@ function CanvasInner(
     [logEvent],
   );
 
+  const onEdgeDoubleClick = useCallback(
+    (event: React.MouseEvent, edge: any) => {
+      setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+      logEvent({
+        type: "edge_remove",
+        timestamp: Date.now(),
+        data: { edgeId: edge.id },
+      });
+    },
+    [setEdges, logEvent],
+  );
+
   return (
     <div ref={wrapperRef} className="w-full h-full">
       <ReactFlow
@@ -204,6 +222,7 @@ function CanvasInner(
         onSelectionChange={onSelectionChange}
         onNodesDelete={onNodesDelete}
         onEdgesDelete={onEdgesDelete}
+        onEdgeDoubleClick={onEdgeDoubleClick}
         nodeTypes={nodeTypes}
         defaultViewport={{ x: 80, y: 60, zoom: 0.65 }}
         minZoom={0.2}

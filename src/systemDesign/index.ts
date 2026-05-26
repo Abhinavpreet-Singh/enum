@@ -12,3 +12,5 @@ export type {
   FeedbackItem,
   ReplayEvent,
 } from "./types";
+export { analyzeArchitecture } from "./architectureAnalyzer";
+export type { AuditCheckResult } from "./architectureAnalyzer";
