@@ -16,6 +16,7 @@ interface RevealScreenProps {
   scenarioLabel?: string;
   xpEarned?: number;
   xpAlreadyAwarded?: boolean;
+  onTryAgain?: () => void;
   onClose: () => void;
 }
 
@@ -32,6 +33,7 @@ export default function RevealScreen({
   scenarioLabel,
   xpEarned,
   xpAlreadyAwarded,
+  onTryAgain,
   onClose,
 }: RevealScreenProps) {
   const completionTime = Math.floor(session.elapsedTime);
@@ -257,17 +259,29 @@ export default function RevealScreen({
           </div>
 
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {onTryAgain ? (
+              <button
+                type="button"
+                onClick={onTryAgain}
+                className="rounded-lg bg-black py-3 text-center font-mono text-xs font-medium text-white dark:bg-white dark:text-black"
+              >
+                {xpAlreadyClaimed || (session.xpAwarded && displayXp === 0)
+                  ? "Try again (practice)"
+                  : "Try again"}
+              </button>
+            ) : (
+              <Link
+                href="/dashboard/incidents"
+                className="rounded-lg bg-black py-3 text-center font-mono text-xs font-medium text-white dark:bg-white dark:text-black"
+              >
+                Try another incident
+              </Link>
+            )}
             <Link
               href="/dashboard/incidents"
-              className="rounded-lg bg-black py-3 text-center font-mono text-xs font-medium text-white dark:bg-white dark:text-black"
-            >
-              Try another incident
-            </Link>
-            <Link
-              href="/dashboard"
               className="rounded-lg border border-gray-200 bg-white py-3 text-center font-mono text-xs dark:border-white/20 dark:bg-[#0a0a0a]"
             >
-              Dashboard
+              All incidents
             </Link>
           </div>
         </div>

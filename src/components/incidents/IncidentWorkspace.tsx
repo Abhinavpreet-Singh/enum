@@ -108,7 +108,7 @@ export default function IncidentWorkspace({
 
         const response = await axios.post(
           `${proxy}/api/v1/incidents/${incident.id}/session`,
-          {},
+          { restart: false },
           { headers: { Authorization: `Bearer ${token}` } },
         );
 
@@ -117,8 +117,14 @@ export default function IncidentWorkspace({
         const newState = payload.state;
         setSession(newSession);
         if (newState) setState(newState);
-        setIsRunning(!newSession.isCompleted);
-        setIsCompleted(Boolean(newSession.isCompleted));
+        const completed = Boolean(newSession.isCompleted);
+        setIsCompleted(completed);
+        setIsRunning(!completed && Boolean(newSession.isActive));
+        if (completed) {
+          setShowReveal(true);
+          setDiagnosisSubmitted(Boolean(newSession.selectedRootCauseId));
+          if (newSession.correctDiagnosis) setShowActionsPanel(true);
+        }
       } catch (err) {
         const message =
           axios.isAxiosError(err) && err.response?.data?.message
@@ -200,7 +206,7 @@ export default function IncidentWorkspace({
       const token = localStorage.getItem("accessToken");
       const response = await axios.post(
         `${proxy}/api/v1/incidents/${incident.id}/session`,
-        {},
+        { restart: true },
         { headers: { Authorization: `Bearer ${token}` } },
       );
 
@@ -213,6 +219,8 @@ export default function IncidentWorkspace({
       setShowReveal(false);
       setDiagnosisSubmitted(false);
       setShowActionsPanel(false);
+      setLastXpEarned(0);
+      setXpAlreadyAwarded(Boolean(newSession.xpAwarded));
     } catch {
       setError("Failed to reset session");
     } finally {
@@ -350,6 +358,7 @@ export default function IncidentWorkspace({
         scenarioLabel={scenarioLabel}
         xpEarned={lastXpEarned}
         xpAlreadyAwarded={xpAlreadyAwarded}
+        onTryAgain={handleReset}
         onClose={() => {
           window.location.href = "/dashboard/incidents";
         }}
@@ -430,9 +439,14 @@ export default function IncidentWorkspace({
             </button>
           </div>
 
+          {(session.attempts ?? 0) > 0 && !isCompleted && (
+            <span className="hidden font-mono text-[10px] text-gray-500 sm:inline">
+              Run #{(session.attempts ?? 0) + 1} (no extra XP)
+            </span>
+          )}
           {session.xpAwarded ? (
             <span className="hidden rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-300 sm:inline">
-              Done
+              XP earned
             </span>
           ) : (
             <span className="hidden font-mono text-[10px] text-gray-500 sm:inline">

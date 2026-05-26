@@ -231,6 +231,7 @@ const getIncident = asyncHandler(async (req, res) => {
 const startIncidentSession = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user?.id;
+  const restart = req.body?.restart === true;
 
   if (!userId) {
     throw new ApiError(401, "User must be authenticated");
@@ -240,7 +241,6 @@ const startIncidentSession = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Incident ID is required");
   }
 
-  // Verify incident exists
   const incident = await prisma.incidentSimulation.findUnique({
     where: { id },
     include: {
@@ -252,22 +252,11 @@ const startIncidentSession = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Incident simulation not found");
   }
 
-  // Check if user already has an active session
   const existingSession = await prisma.incidentSession.findUnique({
     where: {
       userId_incidentId: { userId, incidentId: id },
     },
   });
-
-  if (existingSession && existingSession.isActive) {
-    const state = await prisma.incidentSessionState.findUnique({
-      where: { sessionId: existingSession.id },
-    });
-    return res.status(200).json({
-      message: "Existing session found",
-      data: { session: existingSession, state },
-    });
-  }
 
   const initialStateData = {
     currentTime: 0,
@@ -277,7 +266,28 @@ const startIncidentSession = asyncHandler(async (req, res) => {
     activeAlerts: [],
   };
 
-  if (existingSession) {
+  const loadState = async (sessionId) =>
+    prisma.incidentSessionState.findUnique({
+      where: { sessionId },
+    });
+
+  // Resume in-progress or review last completed run — no reset unless restart=true
+  if (existingSession && !restart) {
+    const state =
+      (await loadState(existingSession.id)) ??
+      (await prisma.incidentSessionState.create({
+        data: { sessionId: existingSession.id, ...initialStateData },
+      }));
+
+    return res.status(200).json({
+      message: existingSession.isCompleted
+        ? "Existing completed session"
+        : "Existing session resumed",
+      data: { session: existingSession, state },
+    });
+  }
+
+  if (existingSession && restart) {
     const session = await prisma.incidentSession.update({
       where: { id: existingSession.id },
       data: {
@@ -303,7 +313,7 @@ const startIncidentSession = asyncHandler(async (req, res) => {
 
     return res.status(200).json({
       message: "Incident session reset for new attempt",
-      data: { session, state },
+      data: { session, state, restarted: true },
     });
   }
 
