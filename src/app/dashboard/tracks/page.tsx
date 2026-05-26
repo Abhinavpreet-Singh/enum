@@ -1,6 +1,10 @@
 "use client";
 
 import {
+  DashboardPageHeader,
+  DashboardPageShell,
+} from "@/components/dashboard/dashboard-page-shell";
+import {
   Lock,
   ChevronRight,
   Layers,
@@ -100,20 +104,12 @@ const TRACKS = [
 
 export default function TracksPage() {
   return (
-    <div className="min-h-screen bg-white dark:bg-black">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Header */}
-        <div className="mb-2">
-          <p className="font-mono text-[10px] tracking-[0.3em] text-gray-400 uppercase mb-1">
-            Dashboard / Tracks
-          </p>
-          <h1 className="text-2xl md:text-3xl font-bold text-black dark:text-white tracking-tight">
-            Learning Tracks
-          </h1>
-          <p className="font-mono text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Structured paths to master engineering disciplines end-to-end
-          </p>
-        </div>
+    <DashboardPageShell className="space-y-6">
+      <DashboardPageHeader
+        breadcrumb="Dashboard / Tracks"
+        title="Learning Tracks"
+        description="Structured paths to master engineering disciplines end-to-end"
+      />
 
         {/* Stat bar */}
         <div className="flex items-center gap-6 font-mono text-xs border-y border-gray-100 dark:border-white/5 py-3">
@@ -222,10 +218,9 @@ export default function TracksPage() {
         </div>
 
         {/* Coming soon note */}
-        <p className="font-mono text-[10px] text-gray-400 dark:text-gray-600 tracking-widest text-center pt-2">
-          MORE TRACKS COMING SOON — LOCKED TRACKS UNLOCK AS YOU PROGRESS
-        </p>
-      </div>
-    </div>
+      <p className="pt-2 text-center font-mono text-[10px] tracking-widest text-gray-400 dark:text-gray-600">
+        MORE TRACKS COMING SOON — LOCKED TRACKS UNLOCK AS YOU PROGRESS
+      </p>
+    </DashboardPageShell>
   );
 }

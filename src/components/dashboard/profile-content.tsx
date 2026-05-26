@@ -631,7 +631,7 @@ export default function ProfileContent() {
   }
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-full w-full min-w-0 max-w-full overflow-x-hidden">
       <div
         className="absolute inset-0 opacity-[0.03] pointer-events-none"
         style={{
@@ -641,9 +641,9 @@ export default function ProfileContent() {
         }}
       />
 
-      <div className="relative z-10 pb-10">
+      <div className="relative z-10 w-full min-w-0 pb-10">
         {/* Main grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
+        <div className="grid w-full min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
           {/* LEFT: Profile card */}
           <div className="space-y-4">
             {/* Identity card */}

@@ -1,9 +1,10 @@
 import ProfileContent from "@/components/dashboard/profile-content";
+import { DashboardPageShell } from "@/components/dashboard/dashboard-page-shell";
 
 export default function ProfilePage() {
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <DashboardPageShell>
       <ProfileContent />
-    </div>
+    </DashboardPageShell>
   );
 }

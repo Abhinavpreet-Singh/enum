@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
 import { Code2, PlayCircle, Zap, Medal } from "lucide-react";
+import {
+  DashboardPageHeader,
+  DashboardPageShell,
+} from "@/components/dashboard/dashboard-page-shell";
 
 interface LeaderboardEntry {
   _id: string;
@@ -106,45 +110,33 @@ export default function LeaderboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-black">
-        <div className="max-w-4xl mx-auto px-4 py-10 space-y-3">
-          <div className="h-7 w-48 bg-gray-100 dark:bg-white/5 animate-pulse mb-6" />
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-14 bg-gray-100 dark:bg-white/5 animate-pulse"
-            />
-          ))}
-        </div>
-      </div>
+      <DashboardPageShell className="space-y-6">
+        <div className="h-7 w-48 animate-pulse bg-gray-100 dark:bg-white/5" />
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div
+            key={i}
+            className="h-14 animate-pulse bg-gray-100 dark:bg-white/5"
+          />
+        ))}
+      </DashboardPageShell>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white dark:bg-black">
-        <div className="max-w-4xl mx-auto px-4 py-10">
-          <p className="font-mono text-sm text-red-500">{error}</p>
-        </div>
-      </div>
+      <DashboardPageShell>
+        <p className="font-mono text-sm text-red-500">{error}</p>
+      </DashboardPageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-        {/* Header */}
-        <div>
-          <p className="font-mono text-[10px] tracking-[0.3em] text-gray-400 uppercase mb-1">
-            Dashboard / Leaderboard
-          </p>
-          <h1 className="text-2xl md:text-3xl font-bold text-black dark:text-white tracking-tight">
-            Leaderboard
-          </h1>
-          <p className="font-mono text-xs text-gray-500 dark:text-gray-400 mt-1">
-            {entries.length} developers ranked by XP
-          </p>
-        </div>
+    <DashboardPageShell className="space-y-6">
+      <DashboardPageHeader
+        breadcrumb="Dashboard / Leaderboard"
+        title="Leaderboard"
+        description={`${entries.length} developers ranked by XP`}
+      />
 
         {/* XP legend */}
         <div className="flex flex-wrap gap-x-4 gap-y-2 font-mono text-[11px] text-gray-400 dark:text-gray-500 border border-gray-100 dark:border-white/8 px-4 py-3 bg-white dark:bg-[#111]">
@@ -321,7 +313,6 @@ export default function LeaderboardPage() {
             </p>
           </div>
         )}
-      </div>
-    </div>
+    </DashboardPageShell>
   );
 }

@@ -69,6 +69,12 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
       href: "/dashboard/collab",
       matchExact: false,
     },
+    {
+      icon: History,
+      label: "Activity",
+      href: "/dashboard/activity",
+      matchExact: false,
+    },
   ]);
   const [hovered, setHovered] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -328,38 +334,6 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
                 </p>
               </div>
             </div>
-          </Link>
-
-          <Link
-            href="/dashboard/activity"
-            onClick={() => {
-              if (!pinned) setHovered(false);
-            }}
-            className={`mx-3 mb-2 flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-all ${
-              pathname === "/dashboard/activity"
-                ? "border-gray-200 bg-gray-50 dark:border-white dark:bg-white/[0.04]"
-                : "border-transparent hover:border-gray-200 hover:bg-gray-50 dark:hover:border-white dark:hover:bg-white/[0.03]"
-            }`}
-            title="Activity history"
-          >
-            <History
-              className={`h-4 w-4 shrink-0 ${
-                pathname === "/dashboard/activity"
-                  ? "text-black dark:text-white"
-                  : "text-gray-500"
-              }`}
-            />
-            <span
-              className={`font-mono text-xs tracking-wide transition-opacity duration-300 ${
-                expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
-              } ${
-                pathname === "/dashboard/activity"
-                  ? "font-medium text-black dark:text-white"
-                  : "text-gray-600 dark:text-gray-400"
-              }`}
-            >
-              Activity
-            </span>
           </Link>
 
           {/* Bottom Actions */}

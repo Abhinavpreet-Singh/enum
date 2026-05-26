@@ -12,6 +12,10 @@ import { Question } from "@/data/dsa-questions";
 import { Plus, List, BarChart3, Bug } from "lucide-react";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
+import {
+  DashboardPageHeader,
+  DashboardPageShell,
+} from "@/components/dashboard/dashboard-page-shell";
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<
@@ -44,14 +48,12 @@ export default function AdminPage() {
 
   return (
     <>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-black mb-2">Admin Panel</h1>
-          <p className="font-mono text-sm text-gray-600 tracking-wide">
-            MANAGE DSA QUESTIONS & SIMULATIONS
-          </p>
-        </div>
+      <DashboardPageShell maxWidth="7xl">
+        <DashboardPageHeader
+          breadcrumb="Dashboard / Admin"
+          title="Admin Panel"
+          description="Manage DSA questions & simulations"
+        />
 
         {/* Section Labels */}
         <div className="mb-2">
@@ -140,7 +142,7 @@ export default function AdminPage() {
           />
         )}
         {activeTab === "stats" && <AdminStats />}
-      </div>
+      </DashboardPageShell>
 
       {/* Edit Question Modal */}
       {editingQuestion && (

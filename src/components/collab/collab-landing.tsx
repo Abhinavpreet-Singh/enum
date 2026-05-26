@@ -6,13 +6,13 @@ import { v4 as uuidv4 } from "uuid";
 import { ArrowRight, Check, KeyRound, Plus, User } from "lucide-react";
 
 const inputClass =
-  "h-11 w-full border border-black/10 bg-transparent px-4 text-sm text-black outline-none transition-colors placeholder:text-black/30 focus:border-black dark:border-white/10 dark:text-white dark:placeholder:text-white/30 dark:focus:border-white";
+  "h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 font-mono text-sm text-black outline-none transition-colors placeholder:text-gray-400 focus:border-black dark:border-white/10 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-white";
 
 const btnPrimaryClass =
-  "inline-flex h-11 w-full items-center justify-center gap-2 border border-black bg-black px-4 text-sm font-semibold tracking-[0.06em] text-white transition-[transform,background-color] hover:-translate-y-px hover:bg-black/90 disabled:pointer-events-none disabled:opacity-50 dark:border-white dark:bg-white dark:text-black dark:hover:bg-white/90";
+  "inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-black bg-black px-4 font-mono text-sm font-medium text-white transition-colors hover:bg-black/90 disabled:pointer-events-none disabled:opacity-50 dark:border-white dark:bg-white dark:text-black dark:hover:bg-white/90";
 
 const btnSecondaryClass =
-  "inline-flex h-11 shrink-0 items-center justify-center gap-2 border border-black/10 bg-transparent px-5 text-sm font-semibold tracking-[0.06em] text-black transition-[transform,background-color] hover:-translate-y-px hover:border-black hover:bg-black hover:text-white dark:border-white/10 dark:text-white dark:hover:border-white dark:hover:bg-white dark:hover:text-black";
+  "inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-transparent px-5 font-mono text-sm font-medium text-black transition-colors hover:border-black hover:bg-gray-50 dark:border-white/10 dark:text-white dark:hover:border-white dark:hover:bg-white/[0.06]";
 
 function normalizeRoomId(value: string) {
   return value.trim().replace(/\s+/g, "");
@@ -145,20 +145,11 @@ export default function CollabLanding() {
   }, []);
 
   return (
-    <div className="relative h-full min-h-0 overflow-hidden text-black dark:text-white">
-      <main className="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col justify-center px-4 py-6 md:px-8">
-        <section className="flex flex-col gap-6 border border-black/10 bg-white/95 p-6 shadow-[0_16px_60px_rgba(0,0,0,0.06)] backdrop-blur dark:border-white/10 dark:bg-black/90 md:p-8">
-          {/* Hero */}
-          <header className="border-b border-black/10 pb-6 dark:border-white/10">
-            <h1 className="text-4xl font-semibold tracking-[-0.08em] text-black dark:text-white md:text-6xl">
-              Collaboration
-            </h1>
-          </header>
-
+    <section className="flex flex-col gap-6 border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-black md:p-8">
           {/* Display name */}
           <form onSubmit={handleNameSubmit} className="space-y-3">
             <label className="block space-y-2">
-              <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-black/50 dark:text-white/50">
+              <span className="flex items-center gap-2 font-mono text-[10px] font-medium uppercase tracking-widest text-gray-500 dark:text-gray-400">
                 <User className="h-3.5 w-3.5" />
                 Display name
               </span>
@@ -188,7 +179,7 @@ export default function CollabLanding() {
                 </button>
               </div>
             </label>
-            <p className="text-xs text-black/45 dark:text-white/45">
+            <p className="font-mono text-xs text-gray-500 dark:text-gray-400">
               Required before creating or joining a room.
             </p>
             {error ? (
@@ -205,7 +196,7 @@ export default function CollabLanding() {
           {/* Create / Join cards */}
           <div className="grid gap-4 md:grid-cols-2 md:gap-5">
             <article
-              className="flex flex-col border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-black md:p-6"
+              className="flex flex-col rounded-xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-black md:p-6"
               style={{ minHeight: "17rem" }}
             >
               <div className="flex items-start justify-between gap-3">
@@ -217,10 +208,10 @@ export default function CollabLanding() {
                 </div>
               </div>
               <div className="mt-4 space-y-2">
-                <h2 className="text-xl font-semibold tracking-[-0.05em]">
+                <h2 className="font-mono text-lg font-semibold text-black dark:text-white">
                   Create a room
                 </h2>
-                <p className="text-sm leading-6 text-black/60 dark:text-white/60">
+                <p className="font-mono text-sm leading-6 text-gray-600 dark:text-gray-400">
                   Spin up a new private session and share the link with your
                   team.
                 </p>
@@ -238,7 +229,7 @@ export default function CollabLanding() {
             </article>
 
             <article
-              className="flex flex-col border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-black md:p-6"
+              className="flex flex-col rounded-xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-black md:p-6"
               style={{ minHeight: "17rem" }}
             >
               <div className="flex items-start justify-between gap-3">
@@ -250,10 +241,10 @@ export default function CollabLanding() {
                 </div>
               </div>
               <div className="mt-4 space-y-2">
-                <h2 className="text-xl font-semibold tracking-[-0.05em]">
+                <h2 className="font-mono text-lg font-semibold text-black dark:text-white">
                   Join a room
                 </h2>
-                <p className="text-sm leading-6 text-black/60 dark:text-white/60">
+                <p className="font-mono text-sm leading-6 text-gray-600 dark:text-gray-400">
                   Paste an invite link or enter the room code from a teammate.
                 </p>
               </div>
@@ -283,8 +274,6 @@ export default function CollabLanding() {
               </span>
             </p>
           ) : null}
-        </section>
-      </main>
-    </div>
+    </section>
   );
 }

@@ -9,9 +9,12 @@ import {
   MinusCircle,
   Zap,
   Loader2,
-  History,
 } from "lucide-react";
 import type { ActivityLogEntry } from "@/types/activity";
+import {
+  DashboardPageHeader,
+  DashboardPageShell,
+} from "@/components/dashboard/dashboard-page-shell";
 
 const TYPE_LABEL: Record<string, string> = {
   dsa: "DSA Arena",
@@ -94,100 +97,92 @@ export default function ActivityPage() {
   const hasMore = logs.length < total;
 
   return (
-    <div className="min-h-full bg-white dark:bg-black">
-      <div className="mx-auto max-w-3xl px-6 py-8 pb-16">
-        <div className="mb-8 flex items-start gap-3">
-          <History className="mt-1 h-6 w-6 text-black dark:text-white" />
-          <div>
-            <h1 className="font-mono text-2xl font-bold text-black dark:text-white">
-              Activity
-            </h1>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Every submission on Enum — correct, partial, or incorrect — with XP
-              earned when applicable.
-            </p>
-            {!loading && (
-              <p className="mt-2 font-mono text-xs text-gray-500">
-                {total} total {total === 1 ? "entry" : "entries"}
-              </p>
-            )}
-          </div>
+    <DashboardPageShell maxWidth="6xl">
+      <DashboardPageHeader
+        breadcrumb="Dashboard / Activity"
+        title="Activity"
+        description="Every submission on Enum — correct, partial, or incorrect — with XP earned when applicable."
+      >
+        {!loading && (
+          <p className="font-mono text-xs text-gray-500">
+            {total} total {total === 1 ? "entry" : "entries"}
+          </p>
+        )}
+      </DashboardPageHeader>
+
+      {loading && (
+        <div className="flex justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
         </div>
+      )}
 
-        {loading && (
-          <div className="flex justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-          </div>
-        )}
+      {error && !loading && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 font-mono text-sm text-red-800 dark:border-red-500/30 dark:bg-red-950/30 dark:text-red-200">
+          {error}
+        </p>
+      )}
 
-        {error && !loading && (
-          <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-950/30 dark:text-red-200">
-            {error}
-          </p>
-        )}
+      {!loading && !error && logs.length === 0 && (
+        <p className="font-mono text-sm text-gray-500">
+          No activity yet. Solve a DSA problem, run a simulation, or complete an
+          incident to see your history here.
+        </p>
+      )}
 
-        {!loading && !error && logs.length === 0 && (
-          <p className="font-mono text-sm text-gray-500">
-            No activity yet. Solve a DSA problem, run a simulation, or complete an
-            incident to see your history here.
-          </p>
-        )}
-
-        <ul className="space-y-2">
-          {logs.map((log) => (
-            <li
-              key={log.id}
-              className="flex gap-3 rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-3 dark:border-white/10 dark:bg-white/[0.03]"
-            >
-              <div className="pt-0.5">{outcomeIcon(log.outcome)}</div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="font-mono text-sm font-medium text-black dark:text-white">
-                    {log.resourceTitle || "Untitled"}
-                  </p>
-                  {log.xpEarned > 0 && (
-                    <span className="flex shrink-0 items-center gap-1 font-mono text-xs font-semibold text-amber-600 dark:text-amber-400">
-                      <Zap className="h-3 w-3" />+{log.xpEarned} XP
-                    </span>
-                  )}
-                </div>
-                <p className="mt-0.5 font-mono text-[11px] text-gray-500">
-                  {TYPE_LABEL[log.activityType] ?? log.activityType}
-                  <span className="mx-1.5">·</span>
-                  {OUTCOME_LABEL[log.outcome] ?? log.outcome}
-                  {log.score != null && log.maxScore != null && (
-                    <>
-                      <span className="mx-1.5">·</span>
-                      {log.score}/{log.maxScore}
-                    </>
-                  )}
+      <ul className="space-y-2">
+        {logs.map((log) => (
+          <li
+            key={log.id}
+            className="flex gap-3 rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-3 dark:border-white/10 dark:bg-white/[0.03]"
+          >
+            <div className="pt-0.5">{outcomeIcon(log.outcome)}</div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <p className="font-mono text-sm font-medium text-black dark:text-white">
+                  {log.resourceTitle || "Untitled"}
                 </p>
-                {log.detail && (
-                  <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                    {log.detail}
-                  </p>
+                {log.xpEarned > 0 && (
+                  <span className="flex shrink-0 items-center gap-1 font-mono text-xs font-semibold text-amber-600 dark:text-amber-400">
+                    <Zap className="h-3 w-3" />+{log.xpEarned} XP
+                  </span>
                 )}
-                <p className="mt-1 font-mono text-[10px] text-gray-400">
-                  {formatWhen(log.createdAt)}
-                </p>
               </div>
-            </li>
-          ))}
-        </ul>
+              <p className="mt-0.5 font-mono text-[11px] text-gray-500">
+                {TYPE_LABEL[log.activityType] ?? log.activityType}
+                <span className="mx-1.5">·</span>
+                {OUTCOME_LABEL[log.outcome] ?? log.outcome}
+                {log.score != null && log.maxScore != null && (
+                  <>
+                    <span className="mx-1.5">·</span>
+                    {log.score}/{log.maxScore}
+                  </>
+                )}
+              </p>
+              {log.detail && (
+                <p className="mt-1 font-mono text-xs text-gray-600 dark:text-gray-400">
+                  {log.detail}
+                </p>
+              )}
+              <p className="mt-1 font-mono text-[10px] text-gray-400">
+                {formatWhen(log.createdAt)}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ul>
 
-        {hasMore && !loading && (
-          <div className="mt-6 flex justify-center">
-            <button
-              type="button"
-              disabled={loadingMore}
-              onClick={() => fetchPage(logs.length, true)}
-              className="rounded-lg border border-gray-200 bg-white px-4 py-2 font-mono text-xs font-medium text-black hover:border-black disabled:opacity-50 dark:border-white/15 dark:bg-black dark:text-white dark:hover:border-white"
-            >
-              {loadingMore ? "Loading…" : `Load more (${logs.length} of ${total})`}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+      {hasMore && !loading && (
+        <div className="mt-6 flex justify-center">
+          <button
+            type="button"
+            disabled={loadingMore}
+            onClick={() => fetchPage(logs.length, true)}
+            className="rounded-lg border border-gray-200 bg-white px-4 py-2 font-mono text-xs font-medium text-black hover:border-black disabled:opacity-50 dark:border-white/15 dark:bg-black dark:text-white dark:hover:border-white"
+          >
+            {loadingMore ? "Loading…" : `Load more (${logs.length} of ${total})`}
+          </button>
+        </div>
+      )}
+    </DashboardPageShell>
   );
 }

@@ -12,23 +12,22 @@ export default function DashboardLayout({
 }) {
   const [pinned, setPinned] = useState(false);
   const pathname = usePathname();
-  const isCollabRoute = pathname?.startsWith("/dashboard/collab") ?? false;
-  const isIncidentRoute =
-    pathname?.startsWith("/dashboard/incidents") ?? false;
-  const isFullscreenWorkspace = isCollabRoute || isIncidentRoute;
+  const isCollabRoom = Boolean(pathname?.match(/^\/dashboard\/collab\/[^/]+/));
+  const isIncidentWorkspace = Boolean(
+    pathname?.match(/^\/dashboard\/incidents\/[^/]+/),
+  );
+  const isFullscreenWorkspace = isCollabRoom || isIncidentWorkspace;
 
   return (
     <ProtectedRoute>
       <div className="relative h-dvh overflow-hidden bg-white text-black dark:bg-black dark:text-white">
         <Sidebar pinned={pinned} onTogglePin={() => setPinned((p) => !p)} />
         <main
-          style={{ zoom: isFullscreenWorkspace ? "1" : "1.1" }}
-          className={`relative z-10 ${
-            pinned ? "lg:ml-[220px]" : "lg:ml-[72px]"
-          } h-full min-h-0 border-l border-black/20 dark:border-white/20 transition-[margin] duration-300 ease-in-out ${
+          style={{ marginLeft: pinned ? 220 : 72 }}
+          className={`relative z-10 h-full min-h-0 w-full min-w-0 max-w-full overflow-x-hidden border-l border-black/20 pr-6 dark:border-white/20 sm:pr-8 lg:pr-12 transition-[margin] duration-300 ease-in-out ${
             isFullscreenWorkspace
               ? "overflow-hidden pb-0"
-              : "overflow-y-auto pb-20 lg:pb-0"
+              : "overflow-y-auto overflow-x-hidden pb-20 lg:pb-0"
           }`}
         >
           {children}
