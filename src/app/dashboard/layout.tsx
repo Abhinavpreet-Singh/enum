@@ -24,7 +24,7 @@ export default function DashboardLayout({
         <Sidebar pinned={pinned} onTogglePin={() => setPinned((p) => !p)} />
         <main
           style={{ marginLeft: pinned ? 220 : 72 }}
-          className={`relative z-10 h-full min-h-0 w-full min-w-0 max-w-full overflow-x-hidden border-l border-black/20 pr-6 dark:border-white/20 sm:pr-8 lg:pr-12 transition-[margin] duration-300 ease-in-out ${
+          className={`dashboard-ink relative z-10 h-full min-h-0 w-full min-w-0 max-w-full overflow-x-hidden border-l border-black/20 pr-6 dark:border-white/20 sm:pr-8 lg:pr-12 transition-[margin] duration-300 ease-in-out ${
             isFullscreenWorkspace
               ? "overflow-hidden pb-0"
               : "overflow-y-auto overflow-x-hidden pb-20 lg:pb-0"

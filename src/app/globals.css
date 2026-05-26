@@ -289,7 +289,9 @@ html {
 
 /* Dashboard panel previews — smooth, compact */
 .dash-preview-frame {
-  transition: border-color 0.35s ease, box-shadow 0.35s ease;
+  transition:
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
 }
 
 .group:hover .dash-preview-frame {
@@ -693,4 +695,49 @@ html {
     opacity: 1;
     transform: none;
   }
+}
+
+/* Dashboard text contrast overrides — keep dashboard pages readable in both themes */
+.dashboard-ink .text-gray-100,
+.dashboard-ink .text-gray-200,
+.dashboard-ink .text-gray-300,
+.dashboard-ink .text-gray-400,
+.dashboard-ink .text-gray-500,
+.dashboard-ink .text-gray-600,
+.dashboard-ink .text-gray-700,
+.dashboard-ink .text-slate-100,
+.dashboard-ink .text-slate-200,
+.dashboard-ink .text-slate-300,
+.dashboard-ink .text-slate-400,
+.dashboard-ink .text-slate-500,
+.dashboard-ink .text-slate-600,
+.dashboard-ink .text-zinc-100,
+.dashboard-ink .text-zinc-200,
+.dashboard-ink .text-zinc-300,
+.dashboard-ink .text-zinc-400,
+.dashboard-ink .text-zinc-500,
+.dashboard-ink .text-zinc-600 {
+  color: rgb(23 23 23) !important;
+}
+
+.dark .dashboard-ink .text-gray-100,
+.dark .dashboard-ink .text-gray-200,
+.dark .dashboard-ink .text-gray-300,
+.dark .dashboard-ink .text-gray-400,
+.dark .dashboard-ink .text-gray-500,
+.dark .dashboard-ink .text-gray-600,
+.dark .dashboard-ink .text-gray-700,
+.dark .dashboard-ink .text-slate-100,
+.dark .dashboard-ink .text-slate-200,
+.dark .dashboard-ink .text-slate-300,
+.dark .dashboard-ink .text-slate-400,
+.dark .dashboard-ink .text-slate-500,
+.dark .dashboard-ink .text-slate-600,
+.dark .dashboard-ink .text-zinc-100,
+.dark .dashboard-ink .text-zinc-200,
+.dark .dashboard-ink .text-zinc-300,
+.dark .dashboard-ink .text-zinc-400,
+.dark .dashboard-ink .text-zinc-500,
+.dark .dashboard-ink .text-zinc-600 {
+  color: rgb(245 245 245) !important;
 }

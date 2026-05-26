@@ -26,7 +26,8 @@ interface IncidentListItem extends IncidentSimulation {
 
 const DIFFICULTY_STYLES: Record<string, string> = {
   easy: "border-emerald-300/60 text-emerald-800 dark:border-emerald-500/40 dark:text-emerald-300",
-  medium: "border-amber-300/60 text-amber-800 dark:border-amber-500/40 dark:text-amber-300",
+  medium:
+    "border-amber-300/60 text-amber-800 dark:border-amber-500/40 dark:text-amber-300",
   hard: "border-red-300/60 text-red-800 dark:border-red-500/40 dark:text-red-300",
 };
 
@@ -145,7 +146,7 @@ export default function IncidentsPage() {
                   className={`flex items-center justify-between border-b px-4 py-2 ${
                     incident.status?.solved
                       ? "border-emerald-200/80 bg-emerald-50/80 dark:border-emerald-500/30 dark:bg-emerald-950/25"
-                      : "border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/[0.04]"
+                      : "border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/4"
                   }`}
                 >
                   <p
@@ -199,8 +200,7 @@ export default function IncidentsPage() {
                     {incident.estimatedTime} min
                   </span>
                   <span className="flex items-center gap-1">
-                    <Zap className="h-3.5 w-3.5" />
-                    +{incident.xpReward} XP
+                    <Zap className="h-3.5 w-3.5" />+{incident.xpReward} XP
                   </span>
                 </div>
 

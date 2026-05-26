@@ -3,13 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
-import {
-  CheckCircle2,
-  XCircle,
-  MinusCircle,
-  Zap,
-  Loader2,
-} from "lucide-react";
+import { CheckCircle2, XCircle, MinusCircle, Zap, Loader2 } from "lucide-react";
 import type { ActivityLogEntry } from "@/types/activity";
 import {
   DashboardPageHeader,
@@ -133,7 +127,7 @@ export default function ActivityPage() {
         {logs.map((log) => (
           <li
             key={log.id}
-            className="flex gap-3 rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-3 dark:border-white/10 dark:bg-white/[0.03]"
+            className="flex gap-3 rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-3 dark:border-white/10 dark:bg-[rgba(255,255,255,0.03)]"
           >
             <div className="pt-0.5">{outcomeIcon(log.outcome)}</div>
             <div className="min-w-0 flex-1">
@@ -179,7 +173,9 @@ export default function ActivityPage() {
             onClick={() => fetchPage(logs.length, true)}
             className="rounded-lg border border-gray-200 bg-white px-4 py-2 font-mono text-xs font-medium text-black hover:border-black disabled:opacity-50 dark:border-white/15 dark:bg-black dark:text-white dark:hover:border-white"
           >
-            {loadingMore ? "Loading…" : `Load more (${logs.length} of ${total})`}
+            {loadingMore
+              ? "Loading…"
+              : `Load more (${logs.length} of ${total})`}
           </button>
         </div>
       )}

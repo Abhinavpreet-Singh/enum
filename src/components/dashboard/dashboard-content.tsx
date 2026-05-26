@@ -89,6 +89,15 @@ interface UserStats {
   dsaTopicsDistribution: { name: string; value: number; color: string }[];
 }
 
+interface DailyChallengeSimulation {
+  id: string;
+  title: string;
+  description: string;
+  difficulty: string;
+  maxScore: number;
+  tags?: string[];
+}
+
 export default function DashboardContent({ userName }: DashboardContentProps) {
   const isAuthenticated = useAuth();
   const [displayName, setDisplayName] = useState<string>(
@@ -186,7 +195,9 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
       );
 
       // Find a hard system design simulation for daily challenge
-      const hardSim = sdSims.find((s: any) => s.difficulty === "hard");
+      const hardSim = sdSims.find(
+        (s: DailyChallengeSimulation) => s.difficulty === "hard",
+      );
       if (hardSim) {
         setDailyChallenge({
           id: hardSim.id,
@@ -382,7 +393,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
             {greeting} {displayName}.
           </h1>
           <p className="mt-1 font-mono text-xs text-gray-500 dark:text-gray-400">
-            Your workspace — practice, simulate, collaborate.
+            Your workspace to practice, simulate, and collaborate.
           </p>
         </div>
         <div className="text-right shrink-0 hidden sm:block">
@@ -588,7 +599,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
           {/* Level badge */}
           <div className="flex shrink-0 items-center gap-4">
             <div
-              className={`relative flex h-14 w-14 items-center justify-center ${panelBorder} bg-black/[0.04] dark:bg-white/[0.06]`}
+              className={`relative flex h-14 w-14 items-center justify-center ${panelBorder} bg-black/4 dark:bg-white/6`}
             >
               <span className="font-mono font-black text-xl text-black dark:text-white tabular-nums">
                 {String(lvl.level).padStart(2, "0")}
@@ -627,7 +638,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
             </div>
 
             {/* Bar — black track/fill in light, white in dark */}
-            <div className="relative h-4 overflow-hidden rounded-sm border border-black/25 bg-black/[0.12] dark:border-white/30 dark:bg-white/[0.14]">
+            <div className="relative h-4 overflow-hidden rounded-sm border border-black/25 bg-black/12 dark:border-white/30 dark:bg-white/14">
               <div
                 className="h-full bg-black transition-all duration-700 dark:bg-white"
                 style={{ width: `${xpPct}%` }}
@@ -661,161 +672,161 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
 
       {/* ── Daily Challenge + Leaderboard ──────────────── */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-      <div
-        className={`${panelSurface} ${panelHover} flex ${sectionPanelH} min-w-0 flex-col p-4`}
-      >
-        <div className="mb-2 flex items-center justify-between">
-          <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-gray-500 dark:text-gray-400">
-              Daily Challenge
-            </p>
-            <h3 className="mt-0.5 text-sm font-bold text-black dark:text-white">
-              {"Today's Problem"}
-            </h3>
-          </div>
-          <Flame className="h-4 w-4 text-orange-400" />
-        </div>
-
-        {dailyChallenge ? (
-          <Link
-            href={`/dashboard/simulations/system-design/${dailyChallenge.id}`}
-            className={`${panelLink} flex flex-1 flex-col justify-between p-2.5`}
-          >
+        <div
+          className={`${panelSurface} ${panelHover} flex ${sectionPanelH} min-w-0 flex-col p-4`}
+        >
+          <div className="mb-2 flex items-center justify-between">
             <div>
-              <div className="mb-1 flex items-start justify-between gap-2">
-                <div className="flex min-w-0 flex-1 items-start gap-2">
-                  <Network className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
-                  <p className="line-clamp-1 text-sm font-semibold text-black dark:text-white">
-                    {dailyChallenge.title}
-                  </p>
+              <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-gray-500 dark:text-gray-400">
+                Daily Challenge
+              </p>
+              <h3 className="mt-0.5 text-sm font-bold text-black dark:text-white">
+                {"Today's Problem"}
+              </h3>
+            </div>
+            <Flame className="h-4 w-4 text-orange-400" />
+          </div>
+
+          {dailyChallenge ? (
+            <Link
+              href={`/dashboard/simulations/system-design/${dailyChallenge.id}`}
+              className={`${panelLink} flex flex-1 flex-col justify-between p-2.5`}
+            >
+              <div>
+                <div className="mb-1 flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 flex-1 items-start gap-2">
+                    <Network className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+                    <p className="line-clamp-1 text-sm font-semibold text-black dark:text-white">
+                      {dailyChallenge.title}
+                    </p>
+                  </div>
+                  <span className="shrink-0 border border-red-400/40 px-2 py-0.5 font-mono text-[9px] text-red-600 dark:text-red-400">
+                    {dailyChallenge.difficulty.toUpperCase()}
+                  </span>
                 </div>
-                <span className="shrink-0 border border-red-400/40 px-2 py-0.5 font-mono text-[9px] text-red-600 dark:text-red-400">
-                  {dailyChallenge.difficulty.toUpperCase()}
+                <p className="line-clamp-1 font-mono text-[10px] text-gray-500 dark:text-gray-400">
+                  {dailyChallenge.description}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {dailyChallenge.tags.slice(0, 3).map((tag) => (
+                    <span
+                      key={tag}
+                      className="border border-black/10 px-1.5 py-0.5 font-mono text-[9px] text-black/70 dark:border-white/15 dark:text-white/70"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-2 flex items-center justify-between">
+                <span className="font-mono text-[10px] font-semibold text-black dark:text-white">
+                  +{dailyChallenge.maxScore * 10} XP
+                </span>
+                <span className={cardFooterArrow}>
+                  <ChevronRight className="h-4 w-4" />
                 </span>
               </div>
-              <p className="line-clamp-1 font-mono text-[10px] text-gray-500 dark:text-gray-400">
-                {dailyChallenge.description}
-              </p>
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                {dailyChallenge.tags.slice(0, 3).map((tag) => (
-                  <span
-                    key={tag}
-                    className="border border-black/10 px-1.5 py-0.5 font-mono text-[9px] text-black/70 dark:border-white/15 dark:text-white/70"
-                  >
-                    {tag}
-                  </span>
-                ))}
+            </Link>
+          ) : (
+            <div className={`${panelBorder} flex flex-1 items-center p-2.5`}>
+              <div className="animate-pulse space-y-2 w-full">
+                <div className="h-4 w-3/4 rounded bg-black/5 dark:bg-white/5" />
+                <div className="h-3 w-1/2 rounded bg-black/5 dark:bg-white/5" />
               </div>
             </div>
-            <div className="mt-2 flex items-center justify-between">
-              <span className="font-mono text-[10px] font-semibold text-black dark:text-white">
-                +{dailyChallenge.maxScore * 10} XP
-              </span>
-              <span className={cardFooterArrow}>
-                <ChevronRight className="h-4 w-4" />
-              </span>
-            </div>
-          </Link>
-        ) : (
-          <div className={`${panelBorder} flex flex-1 items-center p-2.5`}>
-            <div className="animate-pulse space-y-2 w-full">
-              <div className="h-4 w-3/4 rounded bg-black/5 dark:bg-white/5" />
-              <div className="h-3 w-1/2 rounded bg-black/5 dark:bg-white/5" />
-            </div>
-          </div>
-        )}
-      </div>
-
-      <Link
-        href="/dashboard/leaderboard"
-        className={`${panelLink} flex ${sectionPanelH} min-w-0 flex-col p-4`}
-      >
-        <div className="mb-2 flex items-start justify-between gap-3">
-          <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-gray-500 dark:text-gray-400">
-              Leaderboard
-            </p>
-            <h3 className="mt-0.5 text-sm font-bold text-black dark:text-white">
-              Top performers
-            </h3>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <div className="flex items-center gap-1.5 border border-black/15 px-2 py-1 dark:border-white/20">
-              <Flame className="h-3 w-3 text-orange-400" />
-              <span className="font-mono text-[10px] tabular-nums text-black dark:text-white">
-                {stats.currentStreak}d
-              </span>
-            </div>
-            <Users className="h-4 w-4 text-gray-400" />
-          </div>
+          )}
         </div>
 
-        <div className="min-h-0 flex-1 divide-y divide-gray-50 dark:divide-white/5">
-          {top3.map((u, i) => {
-            const normalize = (v: string) => v.trim().toLowerCase();
-            const isYou =
-              (currentUserId && u._id === currentUserId) ||
-              (currentUsername &&
-                normalize(u.username) === normalize(currentUsername)) ||
-              (displayName &&
-                normalize(u.displayName || "") === normalize(displayName));
-            return (
-              <div
-                key={u._id ?? i}
-                className={`relative flex items-center gap-2 py-2 ${isYou ? "pl-2.5" : ""}`}
-              >
-                {isYou && (
-                  <span className="absolute top-1 bottom-1 left-0 w-0.5 bg-black dark:bg-white" />
-                )}
-                <span className="w-6 shrink-0 text-center text-sm">
-                  {RANK_MEDALS[i]}
+        <Link
+          href="/dashboard/leaderboard"
+          className={`${panelLink} flex ${sectionPanelH} min-w-0 flex-col p-4`}
+        >
+          <div className="mb-2 flex items-start justify-between gap-3">
+            <div>
+              <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-gray-500 dark:text-gray-400">
+                Leaderboard
+              </p>
+              <h3 className="mt-0.5 text-sm font-bold text-black dark:text-white">
+                Top performers
+              </h3>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <div className="flex items-center gap-1.5 border border-black/15 px-2 py-1 dark:border-white/20">
+                <Flame className="h-3 w-3 text-orange-400" />
+                <span className="font-mono text-[10px] tabular-nums text-black dark:text-white">
+                  {stats.currentStreak}d
+                </span>
+              </div>
+              <Users className="h-4 w-4 text-gray-400" />
+            </div>
+          </div>
+
+          <div className="min-h-0 flex-1 divide-y divide-gray-50 dark:divide-white/5">
+            {top3.map((u, i) => {
+              const normalize = (v: string) => v.trim().toLowerCase();
+              const isYou =
+                (currentUserId && u._id === currentUserId) ||
+                (currentUsername &&
+                  normalize(u.username) === normalize(currentUsername)) ||
+                (displayName &&
+                  normalize(u.displayName || "") === normalize(displayName));
+              return (
+                <div
+                  key={u._id ?? i}
+                  className={`relative flex items-center gap-2 py-2 ${isYou ? "pl-2.5" : ""}`}
+                >
+                  {isYou && (
+                    <span className="absolute top-1 bottom-1 left-0 w-0.5 bg-black dark:bg-white" />
+                  )}
+                  <span className="w-6 shrink-0 text-center text-sm">
+                    {RANK_MEDALS[i]}
+                  </span>
+                  <p className="min-w-0 flex-1 truncate font-mono text-xs font-semibold text-black dark:text-white">
+                    {u.displayName || u.username}
+                    {isYou && (
+                      <span className="ml-1 font-mono text-[9px] bg-black px-1 py-px text-white dark:bg-white dark:text-black">
+                        you
+                      </span>
+                    )}
+                  </p>
+                  <span className="shrink-0 font-mono text-[10px] tabular-nums text-gray-400">
+                    {u.xp.toLocaleString()}
+                  </span>
+                </div>
+              );
+            })}
+
+            {userRank >= 3 && userLbEntry && (
+              <div className="relative flex items-center gap-2 py-2 pl-2.5">
+                <span className="absolute top-1 bottom-1 left-0 w-0.5 bg-black dark:bg-white" />
+                <span className="w-6 shrink-0 text-center font-mono text-[10px] text-gray-400">
+                  #{userRank + 1}
                 </span>
                 <p className="min-w-0 flex-1 truncate font-mono text-xs font-semibold text-black dark:text-white">
-                  {u.displayName || u.username}
-                  {isYou && (
-                    <span className="ml-1 font-mono text-[9px] bg-black px-1 py-px text-white dark:bg-white dark:text-black">
-                      you
-                    </span>
-                  )}
+                  {userLbEntry.displayName || userLbEntry.username}
+                  <span className="ml-1 font-mono text-[9px] bg-black px-1 py-px text-white dark:bg-white dark:text-black">
+                    you
+                  </span>
                 </p>
                 <span className="shrink-0 font-mono text-[10px] tabular-nums text-gray-400">
-                  {u.xp.toLocaleString()}
+                  {userLbEntry.xp.toLocaleString()}
                 </span>
               </div>
-            );
-          })}
+            )}
 
-          {userRank >= 3 && userLbEntry && (
-            <div className="relative flex items-center gap-2 py-2 pl-2.5">
-              <span className="absolute top-1 bottom-1 left-0 w-0.5 bg-black dark:bg-white" />
-              <span className="w-6 shrink-0 text-center font-mono text-[10px] text-gray-400">
-                #{userRank + 1}
-              </span>
-              <p className="min-w-0 flex-1 truncate font-mono text-xs font-semibold text-black dark:text-white">
-                {userLbEntry.displayName || userLbEntry.username}
-                <span className="ml-1 font-mono text-[9px] bg-black px-1 py-px text-white dark:bg-white dark:text-black">
-                  you
-                </span>
+            {top3.length === 0 && (
+              <p className="py-3 text-center font-mono text-[11px] text-gray-400">
+                No data yet — be the first!
               </p>
-              <span className="shrink-0 font-mono text-[10px] tabular-nums text-gray-400">
-                {userLbEntry.xp.toLocaleString()}
-              </span>
-            </div>
-          )}
+            )}
+          </div>
 
-          {top3.length === 0 && (
-            <p className="py-3 text-center font-mono text-[11px] text-gray-400">
-              No data yet — be the first!
-            </p>
-          )}
-        </div>
-
-        <div className="mt-1 flex justify-end">
-          <span className={cardFooterArrow}>
-            <ChevronRight className="h-4 w-4" />
-          </span>
-        </div>
-      </Link>
+          <div className="mt-1 flex justify-end">
+            <span className={cardFooterArrow}>
+              <ChevronRight className="h-4 w-4" />
+            </span>
+          </div>
+        </Link>
       </div>
     </div>
   );
