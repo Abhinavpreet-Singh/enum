@@ -16,6 +16,7 @@ import {
   Menu,
   Sun,
   Moon,
+  AlertTriangle,
 } from "lucide-react";
 import { useTheme } from "@/providers/theme-provider";
 
@@ -41,6 +42,12 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
       icon: Code,
       label: "Simulations",
       href: "/dashboard/simulations",
+      matchExact: false,
+    },
+    {
+      icon: AlertTriangle,
+      label: "Incidents",
+      href: "/dashboard/incidents",
       matchExact: false,
     },
     {

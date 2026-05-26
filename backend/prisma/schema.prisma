@@ -47,6 +47,7 @@ model User {
   submissions            Submission[]
   simulationProgress     UserSimulationProgress[]
   systemDesignSubmissions SystemDesignSubmission[]
+  incidentSessions       IncidentSession[]
 
   @@map("users")
 }
@@ -275,4 +276,152 @@ model SystemDesignSubmission {
   user       User                   @relation(fields: [userId], references: [id])
 
   @@map("systemdesignsubmissions")
+}
+
+// ─── Historical Incident Simulations ─────────────────────────────────────────
+
+/// Represents a service in the incident topology
+type IncidentService {
+  id        String  @default("") /// Unique service ID (e.g., "frontend", "api")
+  name      String  @default("") /// Display name
+  status    String  @default("healthy") /// "healthy" | "degraded" | "critical" | "down"
+  color     String  @default("green") /// Visual indicator color
+}
+
+/// Represents a root cause option for diagnosis
+type IncidentRootCauseOption {
+  id          String  @default("") /// Unique ID for this option
+  title       String  @default("") /// e.g., "Regex backtracking in regex engine"
+  description String  @default("") /// Detailed explanation
+  isCorrect   Boolean @default(false) /// Is this the right answer?
+  hint        String  @default("") /// Hint for the user
+}
+
+/// Represents an action the user can take to fix the incident
+type IncidentActionOption {
+  id              String  @default("") /// Unique action ID (e.g., "rollback", "restart", "scale_up")
+  title           String  @default("") /// e.g., "Rollback deployment"
+  description     String  @default("") /// What does this action do?
+  category        String  @default("") /// "rollback" | "restart" | "scale" | "investigate"
+  fixesMetrics    String[] @default([]) /// Which metrics does this fix? ["cpu_usage", "error_rate"]
+  recoveryTime    Int     @default(30) /// Seconds until metrics improve
+  pointsIfCorrect Int     @default(50) /// Points awarded if user took this action
+  pointsIfWrong   Int     @default(0) /// Penalty if this doesn't help
+}
+
+/// Represents a metric value at a specific point in time
+type IncidentMetricSnapshot {
+  timestamp Int     @default(0) /// Time in seconds since simulation start
+  value     Float   @default(0) /// Metric value (percentage, ms, requests/sec, etc.)
+}
+
+/// Represents an event that happens at a specific time in the timeline
+model IncidentTimelineEvent {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  incidentId        String   @db.ObjectId /// Reference to IncidentSimulation
+  timeSecond        Int      @default(0) /// When event triggers (in seconds)
+  title             String   @default("") /// Event title
+  description       String   @default("") /// Event description
+  affectedServices  String[] @default([]) /// Which services are affected (by ID)
+  metricChanges     Json     @default("{}") /// { metricName: newValue }
+  logMessage        String   @default("") /// Log entry to add
+  priority          String   @default("info") /// "info" | "warning" | "critical"
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  incident IncidentSimulation @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@map("incidenttimelineevents")
+}
+
+/// Main incident simulation model
+model IncidentSimulation {
+  id               String                @id @default(auto()) @map("_id") @db.ObjectId
+  title            String                /// e.g., "Regex Catastrophe"
+  description      String                /// Brief incident description
+  difficulty       String                @default("medium") /// "easy" | "medium" | "hard"
+  category         String                @default("incident") /// Always "incident" for this model
+  simulationType   String                @default("production") /// Type of incident
+  durationSeconds  Int                   @default(300) /// Total simulation duration
+  estimatedTime    Int                   @default(15) /// In minutes
+  xpReward         Int                   @default(100)
+  tags             String[]              @default([])
+
+  /// Initial state
+  initialServices  IncidentService[]     /// Services at simulation start
+  initialMetrics   Json                  @default("{}") /// { metricName: [IncidentMetricSnapshot] }
+  initialLogs      String[]              @default([]) /// Starting log entries
+
+  /// Real incident inspiration
+  realIncidentName String                @default("") /// e.g., "Cloudflare 2019 Regex Outage"
+  realIncidentDate String                @default("") /// e.g., "July 2, 2019"
+  realIncidentLink String                @default("") /// Documentation link
+  realIncidentDesc String                @default("") /// What actually happened
+
+  /// Reveal screen (shown after user completes or gives up)
+  revealTitle      String                @default("Based on...")
+  revealText       String                @default("") /// Full reveal description
+
+  /// Diagnosis (root cause selection)
+  rootCauseOptions IncidentRootCauseOption[] /// Multiple choice options
+  actionOptions    IncidentActionOption[]    /// Available actions to take
+
+  /// User progress
+  sessions         IncidentSession[]
+  timelineEvents   IncidentTimelineEvent[]
+
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@map("incidentsimulations")
+}
+
+/// Represents a user's active session/attempt at an incident
+model IncidentSession {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String    @db.ObjectId /// User attempting the incident
+  incidentId      String    @db.ObjectId /// Which incident
+  elapsedTime     Int       @default(0) /// Seconds elapsed in this session
+  isActive        Boolean   @default(true) /// Is session still running
+  isCompleted     Boolean   @default(false) /// Did user successfully resolve
+  
+  /// Diagnosis phase
+  selectedRootCauseId String @default("") /// Which root cause did user select
+  diagnosedAt     DateTime? /// When did user make diagnosis
+  correctDiagnosis Boolean @default(false) /// Did they get it right?
+  
+  /// Actions taken
+  actionsTaken    Json[]    @default([]) /// [ { actionId, timestamp, effective } ]
+  
+  /// Scoring
+  diagnosticScore Int       @default(0) /// Points for correct diagnosis
+  actionScore     Int       @default(0) /// Points for effective actions
+  timeBonusScore  Int       @default(0) /// Points for speed
+  totalScore      Int       @default(0) /// Final score
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incident IncidentSimulation   @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  state    IncidentSessionState?
+
+  @@unique([userId, incidentId])
+  @@map("incidentsessions")
+}
+
+/// Current runtime state of an active incident session
+model IncidentSessionState {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  sessionId    String   @unique @db.ObjectId /// Links to IncidentSession
+  currentTime  Int      @default(0) /// Current time in simulation (seconds)
+  services     IncidentService[] /// Current service statuses
+  metrics      Json     @default("{}") /// { metricName: currentValue }
+  logs         String[] @default([]) /// All logs accumulated so far
+  activeAlerts String[] @default([]) /// Current alert IDs
+  updatedAt    DateTime @updatedAt
+
+  session IncidentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("incidentsessionstates")
 }
