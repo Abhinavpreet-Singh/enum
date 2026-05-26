@@ -152,9 +152,11 @@ function scoreCssFile(
   userCss: string,
   solutionCss: string,
   filename: string,
+  initialCss?: string,
 ): FileScore {
   const solutionMap = parseCssRules(solutionCss);
   const userMap = parseCssRules(userCss);
+  const initialMap = initialCss ? parseCssRules(initialCss) : null;
 
   const checks: PropertyCheck[] = [];
   let matchedCount = 0;
@@ -162,20 +164,50 @@ function scoreCssFile(
 
   solutionMap.forEach((solutionProps, selector) => {
     solutionProps.forEach((solutionValue, property) => {
-      totalCount++;
+      // Only count as target property if it was added or modified in solution compared to initial
+      let isTarget = true;
+      if (initialMap) {
+        const initialProps = initialMap.get(selector);
+        const initialValue = initialProps?.get(property) ?? null;
+        if (initialValue !== null && valuesMatch(initialValue, solutionValue)) {
+          isTarget = false;
+        }
+      }
+
       const userProps = userMap.get(selector);
       const userValue = userProps?.get(property) ?? null;
       const matched =
         userValue !== null && valuesMatch(userValue, solutionValue);
-      if (matched) matchedCount++;
+
+      if (isTarget) {
+        totalCount++;
+        if (matched) matchedCount++;
+      }
+      
       checks.push({ selector, property, solutionValue, userValue, matched });
     });
   });
 
-  const score =
-    totalCount > 0 ? Math.round((matchedCount / totalCount) * 100) : 100;
+  let score = 100;
+  if (totalCount > 0) {
+    score = Math.round((matchedCount / totalCount) * 100);
+  } else {
+    // Fall back to scoring all rules if no targets exist
+    let allMatched = 0;
+    checks.forEach((c) => {
+      if (c.matched) allMatched++;
+    });
+    score = checks.length > 0 ? Math.round((allMatched / checks.length) * 100) : 100;
+  }
 
-  return { filename, score, checks, matchedCount, totalCount, isCss: true };
+  return { 
+    filename, 
+    score, 
+    checks, 
+    matchedCount, 
+    totalCount: totalCount > 0 ? totalCount : checks.length, 
+    isCss: true 
+  };
 }
 
 function scoreGenericFile(
@@ -243,7 +275,21 @@ function getLabel(score: number): ScoreLabel {
 export function evaluateSubmission(
   userFiles: Record<string, string>,
   solutionFiles: Record<string, string>,
+  initialFiles?: Record<string, string> | any[],
 ): ScoreResult {
+  let initialMap: Record<string, string> = {};
+  if (initialFiles) {
+    if (Array.isArray(initialFiles)) {
+      initialFiles.forEach((f) => {
+        if (f && typeof f === "object" && "name" in f && "content" in f) {
+          initialMap[f.name] = f.content;
+        }
+      });
+    } else {
+      initialMap = initialFiles;
+    }
+  }
+
   const files: FileScore[] = [];
   let totalWeight = 0;
   let weightedScore = 0;
@@ -254,7 +300,12 @@ export function evaluateSubmission(
 
     let fileScore: FileScore;
     if (ext === "css") {
-      fileScore = scoreCssFile(userContent, solutionContent, filename);
+      fileScore = scoreCssFile(
+        userContent,
+        solutionContent,
+        filename,
+        initialMap[filename] ?? ""
+      );
     } else {
       fileScore = scoreGenericFile(
         userContent,

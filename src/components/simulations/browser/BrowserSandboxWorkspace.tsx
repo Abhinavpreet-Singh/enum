@@ -273,7 +273,7 @@ export default function BrowserSandboxWorkspace({ simulation }: Props) {
   }, [simulation]);
 
   const handleEvaluate = useCallback(async () => {
-    const result = evaluateSubmission(files, simulation.solution);
+    const result = evaluateSubmission(files, simulation.solution, simulation.initialFiles);
     setScoreResult(result);
     setRightTab("evaluate");
 
