@@ -112,18 +112,26 @@ export default function SimulationsPage() {
   const [sortBy, setSortBy] = useState<"default" | "xp" | "time">("default");
 
   useEffect(() => {
-    // Seed local browser simulations immediately
-    const local: SimulationItem[] = browserSimulations.map((s) => ({
-      id: s.id,
-      title: s.title,
-      category: s.category,
-      difficulty: s.difficulty,
-      description: s.description,
-      estimatedTime: s.estimatedTime,
-      xpReward: s.xpReward,
-      tags: s.tags,
-      status: { attempted: false, solved: false, attempts: 0 },
-    }));
+    // Seed local browser simulations immediately checking local storage for fast visual load
+    const local: SimulationItem[] = browserSimulations.map((s) => {
+      const storageKey = `enum_browser_xp_awarded_${s.id}`;
+      const solvedLocal = typeof window !== "undefined" && localStorage.getItem(storageKey) === "1";
+      return {
+        id: s.id,
+        title: s.title,
+        category: s.category,
+        difficulty: s.difficulty,
+        description: s.description,
+        estimatedTime: s.estimatedTime,
+        xpReward: s.xpReward,
+        tags: s.tags,
+        status: {
+          attempted: solvedLocal,
+          solved: solvedLocal,
+          attempts: solvedLocal ? 1 : 0,
+        },
+      };
+    });
 
     Promise.all([
       axios.get(`${proxy}/api/v1/simulations/getSimulations`, {
@@ -162,6 +170,17 @@ export default function SimulationsPage() {
               question.language.toUpperCase(),
               ...question.constraints.slice(0, 2),
             ].filter(Boolean),
+            status: (() => {
+              const storageKey = `enum_linux_xp_awarded_${question.id}`;
+              const solvedLocal = typeof window !== "undefined" && localStorage.getItem(storageKey) === "1";
+              const qStatus = (question as any).status || { attempted: false, solved: false, attempts: 0 };
+              const isSolved = solvedLocal || qStatus.solved;
+              return {
+                attempted: isSolved || qStatus.attempted,
+                solved: isSolved,
+                attempts: qStatus.attempts || (isSolved ? 1 : 0),
+              };
+            })(),
           }),
         );
         const sdRaw: Array<{
@@ -190,21 +209,37 @@ export default function SimulationsPage() {
           status: s.status,
         }));
         const merged = [
-          ...local.map((s) =>
-            browserClaims.includes(s.id)
-              ? {
-                  ...s,
-                  status: {
-                    attempted: true,
-                    solved: true,
-                    attempts: s.status?.attempts ?? 1,
-                  },
-                }
-              : s,
-          ),
+          ...local.map((s) => {
+            const storageKey = `enum_browser_xp_awarded_${s.id}`;
+            const solvedLocal = typeof window !== "undefined" && localStorage.getItem(storageKey) === "1";
+            const isSolved = solvedLocal || browserClaims.includes(s.id);
+            return {
+              ...s,
+              status: {
+                attempted: isSolved,
+                solved: isSolved,
+                attempts: isSolved ? 1 : 0,
+              },
+            };
+          }),
           ...linuxQuestions,
           ...systemDesign,
-          ...backend,
+          ...backend.map((s) => {
+            const storageKey = `enum_frontend_xp_awarded_${s.id}`;
+            const solvedLocal = typeof window !== "undefined" && localStorage.getItem(storageKey) === "1";
+            if (solvedLocal) {
+              return {
+                ...s,
+                status: {
+                  ...s.status,
+                  attempted: true,
+                  solved: true,
+                  attempts: s.status?.attempts || 1,
+                },
+              };
+            }
+            return s;
+          }),
         ];
         setSimulations(merged.filter((s) => s.category !== "devops"));
       })

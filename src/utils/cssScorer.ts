@@ -215,26 +215,73 @@ function scoreGenericFile(
   solutionCode: string,
   filename: string,
   isCss = false,
+  initialCode?: string,
 ): FileScore {
   const tokenize = (code: string): Set<string> =>
     new Set(code.toLowerCase().match(/[a-z0-9_:-]+/g) ?? []);
 
   const solutionTokens = tokenize(solutionCode);
   const userTokens = tokenize(userCode);
-  const intersection = new Set(
-    [...solutionTokens].filter((t) => userTokens.has(t)),
-  );
-  const union = new Set([...solutionTokens, ...userTokens]);
+  const initialTokens = initialCode ? tokenize(initialCode) : null;
 
-  const score =
-    union.size > 0 ? Math.round((intersection.size / union.size) * 100) : 100;
+  let score = 100;
+  let matchedCount = 0;
+  let totalCount = 0;
+
+  if (initialTokens && initialCode !== solutionCode) {
+    const addedTokens = new Set(
+      [...solutionTokens].filter((t) => !initialTokens.has(t))
+    );
+    const removedTokens = new Set(
+      [...initialTokens].filter((t) => !solutionTokens.has(t))
+    );
+
+    const totalDiff = addedTokens.size + removedTokens.size;
+
+    if (totalDiff > 0) {
+      const userTokensList = [...userTokens];
+      const initialTokensList = [...initialTokens];
+      const userIsUnchanged = 
+        userTokensList.length === initialTokensList.length &&
+        userTokensList.every((t) => initialTokens.has(t));
+
+      if (userIsUnchanged) {
+        score = 0;
+        matchedCount = 0;
+        totalCount = totalDiff;
+      } else {
+        const matchedAdded = [...addedTokens].filter((t) => userTokens.has(t));
+        const matchedRemoved = [...removedTokens].filter((t) => !userTokens.has(t));
+
+        matchedCount = matchedAdded.length + matchedRemoved.length;
+        totalCount = totalDiff;
+        score = Math.round((matchedCount / totalCount) * 100);
+      }
+    } else {
+      const intersection = new Set(
+        [...solutionTokens].filter((t) => userTokens.has(t))
+      );
+      const union = new Set([...solutionTokens, ...userTokens]);
+      score = union.size > 0 ? Math.round((intersection.size / union.size) * 100) : 100;
+      matchedCount = intersection.size;
+      totalCount = solutionTokens.size;
+    }
+  } else {
+    const intersection = new Set(
+      [...solutionTokens].filter((t) => userTokens.has(t))
+    );
+    const union = new Set([...solutionTokens, ...userTokens]);
+    score = union.size > 0 ? Math.round((intersection.size / union.size) * 100) : 100;
+    matchedCount = intersection.size;
+    totalCount = solutionTokens.size;
+  }
 
   return {
     filename,
     score,
     checks: [],
-    matchedCount: intersection.size,
-    totalCount: solutionTokens.size,
+    matchedCount,
+    totalCount,
     isCss,
   };
 }
@@ -312,6 +359,7 @@ export function evaluateSubmission(
         solutionContent,
         filename,
         false,
+        initialMap[filename] ?? ""
       );
     }
 

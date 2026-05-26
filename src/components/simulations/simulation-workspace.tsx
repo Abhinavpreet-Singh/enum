@@ -146,6 +146,28 @@ export default function SimulationWorkspace({
 
         // Check if solution is correct
         const solvedNow = checkSolution();
+
+        // Persist progress to backend as attempted or solved
+        try {
+          const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+          if (token) {
+            await fetch("/api/simulations/progress", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                simulationId: simulation.id,
+                solved: solvedNow,
+                modifiedFiles: files,
+              }),
+            });
+          }
+        } catch (err) {
+          console.error("Failed to save simulation progress:", err);
+        }
+
         if (solvedNow) {
           await awardFrontendXp();
         }
@@ -215,10 +237,24 @@ export default function SimulationWorkspace({
         setXpAlreadyAwarded(true);
         setXpAwarded(null);
         localStorage.setItem(storageKey, "1");
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("userXpUpdated", {
+              detail: { xp: json.data.totalXp },
+            }),
+          );
+        }
       } else if (json?.data?.xpAwarded) {
         setXpAwarded(json.data.xpAwarded);
         setXpAlreadyAwarded(false);
         localStorage.setItem(storageKey, "1");
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("userXpUpdated", {
+              detail: { xp: json.data.totalXp },
+            }),
+          );
+        }
       }
     } catch {
       // Ignore network errors so simulation UX is not blocked.

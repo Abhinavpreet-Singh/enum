@@ -49,6 +49,7 @@ export default function LinuxArenaPage({
   const [terminalHeight, setTerminalHeight] = useState(300);
   const [isResizingLeft, setIsResizingLeft] = useState(false);
   const [isResizingTerminal, setIsResizingTerminal] = useState(false);
+  const [showTerminal, setShowTerminal] = useState(true);
 
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
@@ -180,6 +181,17 @@ export default function LinuxArenaPage({
         ...(result?.output ? normalizeLines(result.output) : ["(no output)"]),
       ]);
       setStatus(result?.passed ? "passed" : "failed");
+
+      if (result?.passed && selectedQuestion) {
+        localStorage.setItem("enum_linux_xp_awarded_" + selectedQuestion.id, "1");
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("userXpUpdated", {
+              detail: { xp: (response.data as any)?.data?.totalXp },
+            }),
+          );
+        }
+      }
     } catch (error) {
       const message = axios.isAxiosError(error)
         ? (error.response?.data?.message as string) || error.message
@@ -279,10 +291,7 @@ export default function LinuxArenaPage({
   }
 
   return (
-    <div
-      className="w-full bg-white dark:bg-black overflow-hidden"
-      style={{ height: "calc(100vh - 5rem)" }}
-    >
+    <div className="w-full h-full bg-white dark:bg-black overflow-hidden">
       <div className="h-full w-full p-4 lg:p-6 flex flex-col gap-4 overflow-hidden">
         <div className="flex items-center justify-between gap-3 shrink-0">
           <Link
@@ -303,6 +312,12 @@ export default function LinuxArenaPage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setShowTerminal((v) => !v)}
+              className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-white/10 font-mono text-xs tracking-wide text-black dark:text-white hover:border-gray-400 dark:hover:border-white/30 transition-colors"
+            >
+              {showTerminal ? "Hide Console" : "Show Console"}
+            </button>
             <button
               onClick={handleReset}
               className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-white/10 font-mono text-xs tracking-wide text-black dark:text-white hover:border-gray-400 dark:hover:border-white/30 transition-colors"
@@ -355,26 +370,30 @@ export default function LinuxArenaPage({
               <MonacoCodeEditor value={code} onChange={setCode} />
             </div>
 
-            <div
-              onMouseDown={handleTerminalResizeMouseDown}
-              className={`h-1 shrink-0 cursor-row-resize transition-colors ${
-                isResizingTerminal
-                  ? "bg-black dark:bg-white"
-                  : "bg-transparent hover:bg-gray-300 dark:hover:bg-white/20"
-              }`}
-            />
+            {showTerminal && (
+              <>
+                <div
+                  onMouseDown={handleTerminalResizeMouseDown}
+                  className={`h-1 shrink-0 cursor-row-resize transition-colors ${
+                    isResizingTerminal
+                      ? "bg-black dark:bg-white"
+                      : "bg-transparent hover:bg-gray-300 dark:hover:bg-white/20"
+                  }`}
+                />
 
-            <div
-              style={{ height: `${terminalHeight}px` }}
-              className="min-h-[200px] overflow-hidden rounded-b-md"
-            >
-              <OutputTerminal
-                status={status}
-                outputLines={outputLines}
-                expectedOutput={expectedOutput}
-                actualOutput={actualOutput}
-              />
-            </div>
+                <div
+                  style={{ height: `${terminalHeight}px` }}
+                  className="min-h-[200px] overflow-hidden rounded-b-md shrink-0"
+                >
+                  <OutputTerminal
+                    status={status}
+                    outputLines={outputLines}
+                    expectedOutput={expectedOutput}
+                    actualOutput={actualOutput}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

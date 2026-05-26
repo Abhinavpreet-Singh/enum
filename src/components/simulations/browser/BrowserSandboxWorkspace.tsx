@@ -277,6 +277,27 @@ export default function BrowserSandboxWorkspace({ simulation }: Props) {
     setScoreResult(result);
     setRightTab("evaluate");
 
+    // Persist progress to backend as attempted or solved
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+      if (token) {
+        await fetch("/api/simulations/progress", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            simulationId: simulation.id,
+            solved: result.passed,
+            modifiedFiles: files,
+          }),
+        });
+      }
+    } catch (err) {
+      console.error("Failed to save simulation progress:", err);
+    }
+
     if (!result.passed) return;
 
     // Award XP — call backend; guard with localStorage to avoid double-award on retry
@@ -311,10 +332,24 @@ export default function BrowserSandboxWorkspace({ simulation }: Props) {
       const json = await res.json();
       if (json?.data?.alreadyAwarded) {
         setXpAlreadyAwarded(true);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("userXpUpdated", {
+              detail: { xp: json.data.totalXp },
+            }),
+          );
+        }
       } else if (json?.data?.xpAwarded) {
         setXpAwarded(json.data.xpAwarded);
         setXpAlreadyAwarded(false);
         localStorage.setItem(storageKey, "1");
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("userXpUpdated", {
+              detail: { xp: json.data.totalXp },
+            }),
+          );
+        }
       }
     } catch {
       // network error — don't block the UI

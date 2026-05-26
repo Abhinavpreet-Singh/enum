@@ -711,8 +711,629 @@ body {
 `;
 
 /* ─────────────────────────────────────────────────────────
-   Exported array
+   Simulation 3 — Search Auto-Suggest Race Conditions
 ───────────────────────────────────────────────────────── */
+const MOCK_SEARCH_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asynchronous Search Challenge</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <div class="header-logo">🏁 Sandbox System</div>
+      <h1>Search Suggestion Race Conditions</h1>
+      <p class="subtitle">Analyze asynchronous API timing bugs, then implement debouncing and AbortController request cancellation to fix them.</p>
+    </header>
+
+    <div class="workspace-grid">
+      <!-- Search Interface Card -->
+      <section class="card search-card">
+        <div class="card-header">
+          <h2>Auto-Suggest Component</h2>
+          <span class="badge">Interactive Preview</span>
+        </div>
+        
+        <div class="search-box-wrapper">
+          <div class="input-glow-container">
+            <input type="text" id="search-input" placeholder="Type quickly to trigger race conditions..." autocomplete="off">
+            <div id="search-spinner" class="spinner hidden"></div>
+          </div>
+          
+          <div id="suggestions-dropdown" class="suggestions-dropdown hidden">
+            <ul id="suggestions-list"></ul>
+          </div>
+        </div>
+
+        <div class="help-box">
+          <h3>🎓 The Task:</h3>
+          <ol>
+            <li>Type **"react"** slowly -> notice suggestions resolve normally.</li>
+            <li>Type **"next"** extremely quickly -> notice the live logs panel showing out-of-order stale responses overwriting the visual results.</li>
+            <li>Modify \`script.js\` to implement input debouncing and abort active fetch requests to ensure bulletproof race-condition protection.</li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- Live Telemetry Monitor -->
+      <section class="card telemetry-card">
+        <div class="card-header">
+          <h2>Live Telemetry Monitor</h2>
+          <button id="clear-logs" class="btn-text">Clear Console</button>
+        </div>
+        
+        <div class="telemetry-logs" id="telemetry-logs">
+          <div class="log-entry system">🔌 Sandbox Event Stream initialized. Ready for keystrokes.</div>
+        </div>
+      </section>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>`;
+
+const MOCK_SEARCH_CSS = `:root {
+  --bg-main: #0b0f19;
+  --bg-card: rgba(17, 24, 39, 0.7);
+  --border-glow: rgba(99, 102, 241, 0.4);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --text-main: #f3f4f6;
+  --text-muted: #9ca3af;
+  --accent-color: #6366f1;
+  --accent-glow: rgba(99, 102, 241, 0.2);
+  --warning-bg: rgba(245, 158, 11, 0.1);
+  --warning-border: rgba(245, 158, 11, 0.3);
+  --warning-text: #fbbf24;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-main);
+  background-image: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.12) 0%, transparent 50%);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  min-height: 100vh;
+  padding: 1.5rem;
+  line-height: 1.5;
+}
+
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.app-header {
+  margin-bottom: 0.5rem;
+}
+
+.header-logo {
+  font-family: monospace;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--accent-color);
+  margin-bottom: 0.5rem;
+}
+
+h1 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(to right, #ffffff, #9ca3af);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-top: 0.25rem;
+  max-width: 700px;
+}
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.75rem;
+}
+
+.card-header h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.badge {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-color);
+  font-size: 0.7rem;
+  font-family: monospace;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.search-box-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.input-glow-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+#search-input {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  padding-right: 2.5rem;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  color: #fff;
+  font-size: 0.95rem;
+  transition: all 0.2s ease-in-out;
+}
+
+#search-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 15px var(--border-glow);
+}
+
+.spinner {
+  position: absolute;
+  right: 1rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+.hidden {
+  display: none !important;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.suggestions-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #111827;
+  border: 1px solid var(--accent-color);
+  border-top: none;
+  border-bottom-left-radius: 0.5rem;
+  border-bottom-right-radius: 0.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+#suggestions-list {
+  list-style: none;
+}
+
+#suggestions-list li {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.15s ease;
+}
+
+#suggestions-list li:hover {
+  background: rgba(99, 102, 241, 0.15);
+}
+
+#suggestions-list li:last-child {
+  border-bottom: none;
+}
+
+.help-box {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.help-box h3 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.help-box ol {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  padding-left: 1.15rem;
+}
+
+.help-box ol li {
+  margin-bottom: 0.4rem;
+}
+
+.telemetry-card {
+  height: 480px;
+}
+
+.telemetry-logs {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  flex: 1;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.8rem;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: var(--accent-color);
+  font-size: 0.75rem;
+  font-family: monospace;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.btn-text:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.log-entry {
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.25rem;
+  border-left: 3px solid #4b5563;
+  word-break: break-all;
+}
+
+.log-entry.system {
+  color: #60a5fa;
+  border-left-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.log-entry.sent {
+  color: #c084fc;
+  border-left-color: #a855f7;
+  background: rgba(168, 85, 247, 0.05);
+}
+
+.log-entry.resolved {
+  color: #34d399;
+  border-left-color: #10b981;
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.log-entry.warning {
+  color: var(--warning-text);
+  border-left-color: #f59e0b;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  font-weight: bold;
+  animation: shake 0.4s ease-in-out;
+}
+
+.log-entry.aborted {
+  color: #f87171;
+  border-left-color: #ef4444;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}`;
+
+const BROKEN_SEARCH_JS = `// Telemetry Logger Helper
+function logTelemetry(message, type) {
+  type = type || 'system';
+  const container = document.getElementById('telemetry-logs');
+  if (!container) return;
+  const entry = document.createElement('div');
+  entry.className = 'log-entry ' + type;
+  entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + message;
+  container.appendChild(entry);
+  container.scrollTop = container.scrollHeight;
+}
+
+// Clear console setup
+document.getElementById('clear-logs').addEventListener('click', function() {
+  const container = document.getElementById('telemetry-logs');
+  if (container) container.innerHTML = '';
+});
+
+// Mock asynchronous API search suggestions with variable delay
+function mockSearchApi(query, sequenceNumber) {
+  return new Promise(function(resolve) {
+    const delay = Math.random() * 2000 + 500;
+    
+    logTelemetry('⚙️ API processing search sequence #' + sequenceNumber + ' for "' + query + '" (Simulating ' + Math.round(delay) + 'ms latency)...', 'sent');
+    
+    setTimeout(function() {
+      const suggestions = [
+        query + ' documentation',
+        query + ' vs angular',
+        'best ways to learn ' + query,
+        'fixing errors in ' + query
+      ];
+      resolve({ suggestions: suggestions, sequenceNumber: sequenceNumber, query: query });
+    }, delay);
+  });
+}
+
+// Core search implementation (BROKEN)
+let globalRequestSequence = 0;
+let highestResolvedSequence = 0;
+
+function executeSearch(query) {
+  if (!query) {
+    hideDropdown();
+    return;
+  }
+
+  globalRequestSequence++;
+  const currentSequence = globalRequestSequence;
+  
+  logTelemetry('🚀 Triggered request #' + currentSequence + ' for "' + query + '"', 'sent');
+  showSpinner();
+
+  mockSearchApi(query, currentSequence).then(function(result) {
+    hideSpinner();
+    
+    // Detect race condition
+    if (result.sequenceNumber < highestResolvedSequence) {
+      logTelemetry('⚠️ RACE CONDITION! Stale response #' + result.sequenceNumber + ' resolved AFTER sequence #' + highestResolvedSequence + '. The UI has been OVERWRITTEN with outdated results!', 'warning');
+    } else {
+      highestResolvedSequence = result.sequenceNumber;
+      logTelemetry('✅ Rendered response #' + result.sequenceNumber + ' for "' + result.query + '"', 'resolved');
+    }
+    
+    displaySuggestions(result.suggestions);
+  });
+}
+
+// Event Listeners
+const searchInput = document.getElementById('search-input');
+searchInput.addEventListener('input', function(event) {
+  executeSearch(event.target.value.trim());
+});
+
+// Helper display routines
+function displaySuggestions(list) {
+  const dropdown = document.getElementById('suggestions-dropdown');
+  const ul = document.getElementById('suggestions-list');
+  if (!ul || !dropdown) return;
+  
+  ul.innerHTML = '';
+  list.forEach(function(item) {
+    const li = document.createElement('li');
+    li.textContent = item;
+    ul.appendChild(li);
+  });
+  dropdown.classList.remove('hidden');
+}
+
+function hideDropdown() {
+  const dropdown = document.getElementById('suggestions-dropdown');
+  if (dropdown) dropdown.classList.add('hidden');
+}
+
+function showSpinner() {
+  const spinner = document.getElementById('search-spinner');
+  if (spinner) spinner.classList.remove('hidden');
+}
+
+function hideSpinner() {
+  const spinner = document.getElementById('search-spinner');
+  if (spinner) spinner.classList.add('hidden');
+}`;
+
+const FIXED_SEARCH_JS = `// Telemetry Logger Helper
+function logTelemetry(message, type) {
+  type = type || 'system';
+  const container = document.getElementById('telemetry-logs');
+  if (!container) return;
+  const entry = document.createElement('div');
+  entry.className = 'log-entry ' + type;
+  entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + message;
+  container.appendChild(entry);
+  container.scrollTop = container.scrollHeight;
+}
+
+// Clear console setup
+document.getElementById('clear-logs').addEventListener('click', function() {
+  const container = document.getElementById('telemetry-logs');
+  if (container) container.innerHTML = '';
+});
+
+// Mock asynchronous API search suggestions supporting AbortController cancellation
+function mockSearchApi(query, sequenceNumber, signal) {
+  return new Promise(function(resolve, reject) {
+    const delay = Math.random() * 2000 + 500;
+    
+    logTelemetry('⚙️ API processing search sequence #' + sequenceNumber + ' for "' + query + '" (Simulating ' + Math.round(delay) + 'ms latency)...', 'sent');
+    
+    const timeoutId = setTimeout(function() {
+      if (signal && signal.aborted) {
+        reject(new DOMException('Aborted', 'AbortError'));
+        return;
+      }
+      
+      const suggestions = [
+        query + ' documentation',
+        query + ' vs angular',
+        'best ways to learn ' + query,
+        'fixing errors in ' + query
+      ];
+      resolve({ suggestions: suggestions, sequenceNumber: sequenceNumber, query: query });
+    }, delay);
+
+    if (signal) {
+      signal.addEventListener('abort', function() {
+        clearTimeout(timeoutId);
+        reject(new DOMException('Aborted', 'AbortError'));
+      });
+    }
+  });
+}
+
+// Debounce Utility Implementation to hold back keystrokes
+function debounce(func, delay) {
+  let timeoutId;
+  return function () {
+    const context = this;
+    const args = arguments;
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(function() {
+      func.apply(context, args);
+    }, delay);
+  };
+}
+
+let globalRequestSequence = 0;
+let highestResolvedSequence = 0;
+let activeAbortController = null;
+
+// Search implementation featuring AbortController and sequence integrity guarding
+const executeSearch = debounce(function(query) {
+  if (!query) {
+    hideDropdown();
+    return;
+  }
+
+  // Cancel any ongoing, unresolved search fetch request
+  if (activeAbortController) {
+    activeAbortController.abort();
+    logTelemetry('🛑 Cancelled in-flight requests using active AbortController signal', 'aborted');
+  }
+
+  // Set up fresh AbortController for current search request
+  const controller = new AbortController();
+  activeAbortController = controller;
+
+  globalRequestSequence++;
+  const currentSequence = globalRequestSequence;
+  
+  logTelemetry('🚀 Triggered debounced request #' + currentSequence + ' for "' + query + '"', 'sent');
+  showSpinner();
+
+  mockSearchApi(query, currentSequence, controller.signal)
+    .then(function(result) {
+      hideSpinner();
+      
+      // Additional safety guard against sequence race conditions
+      if (result.sequenceNumber < highestResolvedSequence) {
+        logTelemetry('⚠️ RACE CONDITION GUARD! Stale response #' + result.sequenceNumber + ' arrived after #' + highestResolvedSequence + '. Discarded.', 'warning');
+        return;
+      }
+      
+      highestResolvedSequence = result.sequenceNumber;
+      logTelemetry('✅ Rendered response #' + result.sequenceNumber + ' for "' + result.query + '"', 'resolved');
+      displaySuggestions(result.suggestions);
+    })
+    .catch(function(error) {
+      hideSpinner();
+      if (error.name === 'AbortError') {
+        logTelemetry('🔌 Successfully aborted and discarded promise sequence #' + currentSequence, 'aborted');
+      } else {
+        logTelemetry('❌ Search API request #' + currentSequence + ' failed: ' + error.message, 'aborted');
+      }
+    });
+}, 300);
+
+// Event Listeners
+const searchInput = document.getElementById('search-input');
+searchInput.addEventListener('input', function(event) {
+  executeSearch(event.target.value.trim());
+});
+
+// Helper display routines
+function displaySuggestions(list) {
+  const dropdown = document.getElementById('suggestions-dropdown');
+  const ul = document.getElementById('suggestions-list');
+  if (!ul || !dropdown) return;
+  
+  ul.innerHTML = '';
+  list.forEach(function(item) {
+    const li = document.createElement('li');
+    li.textContent = item;
+    ul.appendChild(li);
+  });
+  dropdown.classList.remove('hidden');
+}
+
+function hideDropdown() {
+  const dropdown = document.getElementById('suggestions-dropdown');
+  if (dropdown) dropdown.classList.add('hidden');
+}
+
+function showSpinner() {
+  const spinner = document.getElementById('search-spinner');
+  if (spinner) spinner.classList.remove('hidden');
+}
+
+function hideSpinner() {
+  const spinner = document.getElementById('search-spinner');
+  if (spinner) spinner.classList.add('hidden');
+}`;
+
+/* ─── Exported array ───────────────────────────────────────── */
 export const browserSimulations: BrowserSimulation[] = [
   {
     id: "browser-broken-gallery",
@@ -830,6 +1451,64 @@ export const browserSimulations: BrowserSimulation[] = [
     estimatedTime: 10,
     tags: ["Flexbox", "CSS Grid", "Layout", "Navbar"],
     xpReward: 40,
+    template: "static",
+  },
+  {
+    id: "browser-search-race-condition",
+    category: "frontend",
+    title: "Fix: Search Suggestion Race Conditions",
+    difficulty: "medium",
+    description:
+      "A fast-typing search auto-suggest box triggers asynchronous fetch race conditions, leading to stale responses overwriting newer visual results out-of-order. Your task: modify script.js to implement input debouncing and fetch request cancellation using AbortController.",
+    incident:
+      "Rapidly typing queries like 'react' then 'next' triggers out-of-order API resolutions, causing the visual drop-down to overlay stale data and mismatching results. No debouncing or fetch cancellation is present.",
+    steps: [
+      {
+        description:
+          "Open script.js. Implement a custom debounce utility function that delays keyup triggers by 300ms.",
+      },
+      {
+        description:
+          "Instantiate an AbortController instance inside executeSearch and abort any previous unresolved search request before starting a new one.",
+      },
+      {
+        description:
+          "Pass the AbortSignal to mockSearchApi and catch AbortError exceptions to discard aborted promises cleanly.",
+      },
+      {
+        description:
+          "Add a safety check inside mockSearchApi's resolve block to discard incoming responses with a sequence number lower than the highest resolved one.",
+      },
+    ],
+    initialFiles: [
+      {
+        name: "index.html",
+        language: "html",
+        content: MOCK_SEARCH_HTML,
+      },
+      {
+        name: "style.css",
+        language: "css",
+        content: MOCK_SEARCH_CSS,
+      },
+      {
+        name: "script.js",
+        language: "javascript",
+        content: BROKEN_SEARCH_JS,
+      },
+    ],
+    solution: {
+      "script.js": FIXED_SEARCH_JS,
+    },
+    hints: [
+      "Use debounce(func, delay) to prevent executeSearch from firing on every single keystroke.",
+      "An AbortController controller allows you to execute controller.abort() when a subsequent keystroke is typed.",
+      "Make sure you catch the AbortError in your search promise catch-block to ignore and cleanly discard cancelled requests.",
+      "Track highestResolvedSequence to ensure that if a request somehow resolves out-of-order, it never overrides a newer one."
+    ],
+    estimatedTime: 20,
+    tags: ["Debounce", "AbortController", "Race Conditions", "Asynchronous"],
+    xpReward: 80,
     template: "static",
   },
 ];
