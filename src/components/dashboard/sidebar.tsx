@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -13,7 +14,6 @@ import {
   LogOut,
   Shield,
   HandshakeIcon,
-  Menu,
   Sun,
   Moon,
   AlertTriangle,
@@ -224,27 +224,38 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
               if (pinned) setHovered(false);
               onTogglePin?.();
             }}
-            className={`p-2 rounded-lg transition-all duration-200 shrink-0 ${
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-all duration-200 ${
               pinned
-                ? "bg-black dark:bg-white text-white dark:text-black shadow-sm"
-                : "text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900 hover:text-gray-700"
+                ? "border-black bg-black shadow-sm dark:border-white dark:bg-white"
+                : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 dark:border-gray-800 dark:bg-black dark:hover:border-gray-700 dark:hover:bg-gray-900"
             }`}
             title={pinned ? "Unpin sidebar" : "Pin sidebar open"}
           >
-            <Menu className="w-5 h-5" />
+            <Image
+              src="/lgogo.png"
+              alt="Enum logo"
+              width={28}
+              height={28}
+              className="h-7 w-7 object-contain"
+              priority
+            />
           </button>
-          <span
-            className={`font-bold text-lg tracking-tight whitespace-nowrap transition-opacity duration-300 ${
+          <Link
+            href="/"
+            className={`flex items-center whitespace-nowrap text-gray-900 dark:text-white transition-opacity duration-300 ${
               expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
             }`}
           >
-            <Link
-              href="/"
-              className="text-gray-900 dark:text-white hover:text-black dark:hover:text-gray-200"
+            <span
+              className="flex items-baseline font-bold text-[22px] leading-none select-none"
+              style={{ letterSpacing: "-0.08em", transform: "scaleX(0.92)" }}
             >
-              ENUM
-            </Link>
-          </span>
+              <span>E</span>
+              <span className="italic font-medium">N</span>
+              <span>U</span>
+              <span>M</span>
+            </span>
+          </Link>
         </div>
 
         {/* ── Body: nav + profile + actions ── */}
