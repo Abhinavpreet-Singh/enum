@@ -133,7 +133,6 @@ export default function LeaderboardPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-black">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-
         {/* Header */}
         <div>
           <p className="font-mono text-[10px] tracking-[0.3em] text-gray-400 uppercase mb-1">
@@ -199,9 +198,7 @@ export default function LeaderboardPage() {
                       you
                     </span>
                   )}
-                  <span className="text-2xl leading-none">
-                    {RANK_MEDAL[i]}
-                  </span>
+                  <span className="text-2xl leading-none">{RANK_MEDAL[i]}</span>
                   <Avatar
                     src={entry.avatar}
                     name={entry.displayName}

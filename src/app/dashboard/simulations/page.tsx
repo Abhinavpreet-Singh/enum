@@ -121,18 +121,15 @@ export default function SimulationsPage() {
     }));
 
     Promise.all([
-      axios
-        .get(`${proxy}/api/v1/simulations/getSimulations`, {
-          withCredentials: true,
-        }),
-      axios
-        .get(`${proxy}/api/v1/simulations/linux`, {
-          withCredentials: true,
-        }),
-      axios
-        .get(`${proxy}/api/v1/system-design/simulations`, {
-          withCredentials: true,
-        }),
+      axios.get(`${proxy}/api/v1/simulations/getSimulations`, {
+        withCredentials: true,
+      }),
+      axios.get(`${proxy}/api/v1/simulations/linux`, {
+        withCredentials: true,
+      }),
+      axios.get(`${proxy}/api/v1/system-design/simulations`, {
+        withCredentials: true,
+      }),
     ])
       .then(([simRes, linuxRes, sdRes]) => {
         const backend: SimulationItem[] = simRes?.data?.data || [];

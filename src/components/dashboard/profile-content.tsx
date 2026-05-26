@@ -64,19 +64,21 @@ interface LeaderboardEntry {
 // Returns "YYYY-MM-DD" in the user's LOCAL timezone (not UTC)
 function localDateStr(date: Date): string {
   const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
 
 interface HeatCell {
-  date: string;   // "YYYY-MM-DD" local timezone
-  level: number;  // 0-4 intensity
-  count: number;  // total submissions that day
+  date: string; // "YYYY-MM-DD" local timezone
+  level: number; // 0-4 intensity
+  count: number; // total submissions that day
 }
 
 // Builds 52-week grid anchored on Sunday, using total submissions for intensity
-function generateHeatmapCells(submissionsMap: Map<string, number>): HeatCell[][] {
+function generateHeatmapCells(
+  submissionsMap: Map<string, number>,
+): HeatCell[][] {
   const weeks: HeatCell[][] = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -91,7 +93,8 @@ function generateHeatmapCells(submissionsMap: Map<string, number>): HeatCell[][]
     for (let d = 0; d < 7; d++) {
       const dateStr = localDateStr(cur);
       const count = cur > today ? 0 : (submissionsMap.get(dateStr) ?? 0);
-      const level = count === 0 ? 0 : count === 1 ? 1 : count <= 3 ? 2 : count <= 5 ? 3 : 4;
+      const level =
+        count === 0 ? 0 : count === 1 ? 1 : count <= 3 ? 2 : count <= 5 ? 3 : 4;
       week.push({ date: dateStr, level, count });
       cur.setDate(cur.getDate() + 1);
     }
@@ -102,15 +105,17 @@ function generateHeatmapCells(submissionsMap: Map<string, number>): HeatCell[][]
 
 // Returns label + column index of the week that CONTAINS the 1st of each month
 // Pixel constants shared between label positions and cell column margins
-const CELL_W = 11;   // w-2.75
-const COL_GAP = 3;   // gap-0.75
-const DAY_W = 28;    // day-label column width
+const CELL_W = 11; // w-2.75
+const COL_GAP = 3; // gap-0.75
+const DAY_W = 28; // day-label column width
 const MONTH_EXTRA = 9; // extra px added at each month boundary
 
 // Returns { label, left } where left is the precise pixel offset for each month label.
 // Labels are anchored to the first week-column that *starts* in that month (the same
 // column that receives the boundary gap), so the label always sits right after its gap.
-function computeMonthLabelPositions(cells: HeatCell[][]): { label: string; left: number }[] {
+function computeMonthLabelPositions(
+  cells: HeatCell[][],
+): { label: string; left: number }[] {
   const result: { label: string; left: number }[] = [];
   let extraAcc = 0;
 
@@ -118,14 +123,18 @@ function computeMonthLabelPositions(cells: HeatCell[][]): { label: string; left:
     const firstDay = new Date(week[0].date + "T00:00:00");
     const isNewMonth =
       wi > 0 &&
-      firstDay.getMonth() !== new Date(cells[wi - 1][0].date + "T00:00:00").getMonth();
+      firstDay.getMonth() !==
+        new Date(cells[wi - 1][0].date + "T00:00:00").getMonth();
 
     if (isNewMonth) {
       extraAcc += MONTH_EXTRA;
       // left = day-label + first gap + col * (cell + gap) + accumulated extras
       // This matches exactly the DOM left edge of column wi.
       const left = DAY_W + COL_GAP + wi * (CELL_W + COL_GAP) + extraAcc;
-      result.push({ label: firstDay.toLocaleString("default", { month: "short" }), left });
+      result.push({
+        label: firstDay.toLocaleString("default", { month: "short" }),
+        left,
+      });
     }
   });
   return result;
@@ -179,12 +188,18 @@ function generateStreakBadges(currentStreak: number) {
 // Black & white contribution colors
 function heatColor(level: number): string {
   switch (level) {
-    case 0:  return "bg-[#ebebeb] dark:bg-[#1e1e1e]";
-    case 1:  return "bg-[#c0c0c0] dark:bg-[#404040]";
-    case 2:  return "bg-[#888888] dark:bg-[#707070]";
-    case 3:  return "bg-[#4a4a4a] dark:bg-[#a0a0a0]";
-    case 4:  return "bg-[#1a1a1a] dark:bg-[#d8d8d8]";
-    default: return "bg-[#ebebeb] dark:bg-[#1e1e1e]";
+    case 0:
+      return "bg-[#ebebeb] dark:bg-[#1e1e1e]";
+    case 1:
+      return "bg-[#c0c0c0] dark:bg-[#404040]";
+    case 2:
+      return "bg-[#888888] dark:bg-[#707070]";
+    case 3:
+      return "bg-[#4a4a4a] dark:bg-[#a0a0a0]";
+    case 4:
+      return "bg-[#1a1a1a] dark:bg-[#d8d8d8]";
+    default:
+      return "bg-[#ebebeb] dark:bg-[#1e1e1e]";
   }
 }
 
@@ -338,18 +353,20 @@ export default function ProfileContent() {
   const [heatmapCells, setHeatmapCells] = useState<HeatCell[][]>([]);
   const [totalSubmissionsYear, setTotalSubmissionsYear] = useState(0);
   const [totalActiveDays, setTotalActiveDays] = useState(0);
-  const [streakBadges, setStreakBadges] = useState<Array<{ day: number; label: string; unlocked: boolean }>>(
-    generateStreakBadges(0)
-  );
+  const [streakBadges, setStreakBadges] = useState<
+    Array<{ day: number; label: string; unlocked: boolean }>
+  >(generateStreakBadges(0));
   const [lastLoginDate, setLastLoginDate] = useState<string>(
-    typeof window !== "undefined" ? localStorage.getItem("lastLoginDate") || "" : ""
+    typeof window !== "undefined"
+      ? localStorage.getItem("lastLoginDate") || ""
+      : "",
   );
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
 
     // Track daily login
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split("T")[0];
     const storedLastLogin = localStorage.getItem("lastLoginDate") || "";
     if (storedLastLogin !== today) {
       localStorage.setItem("lastLoginDate", today);
@@ -396,7 +413,9 @@ export default function ProfileContent() {
       });
 
       const activityMap = new Map<string, number>();
-      acceptedByDate.forEach((problems, date) => activityMap.set(date, problems.size));
+      acceptedByDate.forEach((problems, date) =>
+        activityMap.set(date, problems.size),
+      );
 
       // Total submissions in the past year
       const oneYearAgo = new Date();
@@ -430,7 +449,7 @@ export default function ProfileContent() {
         return next;
       });
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registeredUsername]);
 
   async function persistProfile(data: ProfileData) {
@@ -1127,40 +1146,55 @@ export default function ProfileContent() {
                 <div className="flex items-center gap-5 text-[11px] font-mono text-gray-500 dark:text-gray-400 flex-wrap">
                   <span>
                     Total active days:{" "}
-                    <span className="font-bold text-black dark:text-white">{totalActiveDays}</span>
+                    <span className="font-bold text-black dark:text-white">
+                      {totalActiveDays}
+                    </span>
                   </span>
                   <span>
                     Max streak:{" "}
-                    <span className="font-bold text-black dark:text-white">{stats.longestStreak}</span>
+                    <span className="font-bold text-black dark:text-white">
+                      {stats.longestStreak}
+                    </span>
                   </span>
                 </div>
               </div>
 
               {/* ── Grid ── */}
-              <div className="px-5 py-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+              <div
+                className="px-5 py-4 overflow-x-auto"
+                style={{ scrollbarWidth: "none" }}
+              >
                 {heatmapCells.length > 0 ? (
                   <div style={{ minWidth: 700 }}>
                     {/* Month labels — absolutely positioned, left values include accumulated month-boundary extra gaps */}
                     <div className="relative mb-1" style={{ height: 16 }}>
-                      {computeMonthLabelPositions(heatmapCells).map(({ label, left }) => (
-                        <span
-                          key={`${label}-${left}`}
-                          className="absolute font-mono text-[10px] text-gray-400 dark:text-gray-500"
-                          style={{ left, whiteSpace: "nowrap" }}
-                        >
-                          {label}
-                        </span>
-                      ))}
+                      {computeMonthLabelPositions(heatmapCells).map(
+                        ({ label, left }) => (
+                          <span
+                            key={`${label}-${left}`}
+                            className="absolute font-mono text-[10px] text-gray-400 dark:text-gray-500"
+                            style={{ left, whiteSpace: "nowrap" }}
+                          >
+                            {label}
+                          </span>
+                        ),
+                      )}
                     </div>
 
                     <div className="flex">
                       {/* Day labels — Mon / Wed / Fri visible, others hidden */}
-                      <div className="flex flex-col gap-0.75 shrink-0" style={{ width: DAY_W }}>
+                      <div
+                        className="flex flex-col gap-0.75 shrink-0"
+                        style={{ width: DAY_W }}
+                      >
                         {DAYS.map((d, i) => (
                           <div
                             key={d}
                             className="font-mono text-[10px] text-gray-400 dark:text-gray-500 flex items-center"
-                            style={{ height: CELL_W, opacity: i === 1 || i === 3 || i === 5 ? 1 : 0 }}
+                            style={{
+                              height: CELL_W,
+                              opacity: i === 1 || i === 3 || i === 5 ? 1 : 0,
+                            }}
                           >
                             {d}
                           </div>
@@ -1172,12 +1206,18 @@ export default function ProfileContent() {
                         const isNewMonth =
                           wi > 0 &&
                           new Date(week[0].date + "T00:00:00").getMonth() !==
-                            new Date(heatmapCells[wi - 1][0].date + "T00:00:00").getMonth();
+                            new Date(
+                              heatmapCells[wi - 1][0].date + "T00:00:00",
+                            ).getMonth();
                         return (
                           <div
                             key={wi}
                             className="flex flex-col gap-0.75"
-                            style={{ marginLeft: isNewMonth ? COL_GAP + MONTH_EXTRA : COL_GAP }}
+                            style={{
+                              marginLeft: isNewMonth
+                                ? COL_GAP + MONTH_EXTRA
+                                : COL_GAP,
+                            }}
                           >
                             {week.map((cell, di) => {
                               const d = new Date(cell.date + "T00:00:00");
@@ -1205,11 +1245,18 @@ export default function ProfileContent() {
 
                     {/* Legend */}
                     <div className="flex items-center justify-end gap-1.5 mt-3">
-                      <span className="font-mono text-[10px] text-gray-400">Less</span>
+                      <span className="font-mono text-[10px] text-gray-400">
+                        Less
+                      </span>
                       {[0, 1, 2, 3, 4].map((l) => (
-                        <div key={l} className={`w-2.75 h-2.75 rounded-xs ${heatColor(l)}`} />
+                        <div
+                          key={l}
+                          className={`w-2.75 h-2.75 rounded-xs ${heatColor(l)}`}
+                        />
                       ))}
-                      <span className="font-mono text-[10px] text-gray-400">More</span>
+                      <span className="font-mono text-[10px] text-gray-400">
+                        More
+                      </span>
                     </div>
                   </div>
                 ) : (

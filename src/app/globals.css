@@ -73,6 +73,53 @@ html {
   }
 }
 
+/* Daily challenge — traveling highlight on the box edge */
+@keyframes daily-border-travel {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.daily-challenge-border-glow {
+  position: absolute;
+  inset: -60%;
+  animation: daily-border-travel 2.8s linear infinite;
+  will-change: transform;
+}
+
+.daily-challenge-border-glow--light {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 235deg,
+    rgba(0, 0, 0, 0.12) 252deg,
+    #000000 270deg,
+    rgba(0, 0, 0, 0.12) 288deg,
+    transparent 305deg,
+    transparent 360deg
+  );
+}
+
+.daily-challenge-border-glow--dark {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 235deg,
+    rgba(255, 255, 255, 0.18) 252deg,
+    #ffffff 270deg,
+    rgba(255, 255, 255, 0.18) 288deg,
+    transparent 305deg,
+    transparent 360deg
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daily-challenge-border-glow {
+    animation: none;
+    opacity: 0.35;
+  }
+}
+
 /* Custom sleek scrollbar for webkit browsers */
 ::-webkit-scrollbar {
   width: 6px;
@@ -189,4 +236,461 @@ html {
     background-color, border-color, color, box-shadow, outline-color;
   transition-duration: 250ms;
   transition-timing-function: ease;
+}
+
+/* DSA arena dashboard — GitHub-style contribution cell pulse */
+@keyframes dsa-heatmap-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+
+.dsa-heatmap-pulse {
+  animation: dsa-heatmap-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes dsa-heatmap-wave {
+  0%,
+  100% {
+    box-shadow: none;
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.dsa-heatmap-wave {
+  animation:
+    dsa-heatmap-pulse 2.2s ease-in-out infinite,
+    dsa-heatmap-wave 1.6s ease-in-out infinite;
+}
+
+.dark .dsa-heatmap-wave {
+  animation:
+    dsa-heatmap-pulse 2.2s ease-in-out infinite,
+    dsa-heatmap-wave-dark 1.6s ease-in-out infinite;
+}
+
+@keyframes dsa-heatmap-wave-dark {
+  0%,
+  100% {
+    box-shadow: none;
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Dashboard panel previews — smooth, compact */
+.dash-preview-frame {
+  transition: border-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+.group:hover .dash-preview-frame {
+  border-color: rgba(113, 113, 122, 0.45);
+  box-shadow: 0 1px 12px -4px rgba(0, 0, 0, 0.08);
+}
+
+.dark .group:hover .dash-preview-frame {
+  border-color: rgba(161, 161, 170, 0.35);
+  box-shadow: 0 1px 16px -6px rgba(255, 255, 255, 0.06);
+}
+
+/* DSA — code + judge */
+@keyframes dsa-code-caret-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.15;
+  }
+}
+
+.dsa-code-caret {
+  animation: dsa-code-caret-blink 1.1s ease-in-out infinite;
+}
+
+@keyframes dsa-test-row-bg {
+  0%,
+  22% {
+    border-color: rgba(212, 212, 216, 0.65);
+    background-color: rgba(255, 255, 255, 0.55);
+  }
+  28%,
+  100% {
+    border-color: rgba(16, 185, 129, 0.4);
+    background-color: rgba(16, 185, 129, 0.1);
+  }
+}
+
+@keyframes dsa-test-row-bg-dark {
+  0%,
+  22% {
+    border-color: rgba(63, 63, 70, 0.8);
+    background-color: rgba(39, 39, 42, 0.55);
+  }
+  28%,
+  100% {
+    border-color: rgba(52, 211, 153, 0.35);
+    background-color: rgba(16, 185, 129, 0.12);
+  }
+}
+
+.dsa-test-row {
+  animation: dsa-test-row-bg 4.2s ease-in-out infinite;
+}
+
+.dark .dsa-test-row {
+  animation-name: dsa-test-row-bg-dark;
+}
+
+.dsa-test-row-check {
+  display: inline-block;
+  overflow: hidden;
+  max-width: 0;
+  opacity: 0;
+  animation: dsa-test-row-check-in 4.2s ease-in-out infinite;
+  animation-delay: inherit;
+}
+
+.dsa-test-row-dot {
+  display: inline-block;
+  animation: dsa-test-row-dot-out 4.2s ease-in-out infinite;
+  animation-delay: inherit;
+}
+
+@keyframes dsa-test-row-check-in {
+  0%,
+  22% {
+    max-width: 0;
+    opacity: 0;
+  }
+  28%,
+  100% {
+    max-width: 0.75rem;
+    opacity: 1;
+  }
+}
+
+@keyframes dsa-test-row-dot-out {
+  0%,
+  22% {
+    opacity: 1;
+    max-width: 0.5rem;
+  }
+  28%,
+  100% {
+    opacity: 0;
+    max-width: 0;
+  }
+}
+
+.dsa-test-row-ms {
+  animation: dsa-test-row-ms-in 4.2s ease-in-out infinite;
+  animation-delay: inherit;
+  opacity: 0.4;
+}
+
+@keyframes dsa-test-row-ms-in {
+  0%,
+  22% {
+    opacity: 0.35;
+  }
+  28%,
+  100% {
+    opacity: 1;
+    color: rgba(5, 150, 105, 0.85);
+  }
+}
+
+@keyframes dsa-progress-fill {
+  0%,
+  100% {
+    width: 38%;
+  }
+  50% {
+    width: 82%;
+  }
+}
+
+.dsa-progress-bar {
+  width: 38%;
+  animation: dsa-progress-fill 4.5s ease-in-out infinite;
+}
+
+@keyframes dsa-scan-sweep {
+  0% {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.6;
+  }
+  80% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+
+.dsa-scan-sweep {
+  animation: dsa-scan-sweep 4.5s ease-in-out infinite;
+}
+
+/* Incidents */
+@keyframes incident-node-alert {
+  0%,
+  38% {
+    background-color: rgba(16, 185, 129, 0.28);
+    box-shadow: none;
+  }
+  42%,
+  62% {
+    background-color: rgba(245, 158, 11, 0.32);
+    box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.2);
+  }
+  66%,
+  100% {
+    background-color: rgba(239, 68, 68, 0.38);
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.25);
+  }
+}
+
+.incident-node-pulse {
+  animation: incident-node-alert 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes incident-flow-pulse {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scaleX(0.88);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scaleX(1);
+  }
+}
+
+.incident-flow-line {
+  transform-origin: center;
+  animation: incident-flow-pulse 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes incident-log-scroll-y {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+.incident-log-marquee {
+  animation: incident-log-scroll-y 14s linear infinite;
+}
+
+@keyframes incident-status-pulse {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.incident-status-pill {
+  animation: incident-status-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes incident-metric-pulse {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.incident-metric-value {
+  animation: incident-metric-pulse 2.8s ease-in-out infinite;
+}
+
+/* Simulations — ENUM frontend sandbox */
+.sim-enum-grid {
+  background-image:
+    linear-gradient(to right, currentColor 1px, transparent 1px),
+    linear-gradient(to bottom, currentColor 1px, transparent 1px);
+  background-size: 10px 10px;
+  color: rgba(0, 0, 0, 0.08);
+}
+
+.dark .sim-enum-grid {
+  color: rgba(255, 255, 255, 0.1);
+}
+
+.sim-enum-logo {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  animation: sim-enum-logo-breathe 3.5s ease-in-out infinite;
+}
+
+@keyframes sim-enum-logo-breathe {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
+.sim-enum-tagline {
+  animation: sim-enum-shimmer 2.8s ease-in-out infinite;
+}
+
+@keyframes sim-enum-shimmer {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scaleX(0.7);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scaleX(1);
+  }
+}
+
+.sim-enum-cta {
+  animation: sim-enum-cta-pulse 3.2s ease-in-out infinite;
+}
+
+@keyframes sim-enum-cta-pulse {
+  0%,
+  100% {
+    border-color: rgba(161, 161, 170, 0.5);
+    box-shadow: none;
+  }
+  50% {
+    border-color: rgba(59, 130, 246, 0.45);
+    box-shadow: 0 0 6px rgba(59, 130, 246, 0.12);
+  }
+}
+
+.sim-enum-bug {
+  animation: sim-enum-bug-pop 4s ease-in-out infinite;
+}
+
+@keyframes sim-enum-bug-pop {
+  0%,
+  70%,
+  100% {
+    opacity: 0;
+    transform: translateY(2px) scale(0.95);
+  }
+  78%,
+  88% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Collaboration — you high, others low */
+@keyframes collab-float-subtle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1px);
+  }
+}
+
+.collab-cursor-you {
+  animation: collab-float-subtle 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.collab-cursor-sam {
+  animation: collab-float-subtle 3.4s cubic-bezier(0.4, 0, 0.2, 1) 0.4s infinite;
+}
+
+.collab-cursor-alex {
+  animation: collab-float-subtle 2.8s cubic-bezier(0.4, 0, 0.2, 1) 0.8s infinite;
+}
+
+@keyframes collab-caret-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.15;
+  }
+}
+
+.collab-caret-blink {
+  animation: collab-caret-blink 1.1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dsa-code-caret,
+  .dsa-test-row,
+  .dsa-test-row-check,
+  .dsa-test-row-dot,
+  .dsa-test-row-ms,
+  .dsa-progress-bar,
+  .dsa-scan-sweep,
+  .incident-node-pulse,
+  .incident-flow-line,
+  .incident-log-marquee,
+  .incident-status-pill,
+  .incident-metric-value,
+  .sim-enum-logo,
+  .sim-enum-tagline,
+  .sim-enum-cta,
+  .sim-enum-bug,
+  .collab-cursor-you,
+  .collab-cursor-sam,
+  .collab-cursor-alex,
+  .collab-caret-blink {
+    animation: none !important;
+  }
+
+  .dsa-test-row:nth-child(-n + 2) {
+    border-color: rgba(16, 185, 129, 0.4);
+    background-color: rgba(16, 185, 129, 0.1);
+  }
+
+  .dsa-test-row-check {
+    max-width: 0.75rem;
+    opacity: 1;
+  }
+
+  .dsa-test-row-dot {
+    display: none;
+  }
+
+  .dsa-progress-bar {
+    width: 66%;
+  }
+
+  .sim-enum-bug {
+    opacity: 1;
+    transform: none;
+  }
 }

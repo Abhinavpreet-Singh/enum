@@ -145,18 +145,8 @@ export default function CollabLanding() {
   }, []);
 
   return (
-    <div className="relative h-full min-h-0 overflow-hidden bg-white text-black dark:bg-black dark:text-white">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-60"
-        aria-hidden="true"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, rgba(17,17,17,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(17,17,17,0.06) 1px, transparent 1px)",
-          backgroundSize: "42px 42px",
-        }}
-      />
-
-      <main className="relative z-10 mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col justify-center px-4 py-6 md:px-8">
+    <div className="relative h-full min-h-0 overflow-hidden text-black dark:text-white">
+      <main className="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col justify-center px-4 py-6 md:px-8">
         <section className="flex flex-col gap-6 border border-black/10 bg-white/95 p-6 shadow-[0_16px_60px_rgba(0,0,0,0.06)] backdrop-blur dark:border-white/10 dark:bg-black/90 md:p-8">
           {/* Hero */}
           <header className="border-b border-black/10 pb-6 dark:border-white/10">

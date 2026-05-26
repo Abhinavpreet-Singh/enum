@@ -22,7 +22,7 @@ import { useTheme } from "@/providers/theme-provider";
 
 // Sidebar dimensions (in px)
 const COLLAPSED_W = 72;
-const EXPANDED_W = 248;
+const EXPANDED_W = 220;
 
 interface SidebarProps {
   pinned?: boolean;

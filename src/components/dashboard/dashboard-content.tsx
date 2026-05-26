@@ -11,7 +11,36 @@ import {
   ChevronRight,
   Flame,
   Network,
+  AlertTriangle,
+  Handshake,
+  Target,
 } from "lucide-react";
+import {
+  CollabLivePreview,
+  DsaTestRunnerPreview,
+  IncidentOpsPreview,
+  SimulationScenePreview,
+} from "@/components/dashboard/panel-previews";
+
+/** Always-visible panel borders — theme-aware, not hover-only */
+const panelBorder = "border border-black/20 dark:border-white/25";
+const panelSurface = `${panelBorder} bg-white/80 backdrop-blur-[2px] dark:bg-black/75`;
+const panelHover =
+  "transition-[background-color,border-color,box-shadow,transform] duration-150 ease-out hover:border-black hover:bg-white/45 hover:shadow-sm hover:-translate-y-0.5 dark:hover:border-white dark:hover:bg-black/40 dark:hover:shadow-white/5";
+const panelLink = `group block ${panelSurface} ${panelHover}`;
+const statCard = `${panelSurface} p-4`;
+const cardFooterArrow =
+  "inline-flex h-6 w-6 items-center justify-center border border-black/12 transition-colors group-hover:border-black group-hover:bg-black group-hover:text-white dark:border-white/18 dark:group-hover:border-white dark:group-hover:bg-white dark:group-hover:text-black";
+const arrowCardFooter = "relative mt-1 flex shrink-0 items-center justify-end";
+/** Feature nav — preview grows to fill card */
+const featureNavCard = `${panelLink} flex min-h-[11rem] min-w-0 flex-col overflow-hidden p-2.5 sm:min-h-[12rem] sm:p-3`;
+const featureNavBody = "flex min-h-0 flex-1 flex-col";
+/** Daily challenge & leaderboard share this footprint */
+const sectionPanelH = "min-h-40 lg:min-h-[10.5rem]";
+const progressTrack =
+  "relative h-1.5 overflow-hidden rounded-sm border border-black/15 bg-black/[0.08] dark:border-white/20 dark:bg-white/[0.1]";
+const progressFill =
+  "absolute inset-y-0 left-0 bg-black dark:bg-white transition-all duration-700";
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import useAuth from "@/hooks/useAuth";
@@ -329,11 +358,11 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
       {/* ── Header ─────────────────────────────────────── */}
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-black dark:text-white tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white md:text-3xl">
             {greeting} {displayName}.
           </h1>
-          <p className="font-mono text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Continue your journey to production-ready excellence
+          <p className="mt-1 font-mono text-xs text-gray-500 dark:text-gray-400">
+            Your workspace — practice, simulate, collaborate.
           </p>
         </div>
         <div className="text-right shrink-0 hidden sm:block">
@@ -345,9 +374,9 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
       </div>
 
       {/* ── Stat Cards ─────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {/* Problems Solved */}
-        <div className="border border-gray-100 dark:border-white/8 bg-white dark:bg-[#111] p-4 hover:border-gray-300 dark:hover:border-white/20 transition-colors">
+        <div className={statCard}>
           <div className="flex items-center justify-between mb-3">
             <span className="font-mono text-[9px] tracking-[0.3em] text-gray-400 uppercase">
               Problems
@@ -362,9 +391,9 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
               of {totalQuestions} total
             </p>
           )}
-          <div className="h-px bg-gray-100 dark:bg-white/8 relative mt-3">
+          <div className={`${progressTrack} mt-3`}>
             <div
-              className="absolute left-0 top-0 h-full bg-emerald-500 transition-all duration-700"
+              className={progressFill}
               style={{
                 width:
                   totalQuestions > 0
@@ -379,7 +408,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
         </div>
 
         {/* Simulations */}
-        <div className="border border-gray-100 dark:border-white/8 bg-white dark:bg-[#111] p-4 hover:border-gray-300 dark:hover:border-white/20 transition-colors">
+        <div className={statCard}>
           <div className="flex items-center justify-between mb-3">
             <span className="font-mono text-[9px] tracking-[0.3em] text-gray-400 uppercase">
               Simulations
@@ -394,9 +423,9 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
               of {totalSimulations} total
             </p>
           )}
-          <div className="h-px bg-gray-100 dark:bg-white/8 relative mt-3">
+          <div className={`${progressTrack} mt-3`}>
             <div
-              className="absolute left-0 top-0 h-full bg-amber-400 transition-all duration-700"
+              className={progressFill}
               style={{
                 width:
                   totalSimulations > 0
@@ -411,7 +440,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
         </div>
 
         {/* Total XP */}
-        <div className="border border-gray-100 dark:border-white/8 bg-white dark:bg-[#111] p-4 hover:border-gray-300 dark:hover:border-white/20 transition-colors">
+        <div className={statCard}>
           <div className="flex items-center justify-between mb-3">
             <span className="font-mono text-[9px] tracking-[0.3em] text-gray-400 uppercase">
               XP
@@ -424,11 +453,8 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
           <p className="font-mono text-[10px] text-gray-400 mb-3">
             total earned
           </p>
-          <div className="h-px bg-gray-100 dark:bg-white/8 relative">
-            <div
-              className="absolute left-0 top-0 h-full bg-yellow-400 transition-all duration-700"
-              style={{ width: `${xpPct}%` }}
-            />
+          <div className={progressTrack}>
+            <div className={progressFill} style={{ width: `${xpPct}%` }} />
           </div>
           <p className="font-mono text-[10px] text-gray-400 dark:text-gray-500 mt-2">
             Experience Points
@@ -436,7 +462,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
         </div>
 
         {/* Global Rank */}
-        <div className="border border-gray-100 dark:border-white/8 bg-white dark:bg-[#111] p-4 hover:border-gray-300 dark:hover:border-white/20 transition-colors">
+        <div className={statCard}>
           <div className="flex items-center justify-between mb-3">
             <span className="font-mono text-[9px] tracking-[0.3em] text-gray-400 uppercase">
               Rank
@@ -449,10 +475,10 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
           <p className="font-mono text-[10px] text-gray-400 mb-3">
             of {leaderboard.length || "--"} devs
           </p>
-          <div className="h-px bg-gray-100 dark:bg-white/8 relative">
+          <div className={progressTrack}>
             {stats.globalRank && leaderboard.length > 0 && (
               <div
-                className="absolute left-0 top-0 h-full bg-white dark:bg-white transition-all duration-700"
+                className={progressFill}
                 style={{
                   width: `${Math.max(5, 100 - ((stats.globalRank - 1) / leaderboard.length) * 100)}%`,
                 }}
@@ -465,57 +491,85 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
         </div>
       </div>
 
-      {/* ── Arena shortcuts ───────────────────────────── */}
-      <div className="grid md:grid-cols-3 gap-3">
-        <Link
-          href="/dashboard/dsa-arena"
-          className="group border border-gray-100 dark:border-white/8 bg-white dark:bg-[#111] p-4 hover:border-black dark:hover:border-white transition-colors"
-        >
-          <p className="font-mono text-[9px] tracking-[0.3em] text-gray-400 uppercase mb-2">
-            DSA Arena
-          </p>
-          <p className="text-sm text-black dark:text-white font-medium">
-            Solve algorithm questions with the existing judge.
-          </p>
-          <div className="mt-3 flex items-center gap-2 font-mono text-xs text-gray-400 group-hover:text-black dark:group-hover:text-white transition-colors">
-            Open arena <ChevronRight className="w-3.5 h-3.5" />
+      {/* ── Feature nav: single row (4) ─────────────────── */}
+      <div className="grid min-w-0 grid-cols-4 gap-2 sm:gap-3">
+        <Link href="/dashboard/simulations" className={featureNavCard}>
+          <div className={featureNavBody}>
+            <div className="mb-1.5 flex shrink-0 items-center justify-between gap-2">
+              <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-gray-500 dark:text-gray-400">
+                Simulations
+              </p>
+              <PlayCircle className="h-3 w-3 shrink-0 text-amber-400/80" />
+            </div>
+            <SimulationScenePreview />
+          </div>
+          <div className={arrowCardFooter}>
+            <span className={cardFooterArrow}>
+              <ChevronRight className="h-3 w-3" />
+            </span>
           </div>
         </Link>
 
-        <Link
-          href="/dashboard/simulations"
-          className="group border border-gray-100 dark:border-white/8 bg-white dark:bg-[#111] p-4 hover:border-black dark:hover:border-white transition-colors"
-        >
-          <p className="font-mono text-[9px] tracking-[0.3em] text-gray-400 uppercase mb-2">
-            Simulations
-          </p>
-          <p className="text-sm text-black dark:text-white font-medium">
-            Practice engineering incidents inside sandboxed environments.
-          </p>
-          <div className="mt-3 flex items-center gap-2 font-mono text-xs text-gray-400 group-hover:text-black dark:group-hover:text-white transition-colors">
-            Open simulations <ChevronRight className="w-3.5 h-3.5" />
+        <Link href="/dashboard/incidents" className={featureNavCard}>
+          <div className={featureNavBody}>
+            <div className="mb-1.5 flex shrink-0 items-center justify-between gap-2">
+              <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-gray-500 dark:text-gray-400">
+                Incidents
+              </p>
+              <AlertTriangle className="h-3 w-3 shrink-0 text-red-500/80 animate-pulse" />
+            </div>
+            <IncidentOpsPreview />
+          </div>
+          <div className={arrowCardFooter}>
+            <span className={cardFooterArrow}>
+              <ChevronRight className="h-3 w-3" />
+            </span>
+          </div>
+        </Link>
+
+        <Link href="/dashboard/dsa-arena" className={featureNavCard}>
+          <div className={featureNavBody}>
+            <div className="mb-1.5 flex shrink-0 items-center justify-between gap-2">
+              <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-gray-500 dark:text-gray-400">
+                DSA Arena
+              </p>
+              <Target className="h-3 w-3 shrink-0 text-emerald-500/80" />
+            </div>
+            <DsaTestRunnerPreview />
+          </div>
+          <div className={arrowCardFooter}>
+            <span className={cardFooterArrow}>
+              <ChevronRight className="h-3 w-3" />
+            </span>
+          </div>
+        </Link>
+
+        <Link href="/dashboard/collab" className={featureNavCard}>
+          <div className={featureNavBody}>
+            <div className="mb-1.5 flex shrink-0 items-center justify-between gap-2">
+              <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-gray-500 dark:text-gray-400">
+                Collaboration
+              </p>
+              <Handshake className="h-3 w-3 shrink-0 text-violet-500/80" />
+            </div>
+            <CollabLivePreview />
+          </div>
+          <div className={arrowCardFooter}>
+            <span className={cardFooterArrow}>
+              <ChevronRight className="h-3 w-3" />
+            </span>
           </div>
         </Link>
       </div>
 
-      {/* ── XP Level — Futuristic HUD ──────────────────── */}
-      <div className="relative border border-gray-100 dark:border-white/15 bg-gray-50 dark:bg-[#0d0d0d] overflow-hidden">
-        {/* Scan-line texture overlay */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.012) 3px, rgba(255,255,255,0.012) 4px)",
-          }}
-        />
-        {/* Corner bracket decorations */}
-        <span className="absolute top-3 right-3 w-5 h-5 border-t border-r border-white/20 pointer-events-none" />
-        <span className="absolute bottom-3 left-3 w-5 h-5 border-b border-l border-white/20 pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-5 p-5">
+      {/* ── XP Level ───────────────────────────────────── */}
+      <div className={`${panelSurface} ${panelHover}`}>
+        <div className="flex flex-col items-start gap-5 p-5 sm:flex-row sm:items-center">
           {/* Level badge */}
-          <div className="shrink-0 flex items-center gap-4">
-            <div className="relative w-14 h-14 border border-gray-200 dark:border-white/25 bg-gray-100 dark:bg-white/5 flex items-center justify-center">
+          <div className="flex shrink-0 items-center gap-4">
+            <div
+              className={`relative flex h-14 w-14 items-center justify-center ${panelBorder} bg-black/[0.04] dark:bg-white/[0.06]`}
+            >
               <span className="font-mono font-black text-xl text-black dark:text-white tabular-nums">
                 {String(lvl.level).padStart(2, "0")}
               </span>
@@ -552,27 +606,16 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
               )}
             </div>
 
-            {/* Bar */}
-            <div className="h-3 bg-gray-200 dark:bg-black/60 relative overflow-hidden border border-gray-200 dark:border-white/8">
-              {/* Fill with glow */}
+            {/* Bar — black track/fill in light, white in dark */}
+            <div className="relative h-4 overflow-hidden rounded-sm border border-black/25 bg-black/[0.12] dark:border-white/30 dark:bg-white/[0.14]">
               <div
-                className="h-full relative transition-all duration-700"
-                style={{
-                  width: `${xpPct}%`,
-                  background:
-                    "linear-gradient(90deg, #555 0%, #ccc 55%, #fff 100%)",
-                  boxShadow:
-                    "0 0 12px rgba(255,255,255,0.35), 0 0 28px rgba(255,255,255,0.15)",
-                }}
-              >
-                {/* Leading edge shine */}
-                <div className="absolute right-0 top-0 bottom-0 w-4 bg-white/30" />
-              </div>
-              {/* Tick marks */}
+                className="h-full bg-black transition-all duration-700 dark:bg-white"
+                style={{ width: `${xpPct}%` }}
+              />
               {[25, 50, 75].map((p) => (
                 <span
                   key={p}
-                  className="absolute top-0 bottom-0 w-px bg-white/20 dark:bg-black/60 z-10"
+                  className="absolute top-0 bottom-0 z-10 w-px bg-black/20 dark:bg-white/25"
                   style={{ left: `${p}%` }}
                 />
               ))}
@@ -597,168 +640,162 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
       </div>
 
       {/* ── Daily Challenge + Leaderboard ──────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {/* Daily Challenge */}
-        <div className="border border-gray-100 dark:border-white/8 bg-white dark:bg-[#111] p-5 hover:border-gray-300 dark:hover:border-white/15 transition-colors">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="font-mono text-[9px] tracking-[0.3em] text-gray-400 uppercase">
-                Daily Challenge
-              </p>
-              <h3 className="text-sm font-bold text-black dark:text-white mt-0.5">
-                {"Today's Problem"}
-              </h3>
-            </div>
-            <Flame className="w-4 h-4 text-orange-400" />
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div
+        className={`${panelSurface} ${panelHover} flex ${sectionPanelH} min-w-0 flex-col p-4`}
+      >
+        <div className="mb-2 flex items-center justify-between">
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-gray-500 dark:text-gray-400">
+              Daily Challenge
+            </p>
+            <h3 className="mt-0.5 text-sm font-bold text-black dark:text-white">
+              {"Today's Problem"}
+            </h3>
           </div>
+          <Flame className="h-4 w-4 text-orange-400" />
+        </div>
 
-          {dailyChallenge ? (
-            <Link
-              href={`/dashboard/simulations/system-design/${dailyChallenge.id}`}
-              className="block border border-gray-100 dark:border-white/8 p-3 mb-3 hover:border-gray-200 dark:hover:border-white/15 transition-colors"
-            >
-              <div className="flex items-start justify-between gap-2 mb-1">
-                <div className="flex items-start gap-2 flex-1 min-w-0">
-                  <Network className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                  <p className="font-semibold text-black dark:text-white text-sm">
+        {dailyChallenge ? (
+          <Link
+            href={`/dashboard/simulations/system-design/${dailyChallenge.id}`}
+            className={`${panelLink} flex flex-1 flex-col justify-between p-2.5`}
+          >
+            <div>
+              <div className="mb-1 flex items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-1 items-start gap-2">
+                  <Network className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+                  <p className="line-clamp-1 text-sm font-semibold text-black dark:text-white">
                     {dailyChallenge.title}
                   </p>
                 </div>
-                <span className="font-mono text-[9px] px-2 py-0.5 border border-red-400/40 text-red-600 dark:text-red-400 shrink-0">
+                <span className="shrink-0 border border-red-400/40 px-2 py-0.5 font-mono text-[9px] text-red-600 dark:text-red-400">
                   {dailyChallenge.difficulty.toUpperCase()}
                 </span>
               </div>
-              <p className="font-mono text-[10px] text-gray-400 line-clamp-2 mb-3">
+              <p className="line-clamp-1 font-mono text-[10px] text-gray-500 dark:text-gray-400">
                 {dailyChallenge.description}
               </p>
-              <div className="flex items-center flex-wrap gap-1.5 mb-3">
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 {dailyChallenge.tags.slice(0, 3).map((tag) => (
                   <span
                     key={tag}
-                    className="font-mono text-[9px] px-1.5 py-0.5 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20"
+                    className="border border-black/10 px-1.5 py-0.5 font-mono text-[9px] text-black/70 dark:border-white/15 dark:text-white/70"
                   >
                     {tag}
                   </span>
                 ))}
               </div>
-              <div className="flex items-center justify-between mt-3">
-                <span className="font-mono text-[10px] text-black dark:text-white font-semibold">
-                  +{dailyChallenge.maxScore * 10} XP
+            </div>
+            <div className="mt-2 flex items-center justify-between">
+              <span className="font-mono text-[10px] font-semibold text-black dark:text-white">
+                +{dailyChallenge.maxScore * 10} XP
+              </span>
+              <span className={cardFooterArrow}>
+                <ChevronRight className="h-4 w-4" />
+              </span>
+            </div>
+          </Link>
+        ) : (
+          <div className={`${panelBorder} flex flex-1 items-center p-2.5`}>
+            <div className="animate-pulse space-y-2 w-full">
+              <div className="h-4 w-3/4 rounded bg-black/5 dark:bg-white/5" />
+              <div className="h-3 w-1/2 rounded bg-black/5 dark:bg-white/5" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <Link
+        href="/dashboard/leaderboard"
+        className={`${panelLink} flex ${sectionPanelH} min-w-0 flex-col p-4`}
+      >
+        <div className="mb-2 flex items-start justify-between gap-3">
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-gray-500 dark:text-gray-400">
+              Leaderboard
+            </p>
+            <h3 className="mt-0.5 text-sm font-bold text-black dark:text-white">
+              Top performers
+            </h3>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="flex items-center gap-1.5 border border-black/15 px-2 py-1 dark:border-white/20">
+              <Flame className="h-3 w-3 text-orange-400" />
+              <span className="font-mono text-[10px] tabular-nums text-black dark:text-white">
+                {stats.currentStreak}d
+              </span>
+            </div>
+            <Users className="h-4 w-4 text-gray-400" />
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 divide-y divide-gray-50 dark:divide-white/5">
+          {top3.map((u, i) => {
+            const normalize = (v: string) => v.trim().toLowerCase();
+            const isYou =
+              (currentUserId && u._id === currentUserId) ||
+              (currentUsername &&
+                normalize(u.username) === normalize(currentUsername)) ||
+              (displayName &&
+                normalize(u.displayName || "") === normalize(displayName));
+            return (
+              <div
+                key={u._id ?? i}
+                className={`relative flex items-center gap-2 py-2 ${isYou ? "pl-2.5" : ""}`}
+              >
+                {isYou && (
+                  <span className="absolute top-1 bottom-1 left-0 w-0.5 bg-black dark:bg-white" />
+                )}
+                <span className="w-6 shrink-0 text-center text-sm">
+                  {RANK_MEDALS[i]}
                 </span>
-                <span className="flex items-center gap-1 font-mono text-[11px] text-gray-400 hover:text-black dark:hover:text-white transition-colors">
-                  Design <ChevronRight className="w-3 h-3" />
+                <p className="min-w-0 flex-1 truncate font-mono text-xs font-semibold text-black dark:text-white">
+                  {u.displayName || u.username}
+                  {isYou && (
+                    <span className="ml-1 font-mono text-[9px] bg-black px-1 py-px text-white dark:bg-white dark:text-black">
+                      you
+                    </span>
+                  )}
+                </p>
+                <span className="shrink-0 font-mono text-[10px] tabular-nums text-gray-400">
+                  {u.xp.toLocaleString()}
                 </span>
               </div>
-            </Link>
-          ) : (
-            <div className="border border-gray-100 dark:border-white/8 p-3 mb-3">
-              <div className="animate-pulse space-y-2">
-                <div className="h-4 bg-gray-100 dark:bg-white/5 rounded w-3/4" />
-                <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-1/2" />
-              </div>
+            );
+          })}
+
+          {userRank >= 3 && userLbEntry && (
+            <div className="relative flex items-center gap-2 py-2 pl-2.5">
+              <span className="absolute top-1 bottom-1 left-0 w-0.5 bg-black dark:bg-white" />
+              <span className="w-6 shrink-0 text-center font-mono text-[10px] text-gray-400">
+                #{userRank + 1}
+              </span>
+              <p className="min-w-0 flex-1 truncate font-mono text-xs font-semibold text-black dark:text-white">
+                {userLbEntry.displayName || userLbEntry.username}
+                <span className="ml-1 font-mono text-[9px] bg-black px-1 py-px text-white dark:bg-white dark:text-black">
+                  you
+                </span>
+              </p>
+              <span className="shrink-0 font-mono text-[10px] tabular-nums text-gray-400">
+                {userLbEntry.xp.toLocaleString()}
+              </span>
             </div>
           )}
 
-          <div className="flex items-center gap-2 bg-gray-50 dark:bg-white/4 px-3 py-2">
-            <Zap className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
-            <span className="font-mono text-[11px] text-gray-500 dark:text-gray-400">
-              Complete today to maintain your streak
-            </span>
-          </div>
+          {top3.length === 0 && (
+            <p className="py-3 text-center font-mono text-[11px] text-gray-400">
+              No data yet — be the first!
+            </p>
+          )}
         </div>
 
-        {/* Leaderboard Peek */}
-        <div className="border border-gray-100 dark:border-white/8 bg-white dark:bg-[#111] p-5 hover:border-gray-300 dark:hover:border-white/15 transition-colors">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="font-mono text-[9px] tracking-[0.3em] text-gray-400 uppercase">
-                Leaderboard
-              </p>
-              <h3 className="text-sm font-bold text-black dark:text-white mt-0.5">
-                Top Performers
-              </h3>
-            </div>
-            <Users className="w-4 h-4 text-gray-400" />
-          </div>
-
-          <div className="divide-y divide-gray-50 dark:divide-white/5">
-            {top3.map((u, i) => {
-              const normalize = (v: string) => v.trim().toLowerCase();
-              const isYou =
-                (currentUserId && u._id === currentUserId) ||
-                (currentUsername &&
-                  normalize(u.username) === normalize(currentUsername)) ||
-                (displayName &&
-                  normalize(u.displayName || "") === normalize(displayName));
-              return (
-                <div
-                  key={u._id ?? i}
-                  className={`flex items-center gap-3 py-2.5 relative ${isYou ? "pl-3" : ""}`}
-                >
-                  {isYou && (
-                    <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-white" />
-                  )}
-                  <span className="text-base w-7 text-center shrink-0">
-                    {RANK_MEDALS[i]}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-mono text-xs font-semibold text-black dark:text-white truncate">
-                      {u.displayName || u.username}
-                      {isYou && (
-                        <span className="ml-1.5 font-mono text-[9px] px-1 py-0.5 bg-black dark:bg-white text-white dark:text-black align-middle">
-                          you
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                  <span className="font-mono text-[11px] text-gray-400 tabular-nums shrink-0">
-                    {u.xp.toLocaleString()} XP
-                  </span>
-                </div>
-              );
-            })}
-
-            {userRank >= 3 && userLbEntry && (
-              <>
-                <div className="py-1 text-center">
-                  <span className="font-mono text-[10px] text-gray-300 dark:text-white/15">
-                    · · ·
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 py-2.5 relative pl-3">
-                  <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-white" />
-                  <span className="font-mono text-xs w-7 text-center text-gray-400 shrink-0">
-                    #{userRank + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-mono text-xs font-semibold text-black dark:text-white truncate">
-                      {userLbEntry.displayName || userLbEntry.username}
-                      <span className="ml-1.5 font-mono text-[9px] px-1 py-0.5 bg-black dark:bg-white text-white dark:text-black align-middle">
-                        you
-                      </span>
-                    </p>
-                  </div>
-                  <span className="font-mono text-[11px] text-gray-400 tabular-nums shrink-0">
-                    {userLbEntry.xp.toLocaleString()} XP
-                  </span>
-                </div>
-              </>
-            )}
-
-            {top3.length === 0 && (
-              <p className="font-mono text-[11px] text-gray-400 py-4 text-center">
-                No data yet — be the first!
-              </p>
-            )}
-          </div>
-
-          <a
-            href="/dashboard/leaderboard"
-            className="flex items-center justify-center gap-1 mt-4 font-mono text-[11px] text-gray-400 hover:text-black dark:hover:text-white transition-colors"
-          >
-            Full leaderboard <ArrowRight className="w-3 h-3" />
-          </a>
+        <div className="mt-1 flex justify-end">
+          <span className={cardFooterArrow}>
+            <ChevronRight className="h-4 w-4" />
+          </span>
         </div>
+      </Link>
       </div>
     </div>
   );
