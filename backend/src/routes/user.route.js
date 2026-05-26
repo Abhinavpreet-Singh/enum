@@ -13,6 +13,7 @@ import {
     getLeaderboard,
     awardBrowserXp
 } from "../controllers/user.controller.js";
+import { getMyActivity } from "../controllers/activity.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -36,5 +37,6 @@ router.route("/profile").put(verifyJWT, updateProfile);
 router.route("/avatar").post(verifyJWT, upload.single("avatar"), uploadAvatar);
 router.route("/award-browser-xp").patch(verifyJWT, awardBrowserXp);
 router.route("/leaderboard").get(getLeaderboard);
+router.route("/activity").get(verifyJWT, getMyActivity);
 
 export default router;

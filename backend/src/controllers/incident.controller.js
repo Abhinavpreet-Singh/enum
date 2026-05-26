@@ -1,6 +1,18 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import prisma from "../db/index.js";
+import {
+  tryAwardXp,
+  AWARD_TYPES,
+  buildAwardKey,
+  isIncidentFullSuccess,
+  normalizeResourceId,
+  getIncidentAwardKeys,
+} from "../services/xpService.js";
+import {
+  logUserActivity,
+  outcomeFromIncident,
+} from "../services/activityLogService.js";
 
 /**
  * Utility: Process timeline events for a given elapsed time
@@ -119,28 +131,60 @@ const listIncidents = asyncHandler(async (req, res) => {
 
   // Fetch user's incident progress if authenticated
   if (userId) {
-    const sessions = await prisma.incidentSession.findMany({
-      where: { userId },
-      select: {
-        incidentId: true,
-        isCompleted: true,
-      },
+    const [sessions, xpAwardedIds] = await Promise.all([
+      prisma.incidentSession.findMany({
+        where: { userId },
+        select: {
+          incidentId: true,
+          isCompleted: true,
+          xpAwarded: true,
+          attempts: true,
+        },
+      }),
+      getIncidentAwardKeys(prisma, userId),
+    ]);
+    const activityByIncident = await prisma.userActivityLog.groupBy({
+      by: ["resourceId"],
+      where: { userId, activityType: "incident" },
+      _count: { id: true },
     });
+    const attemptFromLogs = Object.fromEntries(
+      activityByIncident.map((row) => [
+        normalizeResourceId(row.resourceId),
+        row._count.id,
+      ]),
+    );
 
     sessions.forEach((s) => {
-      userProgress[s.incidentId] = {
+      const incId = normalizeResourceId(s.incidentId);
+      userProgress[incId] = {
         attempted: true,
         completed: s.isCompleted,
+        solved: xpAwardedIds.has(incId) || Boolean(s.xpAwarded),
+        attempts: Math.max(s.attempts ?? 0, attemptFromLogs[incId] ?? 0),
       };
     });
+
+    for (const [incId, count] of Object.entries(attemptFromLogs)) {
+      if (!userProgress[incId]) {
+        userProgress[incId] = {
+          attempted: true,
+          completed: false,
+          solved: xpAwardedIds.has(incId),
+          attempts: count,
+        };
+      }
+    }
   }
 
   // Enrich incidents with user progress
   const enriched = incidents.map((incident) => ({
     ...incident,
-    status: userProgress[incident.id] || {
+    status: userProgress[normalizeResourceId(incident.id)] || {
       attempted: false,
       completed: false,
+      solved: false,
+      attempts: 0,
     },
   }));
 
@@ -225,7 +269,44 @@ const startIncidentSession = asyncHandler(async (req, res) => {
     });
   }
 
-  // Create new session
+  const initialStateData = {
+    currentTime: 0,
+    services: incident.initialServices || [],
+    metrics: incident.initialMetrics || {},
+    logs: incident.initialLogs || [],
+    activeAlerts: [],
+  };
+
+  if (existingSession) {
+    const session = await prisma.incidentSession.update({
+      where: { id: existingSession.id },
+      data: {
+        elapsedTime: 0,
+        isActive: true,
+        isCompleted: false,
+        selectedRootCauseId: "",
+        diagnosedAt: null,
+        correctDiagnosis: false,
+        actionsTaken: [],
+        diagnosticScore: 0,
+        actionScore: 0,
+        timeBonusScore: 0,
+        totalScore: 0,
+      },
+    });
+
+    const state = await prisma.incidentSessionState.upsert({
+      where: { sessionId: existingSession.id },
+      create: { sessionId: existingSession.id, ...initialStateData },
+      update: initialStateData,
+    });
+
+    return res.status(200).json({
+      message: "Incident session reset for new attempt",
+      data: { session, state },
+    });
+  }
+
   const session = await prisma.incidentSession.create({
     data: {
       userId,
@@ -236,15 +317,10 @@ const startIncidentSession = asyncHandler(async (req, res) => {
     },
   });
 
-  // Create initial state for the session
   const initialState = await prisma.incidentSessionState.create({
     data: {
       sessionId: session.id,
-      currentTime: 0,
-      services: incident.initialServices || [],
-      metrics: incident.initialMetrics || {},
-      logs: incident.initialLogs || [],
-      activeAlerts: [],
+      ...initialStateData,
     },
   });
 
@@ -594,36 +670,73 @@ const completeIncidentSession = asyncHandler(async (req, res) => {
   const timeBonusScore = Math.max(0, Math.floor(timeRatio * 100));
 
   const totalScore = diagnosticScore + actionScore + timeBonusScore;
+  const incidentAwardKey = buildAwardKey(AWARD_TYPES.incident, id);
 
-  // Mark as completed
-  const completedSession = await prisma.incidentSession.update({
-    where: { id: sessionId },
-    data: {
-      isCompleted: true,
-      isActive: false,
-      diagnosticScore,
-      actionScore,
-      timeBonusScore,
-      totalScore,
-    },
-  });
+  const { completedSession, xpEarned, xpAlreadyAwarded, totalXp } =
+    await prisma.$transaction(async (tx) => {
+      const freshSession = await tx.incidentSession.findUnique({
+        where: { id: sessionId },
+      });
 
-  // Award XP to user
-  if (session.correctDiagnosis) {
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        xp: {
-          increment: incident.xpReward,
+      if (!freshSession) {
+        throw new ApiError(404, "Session not found");
+      }
+
+      const fullSuccess = isIncidentFullSuccess(freshSession, actionsTaken);
+      const outcome = outcomeFromIncident(freshSession, actionsTaken);
+
+      const xpResult = await tryAwardXp(tx, {
+        userId,
+        awardKey: incidentAwardKey,
+        amount: incident.xpReward,
+        fullSuccess,
+      });
+
+      const updated = await tx.incidentSession.update({
+        where: { id: sessionId },
+        data: {
+          isCompleted: true,
+          isActive: false,
+          diagnosticScore,
+          actionScore,
+          timeBonusScore,
+          totalScore,
+          attempts: { increment: 1 },
+          xpAwarded: xpResult.awarded || xpResult.alreadyClaimed,
         },
-      },
+      });
+
+      await logUserActivity(tx, {
+        userId,
+        activityType: "incident",
+        resourceId: id,
+        resourceTitle: incident.title,
+        outcome,
+        xpEarned: xpResult.xpEarned,
+        score: totalScore,
+        maxScore: 200,
+        detail: fullSuccess
+          ? "Correct diagnosis and remediation"
+          : outcome === "partial"
+            ? "Partial — need correct root cause and one action"
+            : "Incorrect report",
+      });
+
+      return {
+        completedSession: updated,
+        xpEarned: xpResult.xpEarned,
+        xpAlreadyAwarded: xpResult.alreadyClaimed,
+        totalXp: xpResult.totalXp,
+      };
     });
-  }
 
   return res.status(200).json({
     message: "Session completed with score",
     data: {
       session: completedSession,
+      xpEarned,
+      xpAlreadyAwarded,
+      totalXp,
       scoreBreakdown: {
         diagnostic: diagnosticScore,
         actions: actionScore,

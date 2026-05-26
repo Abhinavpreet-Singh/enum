@@ -1,6 +1,8 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import prisma from "../db/index.js";
+import { tryAwardXp, AWARD_TYPES, buildAwardKey } from "../services/xpService.js";
+import { logUserActivity } from "../services/activityLogService.js";
 
 function buildStreakUpdate(user, now) {
   const lastActivity = user?.lastActivityDate;
@@ -96,7 +98,6 @@ const updateProgress = asyncHandler(async (req, res) => {
     });
 
     const wasSolved = existingProgress?.solved ?? false;
-    // Keep solved sticky once true. A later failed run should not undo completion.
     const finalSolved = wasSolved || incomingSolved;
 
     let progress;
@@ -127,38 +128,49 @@ const updateProgress = asyncHandler(async (req, res) => {
       });
     }
 
-    const newlySolved = incomingSolved && !wasSolved;
-    const xpEarned = newlySolved ? (simulation.xpReward ?? 0) : 0;
+    const xpResult = await tryAwardXp(tx, {
+      userId,
+      awardKey: buildAwardKey(AWARD_TYPES.simulation, simulationId),
+      amount: simulation.xpReward ?? 0,
+      fullSuccess: incomingSolved,
+    });
 
-    let userStats;
-    if (newlySolved) {
+    if (xpResult.awarded) {
       const user = await tx.user.findUnique({
         where: { id: userId },
-        select: { xp: true, currentStreak: true, lastActivityDate: true },
+        select: { currentStreak: true, lastActivityDate: true },
       });
-
       const streakUpdate = buildStreakUpdate(user, now);
-      userStats = await tx.user.update({
+      await tx.user.update({
         where: { id: userId },
-        data: {
-          xp: { increment: xpEarned },
-          ...streakUpdate,
-        },
-        select: { xp: true, currentStreak: true },
-      });
-    } else {
-      userStats = await tx.user.findUnique({
-        where: { id: userId },
-        select: { xp: true, currentStreak: true },
+        data: streakUpdate,
       });
     }
 
+    await logUserActivity(tx, {
+      userId,
+      activityType: "simulation",
+      resourceId: simulationId,
+      resourceTitle: simulation.title,
+      outcome: incomingSolved ? "correct" : "incorrect",
+      xpEarned: xpResult.xpEarned,
+      detail: incomingSolved
+        ? "All tests passed"
+        : "Simulation run — not fully solved",
+    });
+
+    const userStats = await tx.user.findUnique({
+      where: { id: userId },
+      select: { xp: true, currentStreak: true },
+    });
+
     return {
       progress,
-      xpEarned,
-      totalXp: userStats?.xp ?? 0,
+      xpEarned: xpResult.xpEarned,
+      totalXp: userStats?.xp ?? xpResult.totalXp,
       currentStreak: userStats?.currentStreak ?? 0,
-      newlySolved,
+      newlySolved: incomingSolved && !wasSolved,
+      alreadyClaimed: xpResult.alreadyClaimed,
     };
   });
 

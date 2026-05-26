@@ -272,6 +272,11 @@ export default function QuestionsList() {
               </span>
               <span className="flex-1 text-sm font-medium text-black dark:text-white">
                 {q.title}
+                {(q.status?.attempts ?? 0) > 1 && (
+                  <span className="ml-2 font-mono text-[10px] text-gray-400">
+                    {q.status?.attempts}×
+                  </span>
+                )}
               </span>
               <span
                 className={`font-mono text-xs font-semibold ${DIFF_STYLE[q.difficulty]}`}

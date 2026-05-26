@@ -23,6 +23,7 @@ export interface EvaluationResult {
   maxScore: number;
   feedback: FeedbackItem[];
   xpEarned?: number;
+  alreadyAwarded?: boolean;
   totalXp?: number;
   currentStreak?: number;
 }

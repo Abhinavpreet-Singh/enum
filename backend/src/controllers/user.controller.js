@@ -6,6 +6,8 @@ import jwt from "jsonwebtoken";
 import { uploadAvatarToCloudinary } from "../utils/cloudinary.js";
 import { sendOtpEmail } from "../utils/resendEmail.js";
 import { getAuthCookieOptions } from "../utils/cookieOptions.js";
+import { tryAwardXp, AWARD_TYPES, buildAwardKey } from "../services/xpService.js";
+import { logUserActivity } from "../services/activityLogService.js";
 
 const buildStreakUpdate = (user, now) => {
   const lastActivity = user?.lastActivityDate;
@@ -370,7 +372,7 @@ const awardBrowserXp = asyncHandler(async (req, res) => {
   const userId = req.user?.id;
   if (!userId) throw new ApiError(401, "Authentication required");
 
-  const { simulationId, xpAmount } = req.body;
+  const { simulationId, xpAmount, simulationTitle } = req.body;
   if (!simulationId || typeof simulationId !== "string") {
     throw new ApiError(400, "simulationId is required");
   }
@@ -383,51 +385,53 @@ const awardBrowserXp = asyncHandler(async (req, res) => {
     );
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      xp: true,
-      currentStreak: true,
-      lastActivityDate: true,
-      browserXpClaims: true,
-    },
-  });
-
-  if (!user) throw new ApiError(404, "User not found");
-
-  if ((user.browserXpClaims ?? []).includes(simulationId)) {
-    return res.status(200).json({
-      message: "XP already awarded for this browser simulation",
-      data: {
-        alreadyAwarded: true,
-        xpAwarded: 0,
-        totalXp: user.xp,
-        currentStreak: user.currentStreak ?? 0,
-      },
-    });
-  }
-
   const now = new Date();
-  const streakUpdate = buildStreakUpdate(user, now);
-  const xpToAward = Math.round(parsedXp);
+  const xpResult = await prisma.$transaction(async (tx) => {
+    const result = await tryAwardXp(tx, {
+      userId,
+      awardKey: buildAwardKey(AWARD_TYPES.browser, simulationId),
+      amount: Math.round(parsedXp),
+      fullSuccess: true,
+    });
 
-  const updatedUser = await prisma.user.update({
-    where: { id: userId },
-    data: {
-      xp: { increment: xpToAward },
-      browserXpClaims: { push: simulationId },
-      ...streakUpdate,
-    },
-    select: { xp: true, currentStreak: true },
+    if (result.awarded) {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { currentStreak: true, lastActivityDate: true },
+      });
+      const streakUpdate = buildStreakUpdate(user, now);
+      await tx.user.update({ where: { id: userId }, data: streakUpdate });
+    }
+
+    await logUserActivity(tx, {
+      userId,
+      activityType: "browser",
+      resourceId: simulationId,
+      resourceTitle: simulationTitle || "Browser simulation",
+      outcome: result.awarded ? "correct" : "incorrect",
+      xpEarned: result.xpEarned,
+      detail: result.alreadyClaimed
+        ? "XP already claimed"
+        : "Simulation solved",
+    });
+
+    const stats = await tx.user.findUnique({
+      where: { id: userId },
+      select: { xp: true, currentStreak: true },
+    });
+
+    return { ...result, currentStreak: stats?.currentStreak ?? 0 };
   });
 
   return res.status(200).json({
-    message: "Browser simulation XP awarded",
+    message: xpResult.alreadyClaimed
+      ? "XP already awarded for this browser simulation"
+      : "Browser simulation XP awarded",
     data: {
-      alreadyAwarded: false,
-      xpAwarded: xpToAward,
-      totalXp: updatedUser.xp,
-      currentStreak: updatedUser.currentStreak ?? 0,
+      alreadyAwarded: xpResult.alreadyClaimed,
+      xpAwarded: xpResult.xpEarned,
+      totalXp: xpResult.totalXp,
+      currentStreak: xpResult.currentStreak,
     },
   });
 });

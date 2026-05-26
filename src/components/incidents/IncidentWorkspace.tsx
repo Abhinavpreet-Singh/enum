@@ -56,6 +56,8 @@ export default function IncidentWorkspace({
   const [diagnosisSubmitted, setDiagnosisSubmitted] = useState(false);
   const [showActionsPanel, setShowActionsPanel] = useState(false);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [lastXpEarned, setLastXpEarned] = useState(0);
+  const [xpAlreadyAwarded, setXpAlreadyAwarded] = useState(false);
   const [isWide, setIsWide] = useState(false);
 
   const [sidebarWidth, setSidebarWidth] = useState(320);
@@ -219,7 +221,7 @@ export default function IncidentWorkspace({
   };
 
   const handleSubmitReport = async () => {
-    if (!session) return;
+    if (!session || isSubmittingReport) return;
     try {
       setIsSubmittingReport(true);
       const token = localStorage.getItem("accessToken");
@@ -230,7 +232,18 @@ export default function IncidentWorkspace({
       );
 
       const updated = response.data.data?.session;
+      const xp = response.data.data?.xpEarned ?? 0;
+      const totalXp = response.data.data?.totalXp;
       if (updated) setSession(updated);
+      setLastXpEarned(xp);
+      setXpAlreadyAwarded(Boolean(response.data.data?.xpAlreadyAwarded));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("userXpUpdated", {
+            detail: { xp: typeof totalXp === "number" ? totalXp : undefined },
+          }),
+        );
+      }
 
       setIsRunning(false);
       setIsPaused(true);
@@ -335,6 +348,8 @@ export default function IncidentWorkspace({
         incident={incident}
         session={session}
         scenarioLabel={scenarioLabel}
+        xpEarned={lastXpEarned}
+        xpAlreadyAwarded={xpAlreadyAwarded}
         onClose={() => {
           window.location.href = "/dashboard/incidents";
         }}
@@ -415,9 +430,15 @@ export default function IncidentWorkspace({
             </button>
           </div>
 
-          <span className="hidden font-mono text-[10px] text-gray-500 sm:inline">
-            +{incident.xpReward} XP
-          </span>
+          {session.xpAwarded ? (
+            <span className="hidden rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-300 sm:inline">
+              Done
+            </span>
+          ) : (
+            <span className="hidden font-mono text-[10px] text-gray-500 sm:inline">
+              +{incident.xpReward} XP
+            </span>
+          )}
 
           {canSubmit && (
             <button

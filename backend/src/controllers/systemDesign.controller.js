@@ -5,9 +5,17 @@ import {
   evaluateSystemDesign,
   PRESET_RULES,
 } from "../evaluators/systemDesignEvaluator.js";
-
-// XP awarded at 100% score per difficulty tier
-const XP_BY_DIFFICULTY = { easy: 50, medium: 100, hard: 150 };
+import {
+  tryAwardXp,
+  AWARD_TYPES,
+  buildAwardKey,
+  isSystemDesignFullSuccess,
+  systemDesignXpAmount,
+} from "../services/xpService.js";
+import {
+  logUserActivity,
+  outcomeFromSystemDesign,
+} from "../services/activityLogService.js";
 
 // ── Submit a system design ──────────────────────────────────────────────────
 
@@ -43,75 +51,89 @@ export const submitSystemDesign = asyncHandler(async (req, res) => {
     );
   }
 
-  // Calculate XP: scales with score percentage × difficulty multiplier
   const difficulty = simulation?.difficulty?.toLowerCase() || "medium";
-  const baseXP = XP_BY_DIFFICULTY[difficulty] ?? 100;
-  const xpEarned =
-    evaluation.maxScore > 0
-      ? Math.round((evaluation.score / evaluation.maxScore) * baseXP)
-      : 0;
-
-  // Calculate streak update
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { lastActivityDate: true, currentStreak: true },
-  });
+  const fullSuccess = isSystemDesignFullSuccess(
+    evaluation.score,
+    evaluation.maxScore,
+  );
+  const maxXp = systemDesignXpAmount(difficulty, evaluation.maxScore);
+  const outcome = outcomeFromSystemDesign(
+    evaluation.score,
+    evaluation.maxScore,
+  );
 
   const now = new Date();
-  const lastActivity = user?.lastActivityDate;
-  let streakUpdate = {};
 
-  if (!lastActivity) {
-    // First ever activity
-    streakUpdate = { currentStreak: 1, lastActivityDate: now };
-  } else {
-    const daysSinceLastActivity = Math.floor(
-      (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60 * 24),
-    );
-    if (daysSinceLastActivity === 0) {
-      // Same day - no streak change, just update timestamp
-      streakUpdate = { lastActivityDate: now };
-    } else if (daysSinceLastActivity === 1) {
-      // Consecutive day - increment streak
-      streakUpdate = {
-        currentStreak: (user?.currentStreak ?? 0) + 1,
-        lastActivityDate: now,
-      };
-    } else {
-      // Streak broken - reset to 1
-      streakUpdate = { currentStreak: 1, lastActivityDate: now };
-    }
-  }
+  const { submission, xpResult, updatedUser } = await prisma.$transaction(
+    async (tx) => {
+      const created = await tx.systemDesignSubmission.create({
+        data: {
+          simulationId,
+          userId,
+          nodes,
+          edges,
+          explanation: explanation || "",
+          replayEvents: replayEvents || null,
+          score: evaluation.score,
+          maxScore: evaluation.maxScore,
+          feedback: evaluation.feedback,
+        },
+      });
 
-  // Persist submission, award XP, and update streak atomically
-  const [submission] = await prisma.$transaction([
-    prisma.systemDesignSubmission.create({
-      data: {
-        simulationId,
+      const xpResult = await tryAwardXp(tx, {
         userId,
-        nodes,
-        edges,
-        explanation: explanation || "",
-        replayEvents: replayEvents || null,
+        awardKey: buildAwardKey(AWARD_TYPES.system_design, simulationId),
+        amount: maxXp,
+        fullSuccess,
+      });
+
+      if (xpResult.awarded) {
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+          select: { currentStreak: true, lastActivityDate: true },
+        });
+        const lastActivity = user?.lastActivityDate;
+        let streakUpdate = { lastActivityDate: now };
+        if (!lastActivity) {
+          streakUpdate = { currentStreak: 1, lastActivityDate: now };
+        } else {
+          const days = Math.floor(
+            (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60 * 24),
+          );
+          if (days === 1) {
+            streakUpdate = {
+              currentStreak: (user?.currentStreak ?? 0) + 1,
+              lastActivityDate: now,
+            };
+          } else if (days > 1) {
+            streakUpdate = { currentStreak: 1, lastActivityDate: now };
+          }
+        }
+        await tx.user.update({ where: { id: userId }, data: streakUpdate });
+      }
+
+      await logUserActivity(tx, {
+        userId,
+        activityType: "system_design",
+        resourceId: simulationId,
+        resourceTitle: simulation?.title ?? "System Design",
+        outcome,
+        xpEarned: xpResult.xpEarned,
         score: evaluation.score,
         maxScore: evaluation.maxScore,
-        feedback: evaluation.feedback,
-      },
-    }),
-    prisma.user.update({
-      where: { id: userId },
-      data: {
-        xp: { increment: xpEarned },
-        ...streakUpdate,
-      },
-    }),
-  ]);
+        detail: `${evaluation.score}/${evaluation.maxScore} — ${
+          fullSuccess ? "perfect score" : "partial — XP requires 100%"
+        }`,
+      });
 
-  // Return updated user stats
-  const updatedUser = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { xp: true, currentStreak: true },
-  });
+      const updatedUser = await tx.user.findUnique({
+        where: { id: userId },
+        select: { xp: true, currentStreak: true },
+      });
+
+      return { submission: created, xpResult, updatedUser };
+    },
+  );
 
   return res.status(201).json({
     success: true,
@@ -119,8 +141,9 @@ export const submitSystemDesign = asyncHandler(async (req, res) => {
     data: {
       submissionId: submission.id,
       evaluation,
-      xpEarned,
-      totalXp: updatedUser?.xp ?? 0,
+      xpEarned: xpResult.xpEarned,
+      alreadyAwarded: xpResult.alreadyClaimed,
+      totalXp: updatedUser?.xp ?? xpResult.totalXp,
       currentStreak: updatedUser?.currentStreak ?? 0,
     },
   });
@@ -206,40 +229,64 @@ export const getSystemDesignSimulations = asyncHandler(async (req, res) => {
 
   // Fetch user's submissions if authenticated
   if (userId) {
-    const submissions = await prisma.systemDesignSubmission.findMany({
-      where: { userId },
-      select: {
-        simulationId: true,
-        score: true,
-        maxScore: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const [submissions, user] = await Promise.all([
+      prisma.systemDesignSubmission.findMany({
+        where: { userId },
+        select: {
+          simulationId: true,
+          score: true,
+          maxScore: true,
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { systemDesignXpClaims: true },
+      }),
+    ]);
 
-    // Track best score per simulation
+    const xpClaims = new Set(user?.systemDesignXpClaims ?? []);
+
     submissions.forEach((sub) => {
-      if (!userProgress[sub.simulationId]) {
-        const scorePercent =
-          sub.maxScore > 0 ? (sub.score / sub.maxScore) * 100 : 0;
+      const scorePercent =
+        sub.maxScore > 0 ? (sub.score / sub.maxScore) * 100 : 0;
+      const entry = userProgress[sub.simulationId];
+
+      if (!entry) {
         userProgress[sub.simulationId] = {
           attempted: true,
-          solved: scorePercent >= 80,
+          solved: scorePercent >= 100,
+          xpAwarded: xpClaims.has(sub.simulationId),
+          attempts: 1,
           bestScore: sub.score,
           bestScorePercent: scorePercent,
         };
       } else {
-        const scorePercent =
-          sub.maxScore > 0 ? (sub.score / sub.maxScore) * 100 : 0;
-        if (scorePercent > userProgress[sub.simulationId].bestScorePercent) {
-          userProgress[sub.simulationId] = {
-            attempted: true,
-            solved: scorePercent >= 80,
-            bestScore: sub.score,
-            bestScorePercent: scorePercent,
-          };
+        entry.attempts += 1;
+        entry.attempted = true;
+        if (scorePercent >= 100) entry.solved = true;
+        if (scorePercent > entry.bestScorePercent) {
+          entry.bestScore = sub.score;
+          entry.bestScorePercent = scorePercent;
         }
       }
     });
+
+    for (const simId of xpClaims) {
+      if (!userProgress[simId]) {
+        userProgress[simId] = {
+          attempted: true,
+          solved: true,
+          xpAwarded: true,
+          attempts: 1,
+          bestScore: 0,
+          bestScorePercent: 0,
+        };
+      } else {
+        userProgress[simId].xpAwarded = true;
+        userProgress[simId].solved = true;
+      }
+    }
   }
 
   // Enrich simulations with user progress
@@ -251,6 +298,8 @@ export const getSystemDesignSimulations = asyncHandler(async (req, res) => {
         : {
             attempted: false,
             solved: false,
+            xpAwarded: false,
+            attempts: 0,
             bestScore: 0,
             bestScorePercent: 0,
           },

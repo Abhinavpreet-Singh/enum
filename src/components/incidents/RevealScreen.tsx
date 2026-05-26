@@ -14,6 +14,8 @@ interface RevealScreenProps {
   incident: IncidentSimulation;
   session: IncidentSession;
   scenarioLabel?: string;
+  xpEarned?: number;
+  xpAlreadyAwarded?: boolean;
   onClose: () => void;
 }
 
@@ -28,12 +30,18 @@ export default function RevealScreen({
   incident,
   session,
   scenarioLabel,
+  xpEarned,
+  xpAlreadyAwarded,
   onClose,
 }: RevealScreenProps) {
   const completionTime = Math.floor(session.elapsedTime);
   const totalTime = incident.durationSeconds;
   const completionPercent = Math.round((completionTime / totalTime) * 100);
   const correctDx = session.correctDiagnosis;
+  const displayXp = xpEarned ?? 0;
+  const xpAlreadyClaimed =
+    Boolean(xpAlreadyAwarded) ||
+    (correctDx && displayXp === 0 && Boolean(session.xpAwarded));
 
   const chosenCause = incident.rootCauseOptions.find(
     (r) => r.id === session.selectedRootCauseId,
@@ -234,8 +242,18 @@ export default function RevealScreen({
               XP earned
             </p>
             <p className="mt-1 font-mono text-3xl font-bold tabular-nums text-black dark:text-white">
-              {correctDx ? `+${incident.xpReward}` : "0"}
+              {displayXp > 0 ? `+${displayXp}` : "0"}
             </p>
+            {xpAlreadyClaimed && (
+              <p className="mt-1 text-[11px] text-gray-500">
+                XP already earned — retry for practice only.
+              </p>
+            )}
+            {(session.attempts ?? 0) > 1 && (
+              <p className="mt-1 font-mono text-[10px] text-gray-400">
+                Attempt {(session.attempts ?? 0)}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

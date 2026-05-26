@@ -235,21 +235,41 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
         : null;
     if (!token) return;
 
-    axios
-      .get(`${proxy}/api/v1/users/profile`, {
-        withCredentials: true,
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((res) => {
-        const data = res?.data?.data;
-        if (typeof data?.xp === "number") {
-          setProfileXp(data.xp);
-        }
-        if (typeof data?.currentStreak === "number") {
-          setStats((prev) => ({ ...prev, currentStreak: data.currentStreak }));
-        }
-      })
-      .catch(() => {});
+    const fetchProfileXp = () => {
+      axios
+        .get(`${proxy}/api/v1/users/profile`, {
+          withCredentials: true,
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        .then((res) => {
+          const data = res?.data?.data;
+          if (typeof data?.xp === "number") {
+            setProfileXp(data.xp);
+          }
+          if (typeof data?.currentStreak === "number") {
+            setStats((prev) => ({
+              ...prev,
+              currentStreak: data.currentStreak,
+            }));
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchProfileXp();
+
+    const onXpUpdated = (e: Event) => {
+      const xp = (e as CustomEvent<{ xp: number }>).detail?.xp;
+      if (typeof xp === "number") setProfileXp(xp);
+      else fetchProfileXp();
+    };
+
+    window.addEventListener("userXpUpdated", onXpUpdated);
+    window.addEventListener("focus", fetchProfileXp);
+    return () => {
+      window.removeEventListener("userXpUpdated", onXpUpdated);
+      window.removeEventListener("focus", fetchProfileXp);
+    };
   }, []);
 
   const top3 = useMemo(() => leaderboard.slice(0, 3), [leaderboard]);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clock, Zap, Loader2, AlertCircle } from "lucide-react";
+import { Clock, Zap, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
@@ -15,6 +15,8 @@ interface IncidentListItem extends IncidentSimulation {
   status?: {
     attempted: boolean;
     completed: boolean;
+    solved?: boolean;
+    attempts?: number;
   };
 }
 
@@ -54,6 +56,13 @@ export default function IncidentsPage() {
     };
 
     fetchIncidents();
+    const refresh = () => fetchIncidents();
+    window.addEventListener("focus", refresh);
+    window.addEventListener("userXpUpdated", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("userXpUpdated", refresh);
+    };
   }, []);
 
   const filteredIncidents = incidents.filter((incident) => {
@@ -132,18 +141,36 @@ export default function IncidentsPage() {
                 href={`/dashboard/incidents/${incident.id}`}
                 className="group overflow-hidden rounded-xl border border-gray-200 bg-white transition-all hover:border-black hover:shadow-md dark:border-white/10 dark:bg-black dark:hover:border-white dark:hover:shadow-[0_0_24px_-8px_rgba(255,255,255,0.12)]"
               >
-                {incident.status?.completed && (
-                  <div className="border-b border-emerald-200/80 bg-emerald-50/80 px-4 py-2 dark:border-emerald-500/30 dark:bg-emerald-950/25">
-                    <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-                      Completed
+                {incident.status?.attempted && (
+                  <div
+                    className={`flex items-center justify-between border-b px-4 py-2 ${
+                      incident.status?.solved
+                        ? "border-emerald-200/80 bg-emerald-50/80 dark:border-emerald-500/30 dark:bg-emerald-950/25"
+                        : "border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/[0.04]"
+                    }`}
+                  >
+                    <p
+                      className={`flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-wider ${
+                        incident.status?.solved
+                          ? "text-emerald-700 dark:text-emerald-300"
+                          : "text-gray-700 dark:text-gray-300"
+                      }`}
+                    >
+                      {incident.status?.solved && (
+                        <CheckCircle2 className="h-3 w-3" />
+                      )}
+                      {incident.status?.solved
+                        ? "XP earned"
+                        : incident.status?.completed
+                          ? "Submitted"
+                          : "In progress"}
                     </p>
-                  </div>
-                )}
-                {incident.status?.attempted && !incident.status?.completed && (
-                  <div className="border-b border-gray-200 bg-gray-50 px-4 py-2 dark:border-white/10 dark:bg-white/[0.04]">
-                    <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
-                      In progress
-                    </p>
+                    {(incident.status?.attempts ?? 0) > 0 && (
+                      <span className="font-mono text-[10px] text-gray-500 dark:text-gray-400">
+                        {incident.status.attempts}{" "}
+                        {incident.status.attempts === 1 ? "attempt" : "attempts"}
+                      </span>
+                    )}
                   </div>
                 )}
 

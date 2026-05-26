@@ -40,7 +40,11 @@ model User {
   avatar           String    @default("")
   provider         String?
   xp               Int       @default(0)
-  browserXpClaims  String[]  @default([])
+  browserXpClaims       String[]  @default([])
+  systemDesignXpClaims  String[]  @default([])
+  incidentXpClaims      String[]  @default([])
+  questionXpClaims      String[]  @default([])
+  simulationXpClaims    String[]  @default([])
   currentStreak    Int       @default(0)
   lastActivityDate DateTime?
   solutions              Solution[]
@@ -48,8 +52,45 @@ model User {
   simulationProgress     UserSimulationProgress[]
   systemDesignSubmissions SystemDesignSubmission[]
   incidentSessions       IncidentSession[]
+  activityLogs           UserActivityLog[]
+  xpAwards               UserXpAward[]
 
   @@map("users")
+}
+
+/// One row per resource — prevents duplicate XP even if claim arrays fail to persist
+model UserXpAward {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  awardKey  String
+  xpAmount  Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, awardKey])
+  @@map("userxpawards")
+}
+
+// ─── User activity log (all submission types) ────────────────────────────────
+
+model UserActivityLog {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String   @db.ObjectId
+  activityType  String   /// dsa | simulation | system_design | incident | browser
+  resourceId    String   @db.ObjectId
+  resourceTitle String   @default("")
+  outcome       String   /// correct | partial | incorrect
+  xpEarned      Int      @default(0)
+  score         Int?
+  maxScore      Int?
+  detail        String   @default("")
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("useractivitylogs")
 }
 
 // ─── OTP Verification ────────────────────────────────────────────────────────
@@ -384,6 +425,8 @@ model IncidentSession {
   elapsedTime     Int       @default(0) /// Seconds elapsed in this session
   isActive        Boolean   @default(true) /// Is session still running
   isCompleted     Boolean   @default(false) /// Did user successfully resolve
+  xpAwarded       Boolean   @default(false) /// XP granted once for this incident
+  attempts        Int       @default(0) /// Number of completed report submissions
   
   /// Diagnosis phase
   selectedRootCauseId String @default("") /// Which root cause did user select

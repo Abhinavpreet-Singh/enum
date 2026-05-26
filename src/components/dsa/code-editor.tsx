@@ -361,7 +361,7 @@ export default function CodeEditor({
     // Save all submissions to backend (accepted AND failed)
     try {
       const token = localStorage.getItem("accessToken");
-      await fetch("/api/submissions", {
+      const saveRes = await fetch("/api/submissions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -377,6 +377,15 @@ export default function CodeEditor({
           runtime: elapsed,
         }),
       });
+      if (saveRes.ok) {
+        const saveJson = await saveRes.json().catch(() => null);
+        const totalXp = saveJson?.data?.totalXp;
+        if (typeof totalXp === "number") {
+          window.dispatchEvent(
+            new CustomEvent("userXpUpdated", { detail: { xp: totalXp } }),
+          );
+        }
+      }
       if (onSubmitSuccess) onSubmitSuccess();
     } catch {
       // Silent — verdict already shown in overlay

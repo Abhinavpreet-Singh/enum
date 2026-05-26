@@ -115,7 +115,9 @@ export interface IncidentSession {
   elapsedTime: number;
   isActive: boolean;
   isCompleted: boolean;
-  
+  xpAwarded?: boolean;
+  attempts?: number;
+
   /// Diagnosis phase
   selectedRootCauseId: string;
   diagnosedAt: string | null;

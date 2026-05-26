@@ -123,9 +123,15 @@ export default function SystemDesignSimulationPage() {
         setResult({
           ...data.evaluation,
           xpEarned: data.xpEarned,
+          alreadyAwarded: data.alreadyAwarded,
           totalXp: data.totalXp,
           currentStreak: data.currentStreak,
         });
+        if (typeof data.totalXp === "number") {
+          window.dispatchEvent(
+            new CustomEvent("userXpUpdated", { detail: { xp: data.totalXp } }),
+          );
+        }
         // Prepend to local history
         setHistory((prev) =>
           [

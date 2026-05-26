@@ -133,13 +133,18 @@ export default function FeedbackPanel({ result, onClose }: FeedbackPanelProps) {
                 {result.currentStreak !== 1 ? "s" : ""} streak
               </span>
             )}
+            {result.alreadyAwarded && (
+              <p className="font-mono text-[10px] text-gray-500">
+                XP already earned for this simulation.
+              </p>
+            )}
             {(!result.xpEarned || result.xpEarned === 0) &&
-              (!result.currentStreak || result.currentStreak === 0) && (
+              !result.alreadyAwarded && (
                 <p className="font-mono text-[10px] text-gray-400 dark:text-gray-500">
-                  {passed
-                    ? "Excellent architecture!"
-                    : partial
-                      ? "Good effort — keep refining."
+                  {partial
+                    ? "Logged as attempt — XP only at 100% score."
+                    : passed
+                      ? "Excellent architecture!"
                       : "Review the requirements."}
                 </p>
               )}

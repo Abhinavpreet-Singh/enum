@@ -19,15 +19,18 @@ const getQuestion = asyncHandler(async (req, res) => {
       orderBy: { createdAt: "desc" },
     });
 
-    // Track best attempt per question
     submissions.forEach((sub) => {
       if (!userSubmissions[sub.questionId]) {
         userSubmissions[sub.questionId] = {
           attempted: true,
           solved: sub.verdict === "accepted",
+          attempts: 1,
         };
-      } else if (sub.verdict === "accepted") {
-        userSubmissions[sub.questionId].solved = true;
+      } else {
+        userSubmissions[sub.questionId].attempts += 1;
+        if (sub.verdict === "accepted") {
+          userSubmissions[sub.questionId].solved = true;
+        }
       }
     });
   }
@@ -61,7 +64,7 @@ const getQuestion = asyncHandler(async (req, res) => {
     if (userId && userSubmissions[q.id]) {
       questionObj.status = userSubmissions[q.id];
     } else {
-      questionObj.status = { attempted: false, solved: false };
+      questionObj.status = { attempted: false, solved: false, attempts: 0 };
     }
 
     return questionObj;

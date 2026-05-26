@@ -27,6 +27,7 @@ export interface Question {
   status?: {
     attempted: boolean;
     solved: boolean;
+    attempts?: number;
   };
 }
 
@@ -57,6 +58,7 @@ interface BackendQuestion {
   status?: {
     attempted: boolean;
     solved: boolean;
+    attempts?: number;
   };
 }
 
@@ -125,7 +127,7 @@ export const fetchQuestions = async (): Promise<Question[]> => {
           examples,
           constraints: constraintsArray,
           initialCode: initialCodeObj,
-          status: q.status || { attempted: false, solved: false },
+          status: q.status || { attempted: false, solved: false, attempts: 0 },
         };
       });
     }

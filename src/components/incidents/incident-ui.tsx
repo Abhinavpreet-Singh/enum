@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEvent, ReactNode } from "react";
+import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 
 export function IncidentPanel({
   title,
@@ -42,7 +42,7 @@ export function ResizeHandleCol({
   onMouseDown,
   active,
 }: {
-  onMouseDown: (e: MouseEvent) => void;
+  onMouseDown: (e: ReactMouseEvent) => void;
   active?: boolean;
 }) {
   return (
@@ -63,7 +63,7 @@ export function ResizeHandleRow({
   onMouseDown,
   active,
 }: {
-  onMouseDown: (e: MouseEvent) => void;
+  onMouseDown: (e: ReactMouseEvent) => void;
   active?: boolean;
 }) {
   return (
@@ -81,14 +81,14 @@ export function ResizeHandleRow({
 }
 
 export function startDragResize(
-  onMove: (e: MouseEvent) => void,
+  onMove: (e: globalThis.MouseEvent) => void,
   onEnd?: () => void,
 ) {
-  return (e: MouseEvent) => {
+  return (e: ReactMouseEvent) => {
     e.preventDefault();
     document.body.classList.add("resize-active");
 
-    const onMouseMove = (ev: MouseEvent) => onMove(ev);
+    const onMouseMove = (ev: globalThis.MouseEvent) => onMove(ev);
     const onMouseUp = () => {
       document.body.classList.remove("resize-active");
       document.removeEventListener("mousemove", onMouseMove);

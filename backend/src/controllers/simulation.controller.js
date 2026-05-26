@@ -16,23 +16,46 @@ const getSimulations = asyncHandler(async (req, res) => {
   let userProgress = {};
 
   // Fetch user's progress if authenticated
+  let browserXpClaims = [];
+
   if (userId) {
-    const progress = await prisma.userSimulationProgress.findMany({
-      where: { userId },
-      select: {
-        simulationId: true,
-        solved: true,
-        attempts: true,
-      },
-    });
+    const [progress, user] = await Promise.all([
+      prisma.userSimulationProgress.findMany({
+        where: { userId },
+        select: {
+          simulationId: true,
+          solved: true,
+          attempts: true,
+        },
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { browserXpClaims: true },
+      }),
+    ]);
+
+    browserXpClaims = user?.browserXpClaims ?? [];
 
     progress.forEach((p) => {
       userProgress[p.simulationId] = {
-        attempted: p.attempts > 0,
+        attempted: p.attempts > 0 || p.solved,
         solved: p.solved,
         attempts: p.attempts,
       };
     });
+
+    for (const simId of browserXpClaims) {
+      if (!userProgress[simId]) {
+        userProgress[simId] = {
+          attempted: true,
+          solved: true,
+          attempts: 1,
+        };
+      } else {
+        userProgress[simId].solved = true;
+        userProgress[simId].attempted = true;
+      }
+    }
   }
 
   // Enrich simulations with user progress
@@ -47,6 +70,7 @@ const getSimulations = asyncHandler(async (req, res) => {
   return res.status(200).json({
     message: "Simulations fetched!",
     data: enrichedSimulations,
+    browserXpClaims,
   });
 });
 

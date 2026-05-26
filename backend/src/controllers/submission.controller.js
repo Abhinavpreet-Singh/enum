@@ -1,6 +1,17 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import prisma from "../db/index.js";
+import {
+  tryAwardXp,
+  AWARD_TYPES,
+  buildAwardKey,
+  isDsaFullSuccess,
+  dsaXpAmount,
+} from "../services/xpService.js";
+import {
+  logUserActivity,
+  outcomeFromDsaVerdict,
+} from "../services/activityLogService.js";
 
 const saveSubmission = asyncHandler(async (req, res) => {
   const {
@@ -31,39 +42,58 @@ const saveSubmission = asyncHandler(async (req, res) => {
   };
 
   const normalisedVerdict = normaliseVerdict(verdict);
-
-  // Award XP on first accepted submission for this question
-  if (normalisedVerdict === "accepted") {
-    const alreadySolved = await prisma.submission.findFirst({
-      where: { userId: req.user.id, questionId, verdict: "accepted" },
-      select: { id: true },
-    });
-    if (!alreadySolved) {
-      const level = question.level ?? "Easy";
-      const xpToAward = level === "Hard" ? 50 : level === "Medium" ? 25 : 10;
-      await prisma.user.update({
-        where: { id: req.user.id },
-        data: { xp: { increment: xpToAward } },
+  const fullSuccess = isDsaFullSuccess(normalisedVerdict);
+  const outcome = outcomeFromDsaVerdict(normalisedVerdict);
+  const { submission, xpEarned, alreadySolved, totalXp } =
+    await prisma.$transaction(async (tx) => {
+      const created = await tx.submission.create({
+        data: {
+          questionId,
+          userId: req.user.id,
+          code,
+          language,
+          verdict: normalisedVerdict,
+          passedCount: passedCount ?? 0,
+          totalCount: totalCount ?? 0,
+          runtime: runtime ?? null,
+        },
       });
-    }
-  }
 
-  const submission = await prisma.submission.create({
-    data: {
-      questionId,
-      userId: req.user.id,
-      code,
-      language,
-      verdict: normalisedVerdict,
-      passedCount: passedCount ?? 0,
-      totalCount: totalCount ?? 0,
-      runtime: runtime ?? null,
-    },
-  });
+      const xpResult = await tryAwardXp(tx, {
+        userId: req.user.id,
+        awardKey: buildAwardKey(AWARD_TYPES.dsa, questionId),
+        amount: dsaXpAmount(question.level),
+        fullSuccess,
+      });
+
+      await logUserActivity(tx, {
+        userId: req.user.id,
+        activityType: "dsa",
+        resourceId: questionId,
+        resourceTitle: question.title ?? "DSA Question",
+        outcome,
+        xpEarned: xpResult.xpEarned,
+        score: passedCount ?? 0,
+        maxScore: totalCount ?? 0,
+        detail: `${normalisedVerdict} (${passedCount ?? 0}/${totalCount ?? 0} tests)`,
+      });
+
+      return {
+        submission: created,
+        xpEarned: xpResult.xpEarned,
+        alreadySolved: xpResult.alreadyClaimed,
+        totalXp: xpResult.totalXp,
+      };
+    });
 
   return res.status(201).json({
     message: "Submission saved successfully",
-    data: submission,
+    data: {
+      submission,
+      xpEarned,
+      alreadySolved,
+      totalXp,
+    },
   });
 });
 
@@ -86,77 +116,20 @@ const getMySubmissions = asyncHandler(async (req, res) => {
 });
 
 const getRecentSubmissions = asyncHandler(async (req, res) => {
-  // Fetch DSA submissions
-  const dsaSubmissions = await prisma.submission.findMany({
+  const submissions = await prisma.submission.findMany({
     where: { userId: req.user.id },
     orderBy: { createdAt: "desc" },
-    take: 20,
+    take: 10,
     include: {
-      question: { select: { title: true, level: true } },
+      question: {
+        select: { title: true, level: true },
+      },
     },
   });
-
-  // Fetch System Design submissions
-  const systemDesignSubmissions = await prisma.systemDesignSubmission.findMany({
-    where: { userId: req.user.id },
-    orderBy: { createdAt: "desc" },
-    take: 20,
-    include: {
-      simulation: { select: { id: true, title: true, difficulty: true } },
-    },
-  });
-
-  // Combine and sort all submissions by date
-  const allSubmissions = [
-    ...dsaSubmissions.map((s) => ({
-      _id: s._id,
-      question: s.question
-        ? {
-            _id: s.questionId,
-            title: s.question.title,
-            level: s.question.level,
-          }
-        : null,
-      verdict: s.verdict,
-      language: s.language,
-      createdAt: s.createdAt,
-      type: "dsa",
-    })),
-    ...systemDesignSubmissions.map((s) => ({
-      _id: s.id,
-      question: s.simulation
-        ? {
-            _id: s.simulationId,
-            title: s.simulation.title,
-            level: s.simulation.difficulty,
-          }
-        : null,
-      verdict:
-        s.score >= 80 ? "accepted" : s.score >= 50 ? "partial" : "failed",
-      language: "System Design",
-      createdAt: s.createdAt,
-      type: "system-design",
-      score: s.score,
-    })),
-  ].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );
-
-  // Deduplicate - keep most recent submission per question/simulation
-  const seen = new Set();
-  const recent = [];
-  for (const s of allSubmissions) {
-    const qid = s.question?._id;
-    if (qid && !seen.has(qid)) {
-      seen.add(qid);
-      recent.push(s);
-    }
-    if (recent.length === 10) break;
-  }
 
   return res.status(200).json({
     message: "Recent submissions fetched",
-    data: recent,
+    data: submissions,
   });
 });
 

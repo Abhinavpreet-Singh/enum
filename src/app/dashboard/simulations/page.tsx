@@ -118,6 +118,7 @@ export default function SimulationsPage() {
       estimatedTime: s.estimatedTime,
       xpReward: s.xpReward,
       tags: s.tags,
+      status: { attempted: false, solved: false, attempts: 0 },
     }));
 
     Promise.all([
@@ -133,6 +134,7 @@ export default function SimulationsPage() {
     ])
       .then(([simRes, linuxRes, sdRes]) => {
         const backend: SimulationItem[] = simRes?.data?.data || [];
+        const browserClaims: string[] = simRes?.data?.browserXpClaims ?? [];
         const rawLinuxQuestions = (linuxRes?.data?.data ||
           []) as LinuxQuestion[];
         const linuxQuestions: SimulationItem[] = rawLinuxQuestions.map(
@@ -184,7 +186,18 @@ export default function SimulationsPage() {
           status: s.status,
         }));
         const merged = [
-          ...local,
+          ...local.map((s) =>
+            browserClaims.includes(s.id)
+              ? {
+                  ...s,
+                  status: {
+                    attempted: true,
+                    solved: true,
+                    attempts: s.status?.attempts ?? 1,
+                  },
+                }
+              : s,
+          ),
           ...linuxQuestions,
           ...systemDesign,
           ...backend,
@@ -479,6 +492,11 @@ export default function SimulationsPage() {
                     <div className="flex items-start justify-between gap-4 mb-1.5">
                       <h3 className="font-bold text-black dark:text-white text-sm md:text-base leading-snug group-hover:underline underline-offset-2">
                         {sim.title}
+                        {(sim.status?.attempts ?? 0) > 1 && (
+                          <span className="ml-2 font-mono text-[10px] font-normal text-gray-400">
+                            {sim.status?.attempts}×
+                          </span>
+                        )}
                       </h3>
                       <ChevronRight className="w-4 h-4 text-gray-300 dark:text-white/20 group-hover:text-black dark:group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" />
                     </div>
