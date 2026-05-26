@@ -80,6 +80,8 @@ function Avatar({
   );
 }
 
+const ITEMS_PER_PAGE = 30;
+
 export default function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,6 +89,7 @@ export default function LeaderboardPage() {
   const [currentUsername] = useState<string>(() =>
     typeof window !== "undefined" ? localStorage.getItem("Name") || "" : "",
   );
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     axios
@@ -105,8 +108,12 @@ export default function LeaderboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const top3 = entries.slice(0, 3);
-  const rest = entries.slice(3);
+  const totalPages = Math.ceil(entries.length / ITEMS_PER_PAGE);
+
+  const top3 = currentPage === 1 ? entries.slice(0, 3) : [];
+  const tableEntries = currentPage === 1
+    ? entries.slice(3, ITEMS_PER_PAGE)
+    : entries.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   if (loading) {
     return (
@@ -224,84 +231,115 @@ export default function LeaderboardPage() {
         )}
 
         {/* Table - rank 4+ */}
-        {rest.length > 0 && (
-          <div className="border border-gray-100 dark:border-white/8 overflow-hidden">
-            <div className="grid grid-cols-[48px_1fr_100px_80px_80px] items-center gap-2 px-4 py-2.5 border-b border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-[#161616]">
-              <span className="font-mono text-[10px] text-gray-400 tracking-widest text-center">
-                #
-              </span>
-              <span className="font-mono text-[10px] text-gray-400 tracking-widest">
-                DEVELOPER
-              </span>
-              <span className="font-mono text-[10px] text-gray-400 tracking-widest text-right">
-                XP
-              </span>
-              <span className="font-mono text-[10px] text-gray-400 tracking-widest text-center hidden sm:block">
-                PROBLEMS
-              </span>
-              <span className="font-mono text-[10px] text-gray-400 tracking-widest text-center hidden sm:block">
-                SIMS
-              </span>
-            </div>
+        {tableEntries.length > 0 && (
+          <div className="space-y-4">
+            <div className="border border-gray-100 dark:border-white/8 overflow-hidden">
+              <div className="grid grid-cols-[48px_1fr_100px_80px_80px] items-center gap-2 px-4 py-2.5 border-b border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-[#161616]">
+                <span className="font-mono text-[10px] text-gray-400 tracking-widest text-center">
+                  #
+                </span>
+                <span className="font-mono text-[10px] text-gray-400 tracking-widest">
+                  DEVELOPER
+                </span>
+                <span className="font-mono text-[10px] text-gray-400 tracking-widest text-right">
+                  XP
+                </span>
+                <span className="font-mono text-[10px] text-gray-400 tracking-widest text-center hidden sm:block">
+                  PROBLEMS
+                </span>
+                <span className="font-mono text-[10px] text-gray-400 tracking-widest text-center hidden sm:block">
+                  SIMS
+                </span>
+              </div>
 
-            {rest.map((entry, i) => {
-              const rank = i + 4;
-              const isMe = entry.username === currentUsername;
-              return (
-                <div
-                  key={entry._id}
-                  className={`grid grid-cols-[48px_1fr_100px_80px_80px] items-center gap-2 px-4 py-3 border-b border-gray-50 dark:border-white/5 last:border-b-0 transition-colors ${
-                    isMe
-                      ? "bg-gray-50 dark:bg-white/4 font-semibold"
-                      : "bg-white dark:bg-[#111] hover:bg-gray-50 dark:hover:bg-[#161616]"
-                  }`}
-                >
-                  <span className="font-mono text-sm text-gray-300 dark:text-white/20 text-center tabular-nums">
-                    {rank}
-                  </span>
+              {tableEntries.map((entry, i) => {
+                const rank = currentPage === 1 ? i + 4 : (currentPage - 1) * ITEMS_PER_PAGE + i + 1;
+                const isMe = entry.username === currentUsername;
+                return (
+                  <div
+                    key={entry._id}
+                    className={`grid grid-cols-[48px_1fr_100px_80px_80px] items-center gap-2 px-4 py-3 border-b border-gray-50 dark:border-white/5 last:border-b-0 transition-colors ${
+                      isMe
+                        ? "bg-gray-50 dark:bg-white/4 font-semibold"
+                        : "bg-white dark:bg-[#111] hover:bg-gray-50 dark:hover:bg-[#161616]"
+                    }`}
+                  >
+                    <span className="font-mono text-sm text-gray-300 dark:text-white/20 text-center tabular-nums">
+                      {rank}
+                    </span>
 
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Avatar
-                      src={entry.avatar}
-                      name={entry.displayName}
-                      size={8}
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-black dark:text-white truncate">
-                        {entry.displayName}
-                        {isMe && (
-                          <span className="ml-1.5 font-mono text-[9px] px-1.5 py-0.5 bg-black dark:bg-white text-white dark:text-black align-middle">
-                            you
-                          </span>
-                        )}
-                      </p>
-                      <p className="font-mono text-[10px] text-gray-400 dark:text-gray-500 truncate">
-                        @{entry.username}
-                      </p>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Avatar
+                        src={entry.avatar}
+                        name={entry.displayName}
+                        size={8}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-black dark:text-white truncate">
+                          {entry.displayName}
+                          {isMe && (
+                            <span className="ml-1.5 font-mono text-[9px] px-1.5 py-0.5 bg-black dark:bg-white text-white dark:text-black align-middle">
+                              you
+                            </span>
+                          )}
+                        </p>
+                        <p className="font-mono text-[10px] text-gray-400 dark:text-gray-500 truncate">
+                          @{entry.username}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="font-mono font-semibold text-sm text-black dark:text-white tabular-nums">
+                        {entry.xp.toLocaleString()}
+                      </span>
+                      <span className="font-mono text-[10px] text-gray-400 dark:text-gray-500 ml-0.5">
+                        XP
+                      </span>
+                    </div>
+
+                    <div className="text-center hidden sm:flex items-center justify-center gap-1 font-mono text-xs text-gray-500 dark:text-gray-400">
+                      <Code2 className="w-3 h-3 text-gray-300 dark:text-white/20" />
+                      {entry.problemsSolved}
+                    </div>
+
+                    <div className="text-center hidden sm:flex items-center justify-center gap-1 font-mono text-xs text-gray-500 dark:text-gray-400">
+                      <PlayCircle className="w-3 h-3 text-gray-300 dark:text-white/20" />
+                      {entry.simulationsSolved}
                     </div>
                   </div>
+                );
+              })}
+            </div>
 
-                  <div className="text-right">
-                    <span className="font-mono font-semibold text-sm text-black dark:text-white tabular-nums">
-                      {entry.xp.toLocaleString()}
-                    </span>
-                    <span className="font-mono text-[10px] text-gray-400 dark:text-gray-500 ml-0.5">
-                      XP
-                    </span>
-                  </div>
-
-                  <div className="text-center hidden sm:flex items-center justify-center gap-1 font-mono text-xs text-gray-500 dark:text-gray-400">
-                    <Code2 className="w-3 h-3 text-gray-300 dark:text-white/20" />
-                    {entry.problemsSolved}
-                  </div>
-
-                  <div className="text-center hidden sm:flex items-center justify-center gap-1 font-mono text-xs text-gray-500 dark:text-gray-400">
-                    <PlayCircle className="w-3 h-3 text-gray-300 dark:text-white/20" />
-                    {entry.simulationsSolved}
-                  </div>
-                </div>
-              );
-            })}
+            {/* Pagination controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t border-gray-100 dark:border-white/8 pt-4">
+                <button
+                  onClick={() => {
+                    setCurrentPage((p) => Math.max(1, p - 1));
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 text-xs font-mono border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                >
+                  PREVIOUS
+                </button>
+                <span className="font-mono text-xs text-gray-500 dark:text-gray-400">
+                  PAGE {currentPage} OF {totalPages}
+                </span>
+                <button
+                  onClick={() => {
+                    setCurrentPage((p) => Math.min(totalPages, p + 1));
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 text-xs font-mono border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                >
+                  NEXT
+                </button>
+              </div>
+            )}
           </div>
         )}
 

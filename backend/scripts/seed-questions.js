@@ -9,11 +9,9 @@
  */
 
 import dotenv from "dotenv";
-import { PrismaClient } from "../src/generated/prisma/index.js";
+import prisma from "../src/db/index.js";
 
 dotenv.config();
-
-const prisma = new PrismaClient();
 
 const seedQuestions = [
   {
@@ -194,6 +192,107 @@ const seedQuestions = [
       { input: ["1\n0", "0", "1\n1", "1"], expectedOutput: "1" },
       { input: ["4\n1 3 0 0", "2", "2\n2 4", "2"], expectedOutput: "1 2 3 4" },
       { input: ["6\n-1 0 3 0 0 0", "3", "3\n-2 2 5", "3"], expectedOutput: "-2 -1 0 2 3 5" },
+    ],
+  },
+  {
+    title: "Fizz Buzz",
+    desc: "Given an integer n, return a string array answer (1-indexed) where:\n- answer[i] == \"FizzBuzz\" if i is divisible by 3 and 5.\n- answer[i] == \"Fizz\" if i is divisible by 3.\n- answer[i] == \"Buzz\" if i is divisible by 5.\n- answer[i] == i (as a string) if none of the above conditions are true.",
+    level: "Easy",
+    topic: "Math",
+    constraints: "1 <= n <= 10^4",
+    functionName: "fizzBuzz",
+    parameterNames: ["n"],
+    parameterTypes: ["int"],
+    returnType: "string[]",
+    testcases: [
+      { input: ["3"], expectedOutput: "1 2 Fizz" },
+      { input: ["5"], expectedOutput: "1 2 Fizz 4 Buzz" },
+      { input: ["15"], expectedOutput: "1 2 Fizz 4 Buzz Fizz 7 8 Fizz Buzz 11 Fizz 13 14 FizzBuzz" },
+    ],
+  },
+  {
+    title: "Single Number",
+    desc: "Given a non-empty array of integers nums, every element appears twice except for one. Find that single one.\n\nYou must implement a solution with a linear runtime complexity and use only constant extra space.",
+    level: "Easy",
+    topic: "Arrays",
+    constraints: "1 <= nums.length <= 3 * 10^4\n-3 * 10^4 <= nums[i] <= 3 * 10^4\nEach element in the array appears twice except for one element which appears only once.",
+    functionName: "singleNumber",
+    parameterNames: ["nums"],
+    parameterTypes: ["int[]"],
+    returnType: "int",
+    testcases: [
+      { input: ["3\n2 2 1"], expectedOutput: "1" },
+      { input: ["5\n4 1 2 1 2"], expectedOutput: "4" },
+      { input: ["1\n1"], expectedOutput: "1" },
+      { input: ["7\n-1 -1 -2 -2 3 -4 -4"], expectedOutput: "3" },
+    ],
+  },
+  {
+    title: "Contains Duplicate",
+    desc: "Given an integer array nums, return true if any value appears at least twice in the array, and return false if every element is distinct.",
+    level: "Easy",
+    topic: "Arrays",
+    constraints: "1 <= nums.length <= 10^5\n-10^9 <= nums[i] <= 10^9",
+    functionName: "containsDuplicate",
+    parameterNames: ["nums"],
+    parameterTypes: ["int[]"],
+    returnType: "bool",
+    testcases: [
+      { input: ["4\n1 2 3 1"], expectedOutput: "true" },
+      { input: ["4\n1 2 3 4"], expectedOutput: "false" },
+      { input: ["10\n1 1 1 3 3 4 3 2 4 2"], expectedOutput: "true" },
+      { input: ["1\n9"], expectedOutput: "false" },
+    ],
+  },
+  {
+    title: "Valid Anagram",
+    desc: "Given two strings s and t, return true if t is an anagram of s, and false otherwise.\n\nAn Anagram is a word or phrase formed by rearranging the letters of a different word or phrase, typically using all the original letters exactly once.",
+    level: "Easy",
+    topic: "String",
+    constraints: "1 <= s.length, t.length <= 5 * 10^4\ns and t consist of lowercase English letters.",
+    functionName: "isAnagram",
+    parameterNames: ["s", "t"],
+    parameterTypes: ["string", "string"],
+    returnType: "bool",
+    testcases: [
+      { input: ["anagram", "nagaram"], expectedOutput: "true" },
+      { input: ["rat", "car"], expectedOutput: "false" },
+      { input: ["a", "a"], expectedOutput: "true" },
+      { input: ["ab", "a"], expectedOutput: "false" },
+    ],
+  },
+  {
+    title: "Binary Search",
+    desc: "Given an array of integers nums which is sorted in ascending order, and an integer target, write a function to search target in nums. If target exists, then return its index. Otherwise, return -1.\n\nYou must write an algorithm with O(log n) runtime complexity.",
+    level: "Easy",
+    topic: "Binary Search",
+    constraints: "1 <= nums.length <= 10^4\n-10^4 < nums[i], target < 10^4\nAll the integers in nums are unique.\nnums is sorted in ascending order.",
+    functionName: "search",
+    parameterNames: ["nums", "target"],
+    parameterTypes: ["int[]", "int"],
+    returnType: "int",
+    testcases: [
+      { input: ["6\n-1 0 3 5 9 12", "9"], expectedOutput: "4" },
+      { input: ["6\n-1 0 3 5 9 12", "2"], expectedOutput: "-1" },
+      { input: ["1\n5", "5"], expectedOutput: "0" },
+      { input: ["1\n5", "2"], expectedOutput: "-1" },
+    ],
+  },
+  {
+    title: "Fibonacci Number",
+    desc: "The Fibonacci numbers, commonly denoted F(n) form a sequence, called the Fibonacci sequence, such that each number is the sum of the two preceding ones, starting from 0 and 1. That is:\nF(0) = 0, F(1) = 1\nF(n) = F(n - 1) + F(n - 2), for n > 1.\n\nGiven n, calculate F(n).",
+    level: "Easy",
+    topic: "Math",
+    constraints: "0 <= n <= 30",
+    functionName: "fib",
+    parameterNames: ["n"],
+    parameterTypes: ["int"],
+    returnType: "int",
+    testcases: [
+      { input: ["2"], expectedOutput: "1" },
+      { input: ["3"], expectedOutput: "2" },
+      { input: ["4"], expectedOutput: "3" },
+      { input: ["9"], expectedOutput: "34" },
     ],
   },
 ];
