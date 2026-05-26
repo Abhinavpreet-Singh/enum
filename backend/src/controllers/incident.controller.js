@@ -76,14 +76,23 @@ function processTimelineEvents(incident, elapsedTime, actionsTaken = []) {
     }
   }
 
-  // Convert metrics to current values (last value for each metric)
-  const currentMetrics = {};
+  // Normalize legacy scalar metrics and append a point at the current tick
   for (const [metricName, snapshots] of Object.entries(metrics)) {
-    currentMetrics[metricName] =
-      snapshots[snapshots.length - 1]?.value || 0;
+    let series = snapshots;
+    if (!Array.isArray(series)) {
+      series = [{ timestamp: 0, value: typeof series === "number" ? series : 0 }];
+      metrics[metricName] = series;
+    }
+    const last = series[series.length - 1];
+    if (!last || last.timestamp < elapsedTime) {
+      series.push({
+        timestamp: elapsedTime,
+        value: last?.value ?? series[0]?.value ?? 0,
+      });
+    }
   }
 
-  return { services, metrics: currentMetrics, logs };
+  return { services, metrics, logs };
 }
 
 /**
@@ -207,9 +216,12 @@ const startIncidentSession = asyncHandler(async (req, res) => {
   });
 
   if (existingSession && existingSession.isActive) {
+    const state = await prisma.incidentSessionState.findUnique({
+      where: { sessionId: existingSession.id },
+    });
     return res.status(200).json({
       message: "Existing session found",
-      data: existingSession,
+      data: { session: existingSession, state },
     });
   }
 
@@ -489,6 +501,16 @@ const performIncidentAction = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid actionId");
   }
 
+  const priorActions = (session.actionsTaken || []).map((a) =>
+    typeof a === "string" ? JSON.parse(a) : a,
+  );
+  if (priorActions.length >= 1) {
+    throw new ApiError(
+      400,
+      "Only one remediation action allowed per run. Submit your report when ready.",
+    );
+  }
+
   // Create action record
   const action = {
     actionId,
@@ -548,19 +570,20 @@ const completeIncidentSession = asyncHandler(async (req, res) => {
   // Calculate final score
   const diagnosticScore = session.correctDiagnosis ? 100 : 0;
 
-  // Count effective actions
+  // Best single remediation counts (not a checklist of every action)
   let actionScore = 0;
   const actionsTaken = (session.actionsTaken || []).map((a) =>
     typeof a === "string" ? JSON.parse(a) : a,
   );
 
-  for (const action of actionsTaken) {
-    const actionOption = incident.actionOptions?.find(
-      (a) => a.id === action.actionId,
-    );
-    if (actionOption && session.correctDiagnosis) {
-      // Only award action points if diagnosis was correct
-      actionScore += actionOption.pointsIfCorrect;
+  if (session.correctDiagnosis && actionsTaken.length > 0) {
+    for (const action of actionsTaken) {
+      const actionOption = incident.actionOptions?.find(
+        (a) => a.id === action.actionId,
+      );
+      if (actionOption) {
+        actionScore = Math.max(actionScore, actionOption.pointsIfCorrect || 0);
+      }
     }
   }
 

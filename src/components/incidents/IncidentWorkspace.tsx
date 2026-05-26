@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, type MouseEvent } from "react";
 import {
   Play,
   Pause,
@@ -25,39 +25,74 @@ import ServiceTopology from "./ServiceTopology";
 import RevealScreen from "./RevealScreen";
 import DiagnosisPanel from "./DiagnosisPanel";
 import ActionsPanel from "./ActionsPanel";
+import {
+  ResizeHandleCol,
+  startDragResize,
+} from "./incident-ui";
+import {
+  getIncidentDisplayTitle,
+  getSituationBrief,
+} from "./incident-display";
 
 interface IncidentWorkspaceProps {
   incident: IncidentSimulation;
+  scenarioLabel?: string;
 }
 
 export default function IncidentWorkspace({
   incident,
+  scenarioLabel,
 }: IncidentWorkspaceProps) {
-  // Session state
   const [session, setSession] = useState<IncidentSession | null>(null);
   const [state, setState] = useState<IncidentSessionState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Simulation control
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
 
-  // Diagnosis & Actions
   const [diagnosisSubmitted, setDiagnosisSubmitted] = useState(false);
-  const [showDiagnosisPanel, setShowDiagnosisPanel] = useState(true);
   const [showActionsPanel, setShowActionsPanel] = useState(false);
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [isWide, setIsWide] = useState(false);
 
-  // Layout state
-  const [panelHeights, setPanelHeights] = useState({
-    top: 150,
-    middle: 250,
-    bottom: 200,
-  });
+  const [sidebarWidth, setSidebarWidth] = useState(320);
+  const [logsWidth, setLogsWidth] = useState(440);
+  const [timelineWidth, setTimelineWidth] = useState(300);
+  const [resizing, setResizing] = useState<
+    "sidebar" | "logs" | "timeline" | null
+  >(null);
 
-  // Initialize session
+  useEffect(() => {
+    const applyLayout = () => {
+      const w = window.innerWidth;
+      setIsWide(w >= 1024);
+      if (w >= 1024) {
+        setLogsWidth(Math.round(Math.min(580, Math.max(380, w * 0.4))));
+        setSidebarWidth(Math.round(Math.min(400, Math.max(300, w * 0.22))));
+        setTimelineWidth(Math.round(Math.min(380, Math.max(240, w * 0.2))));
+      }
+    };
+    applyLayout();
+    window.addEventListener("resize", applyLayout);
+    return () => window.removeEventListener("resize", applyLayout);
+  }, []);
+
+  useEffect(() => {
+    if (!session) return;
+    if (session.selectedRootCauseId) {
+      setDiagnosisSubmitted(true);
+      if (session.correctDiagnosis) setShowActionsPanel(true);
+    }
+    if (session.isCompleted) {
+      setIsCompleted(true);
+      setIsRunning(false);
+      setShowReveal(true);
+    }
+  }, [session]);
+
   useEffect(() => {
     const initSession = async () => {
       try {
@@ -72,15 +107,16 @@ export default function IncidentWorkspace({
         const response = await axios.post(
           `${proxy}/api/v1/incidents/${incident.id}/session`,
           {},
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
+          { headers: { Authorization: `Bearer ${token}` } },
         );
 
-        const { session: newSession, state: newState } = response.data.data;
+        const payload = response.data.data;
+        const newSession = payload.session ?? payload;
+        const newState = payload.state;
         setSession(newSession);
-        setState(newState);
-        setIsRunning(true);
+        if (newState) setState(newState);
+        setIsRunning(!newSession.isCompleted);
+        setIsCompleted(Boolean(newSession.isCompleted));
       } catch (err) {
         const message =
           axios.isAxiosError(err) && err.response?.data?.message
@@ -95,7 +131,6 @@ export default function IncidentWorkspace({
     initSession();
   }, [incident.id]);
 
-  // Auto-tick simulation
   useEffect(() => {
     if (!session || !isRunning || isPaused || !state) return;
 
@@ -105,9 +140,7 @@ export default function IncidentWorkspace({
         const response = await axios.post(
           `${proxy}/api/v1/incidents/${incident.id}/session/${session.id}/tick`,
           {},
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
+          { headers: { Authorization: `Bearer ${token}` } },
         );
 
         const {
@@ -125,24 +158,20 @@ export default function IncidentWorkspace({
       } catch (err) {
         console.error("Error ticking simulation:", err);
       }
-    }, 1000); // Tick every 1 second
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [session, isRunning, isPaused, incident.id, state]);
 
-  // Stop session on tab close
   useEffect(() => {
-    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+    const handleBeforeUnload = async () => {
       if (session && isRunning && !isCompleted) {
-        // Call stop endpoint
         try {
           const token = localStorage.getItem("accessToken");
           await axios.post(
             `${proxy}/api/v1/incidents/${incident.id}/session/${session.id}/stop`,
             {},
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            },
+            { headers: { Authorization: `Bearer ${token}` } },
           );
         } catch (err) {
           console.error("Error stopping session:", err);
@@ -170,9 +199,7 @@ export default function IncidentWorkspace({
       const response = await axios.post(
         `${proxy}/api/v1/incidents/${incident.id}/session`,
         {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       const { session: newSession, state: newState } = response.data.data;
@@ -182,298 +209,319 @@ export default function IncidentWorkspace({
       setIsPaused(false);
       setIsCompleted(false);
       setShowReveal(false);
-    } catch (err) {
+      setDiagnosisSubmitted(false);
+      setShowActionsPanel(false);
+    } catch {
       setError("Failed to reset session");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCompleteIncident = async (rootCauseId: string) => {
+  const handleSubmitReport = async () => {
+    if (!session) return;
     try {
+      setIsSubmittingReport(true);
       const token = localStorage.getItem("accessToken");
-      await axios.post(
-        `${proxy}/api/v1/incidents/${incident.id}/session/${session?.id}/complete`,
-        { rootCauseId },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+      const response = await axios.post(
+        `${proxy}/api/v1/incidents/${incident.id}/session/${session.id}/complete`,
+        { rootCauseId: session.selectedRootCauseId || "" },
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
+      const updated = response.data.data?.session;
+      if (updated) setSession(updated);
+
       setIsRunning(false);
+      setIsPaused(true);
       setIsCompleted(true);
       setShowReveal(true);
-    } catch (err) {
-      setError("Failed to complete incident");
+    } catch {
+      setError("Failed to submit report");
+    } finally {
+      setIsSubmittingReport(false);
     }
   };
 
-  const handleDiagnosisSubmit = (correct: boolean, selectedId: string) => {
+  const handleDiagnosisSubmit = (correct: boolean) => {
     setDiagnosisSubmitted(true);
-    if (correct) {
-      setShowActionsPanel(true);
-    }
+    if (correct) setShowActionsPanel(true);
   };
 
-  const handleActionTaken = (actionId: string) => {
-    // Refresh session to get updated actions
-    if (session) {
-      const token = localStorage.getItem("accessToken");
-      axios
-        .get(
-          `${proxy}/api/v1/incidents/${incident.id}/session/${session.id}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        )
-        .then((res) => {
-          setSession(res.data.data.session);
-        })
-        .catch((err) => console.error("Failed to refresh session:", err));
-    }
+  const handleActionTaken = () => {
+    if (!session) return;
+    const token = localStorage.getItem("accessToken");
+    axios
+      .get(`${proxy}/api/v1/incidents/${incident.id}/session/${session.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => setSession(res.data.data.session))
+      .catch((err) => console.error("Failed to refresh session:", err));
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-      </div>
-    );
-  }
+  const handleSidebarResize = (e: MouseEvent) => {
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+    setResizing("sidebar");
+    startDragResize(
+      (ev) => {
+        setSidebarWidth(
+          Math.min(Math.max(280, startWidth + ev.clientX - startX), 520),
+        );
+      },
+      () => setResizing(null),
+    )(e);
+  };
+
+  const handleLogsResize = (e: MouseEvent) => {
+    const startX = e.clientX;
+    const startWidth = logsWidth;
+    setResizing("logs");
+    startDragResize(
+      (ev) => {
+        setLogsWidth(
+          Math.min(Math.max(200, startWidth + ev.clientX - startX), 480),
+        );
+      },
+      () => setResizing(null),
+    )(e);
+  };
+
+  const handleTimelineResize = (e: MouseEvent) => {
+    const startX = e.clientX;
+    const startWidth = timelineWidth;
+    setResizing("timeline");
+    startDragResize(
+      (ev) => {
+        setTimelineWidth(
+          Math.min(Math.max(240, startWidth + ev.clientX - startX), 640),
+        );
+      },
+      () => setResizing(null),
+    )(e);
+  };
+
+  const loadingShell = (
+    <div className="flex h-full items-center justify-center bg-white dark:bg-black">
+      <Loader2 className="h-6 w-6 animate-spin text-black dark:text-white" />
+    </div>
+  );
+
+  if (isLoading) return loadingShell;
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-50">
-        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
-        <p className="text-lg font-semibold text-gray-900 mb-2">Error</p>
-        <p className="text-gray-600 mb-6">{error}</p>
+      <div className="flex h-full flex-col items-center justify-center bg-white px-4 dark:bg-black">
+        <AlertCircle className="mb-3 h-10 w-10 text-red-500 dark:text-red-400" />
+        <p className="mb-1 text-sm font-semibold text-black dark:text-white">
+          Error
+        </p>
+        <p className="mb-4 text-center text-xs text-gray-600 dark:text-gray-400">
+          {error}
+        </p>
         <Link
-          href="/dashboard/simulations"
-          className="text-blue-600 hover:underline"
+          href="/dashboard/incidents"
+          className="font-mono text-xs text-black underline dark:text-white"
         >
-          Back to Simulations
+          Back to Incidents
         </Link>
       </div>
     );
   }
 
-  if (showReveal && incident) {
+  if (showReveal && incident && session) {
     return (
       <RevealScreen
         incident={incident}
-        session={session!}
+        session={session}
+        scenarioLabel={scenarioLabel}
         onClose={() => {
-          window.location.href = "/dashboard/simulations";
+          window.location.href = "/dashboard/incidents";
         }}
       />
     );
   }
 
-  if (!session || !state) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <p className="text-gray-600">Loading incident...</p>
-      </div>
-    );
-  }
+  if (!session || !state) return loadingShell;
 
   const progress = (state.currentTime / incident.durationSeconds) * 100;
+  const displayTitle = getIncidentDisplayTitle(incident);
+  const situationBrief = getSituationBrief(incident);
+  const actionsCount = session.actionsTaken?.length ?? 0;
+  const canSubmit =
+    Boolean(session.selectedRootCauseId) &&
+    !isCompleted &&
+    (!session.correctDiagnosis || actionsCount >= 1);
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      {/* Top Bar */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-gray-50 dark:bg-[#0a0a0a]">
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-200 bg-white px-2 py-1.5 dark:border-white/10 dark:bg-black">
+        <div className="flex min-w-0 items-center gap-2">
           <Link
-            href="/dashboard/simulations"
-            className="flex items-center gap-1 text-sm text-gray-600 hover:text-black transition-colors"
+            href="/dashboard/incidents"
+            className="flex shrink-0 items-center gap-0.5 font-mono text-[10px] text-gray-500 hover:text-black dark:hover:text-white"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="h-3.5 w-3.5" />
             Back
           </Link>
-          <h1 className="text-lg font-semibold text-gray-900">
-            {incident.title}
-          </h1>
+          <div className="min-w-0">
+            {scenarioLabel && (
+              <p className="font-mono text-[9px] uppercase tracking-wider text-gray-400">
+                {scenarioLabel}
+              </p>
+            )}
+            <h1 className="truncate font-mono text-xs font-semibold text-black dark:text-white">
+              {displayTitle}
+            </h1>
+          </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          {/* Time Display */}
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Clock className="w-4 h-4" />
-            <span>
-              {Math.floor(state.currentTime / 60)}:
-              {String(state.currentTime % 60).padStart(2, "0")} /{" "}
-              {Math.floor(incident.durationSeconds / 60)}:00
-            </span>
-          </div>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <span className="flex items-center gap-1 font-mono text-[10px] text-gray-500">
+            <Clock className="h-3 w-3" />
+            {Math.floor(state.currentTime / 60)}:
+            {String(state.currentTime % 60).padStart(2, "0")}/
+            {Math.floor(incident.durationSeconds / 60)}:00
+          </span>
 
-          {/* Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-0.5">
             {isRunning && !isPaused && (
               <button
+                type="button"
                 onClick={handlePause}
-                className="p-2 rounded-lg bg-yellow-50 hover:bg-yellow-100 text-yellow-600 transition-colors"
+                className="rounded border border-gray-200 p-1 dark:border-white/15"
                 title="Pause"
               >
-                <Pause className="w-4 h-4" />
+                <Pause className="h-3.5 w-3.5" />
               </button>
             )}
             {(!isRunning || isPaused) && !isCompleted && (
               <button
+                type="button"
                 onClick={handlePlay}
-                className="p-2 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors"
+                className="rounded border border-gray-200 p-1 dark:border-white/15"
                 title="Play"
               >
-                <Play className="w-4 h-4" />
+                <Play className="h-3.5 w-3.5" />
               </button>
             )}
             <button
+              type="button"
               onClick={handleReset}
-              className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors"
+              className="rounded border border-gray-200 p-1 dark:border-white/15"
               title="Reset"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="h-3.5 w-3.5" />
             </button>
           </div>
 
-          {/* XP Reward */}
-          <div className="text-sm font-semibold text-purple-600 bg-purple-50 px-3 py-1 rounded-lg">
+          <span className="hidden font-mono text-[10px] text-gray-500 sm:inline">
             +{incident.xpReward} XP
-          </div>
-        </div>
-      </div>
+          </span>
 
-      {/* Progress Bar */}
-      <div className="h-1 bg-gray-200">
+          {canSubmit && (
+            <button
+              type="button"
+              onClick={handleSubmitReport}
+              disabled={isSubmittingReport}
+              className="rounded bg-black px-3 py-1.5 font-mono text-xs font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+            >
+              {isSubmittingReport ? "Submitting…" : "Submit report"}
+            </button>
+          )}
+        </div>
+      </header>
+
+      <div className="h-px shrink-0 bg-gray-200 dark:bg-white/10">
         <div
-          className="h-full bg-blue-600 transition-all"
+          className="h-full bg-black dark:bg-white"
           style={{ width: `${progress}%` }}
         />
       </div>
 
-      {/* Main Workspace */}
-      <div className="flex-1 flex overflow-hidden bg-white">
-        {/* Left Panel - Incident Brief + Diagnosis + Actions */}
-        <div className="w-80 border-r border-gray-200 overflow-y-auto bg-gray-50 p-4 space-y-4">
-          {/* Incident Brief */}
-          <div>
-            <h2 className="text-sm font-semibold text-gray-900 mb-2">
-              Incident Brief
-            </h2>
-            <p className="text-sm text-gray-600 leading-relaxed">
-              {incident.description}
-            </p>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+        <aside
+          className="flex w-full shrink-0 flex-col overflow-y-auto overflow-x-hidden border-gray-200 bg-white dark:bg-black lg:border-r lg:max-h-none"
+          style={isWide ? { width: sidebarWidth, maxHeight: undefined } : { maxHeight: "38vh" }}
+        >
+          <div className="space-y-3 p-3">
+            <section className="rounded border border-gray-200 bg-gray-50/50 p-3 dark:border-white/10 dark:bg-white/[0.02]">
+              <h2 className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-black dark:text-white">
+                What&apos;s going on?
+              </h2>
+              <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                {situationBrief}
+              </p>
+              <p className="mt-1.5 font-mono text-[9px] text-gray-400">
+                {incident.difficulty} · ~{incident.estimatedTime} min · +
+                {incident.xpReward} XP
+              </p>
+            </section>
+
+            {session && (
+              <DiagnosisPanel
+                incident={incident}
+                session={session}
+                onDiagnosisSubmit={handleDiagnosisSubmit}
+              />
+            )}
+
+            {showActionsPanel && session && (
+              <ActionsPanel
+                incident={incident}
+                session={session}
+                onActionTaken={handleActionTaken}
+              />
+            )}
           </div>
+        </aside>
 
-          <div>
-            <h3 className="text-xs font-semibold text-gray-700 mb-2 uppercase">
-              Difficulty
-            </h3>
-            <div className="inline-block px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-              {incident.difficulty.charAt(0).toUpperCase() +
-                incident.difficulty.slice(1)}
-            </div>
-          </div>
+        {isWide && (
+          <ResizeHandleCol
+            onMouseDown={handleSidebarResize}
+            active={resizing === "sidebar"}
+          />
+        )}
 
-          <div>
-            <h3 className="text-xs font-semibold text-gray-700 mb-2 uppercase">
-              Tags
-            </h3>
-            <div className="flex flex-wrap gap-1">
-              {incident.tags.slice(0, 4).map((tag) => (
-                <span
-                  key={tag}
-                  className="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <MetricsPanel state={state} />
 
-          {/* Diagnosis Panel */}
-          {showDiagnosisPanel && session && (
-            <DiagnosisPanel
-              incident={incident}
-              session={session}
-              onDiagnosisSubmit={handleDiagnosisSubmit}
-            />
-          )}
-
-          {/* Actions Panel */}
-          {showActionsPanel && session && state && (
-            <ActionsPanel
-              incident={incident}
-              session={session}
-              elapsedTime={state.currentTime}
-              onActionTaken={handleActionTaken}
-            />
-          )}
-        </div>
-
-        {/* Main Content - Metrics, Logs, Timeline, Topology */}
-        <div className="flex-1 flex flex-col overflow-y-auto">
-          {/* Top Row - Metrics & Logs */}
-          <div className="flex flex-none h-80 border-b border-gray-200">
-            <div className="flex-1 overflow-hidden border-r border-gray-200">
-              <MetricsPanel incident={incident} state={state} />
-            </div>
-            <div className="flex-1 overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden xl:flex-row">
+            <div
+              className="min-h-0 w-full shrink-0 overflow-hidden xl:w-auto"
+              style={isWide ? { width: logsWidth, minHeight: 200 } : { minHeight: 180 }}
+            >
               <LogsPanel state={state} />
             </div>
-          </div>
 
-          {/* Bottom Row - Timeline & Topology */}
-          <div className="flex flex-1 overflow-hidden">
-            <div className="flex-1 overflow-hidden border-r border-gray-200">
-              <TimelinePanel
-                incident={incident}
-                elapsedTime={state.currentTime}
+            {isWide && (
+              <ResizeHandleCol
+                onMouseDown={handleLogsResize}
+                active={resizing === "logs"}
               />
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <ServiceTopology services={state.services} />
+            )}
+
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex-row">
+              <div
+                className="min-h-0 w-full shrink-0 overflow-hidden md:w-auto"
+                style={isWide ? { width: timelineWidth, minHeight: 160 } : { minHeight: 140 }}
+              >
+                <TimelinePanel
+                  incident={incident}
+                  elapsedTime={state.currentTime}
+                />
+              </div>
+              {isWide && (
+                <ResizeHandleCol
+                  onMouseDown={handleTimelineResize}
+                  active={resizing === "timeline"}
+                />
+              )}
+              <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+                <ServiceTopology services={state.services} />
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Action Bar */}
-      <div className="bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-between">
-        <div className="text-sm text-gray-600">
-          {isCompleted ? (
-            <span className="text-green-600 font-semibold">
-              Incident simulation complete! Click "Reveal" to see what this was inspired by.
-            </span>
-          ) : diagnosisSubmitted ? (
-            <span>
-              Actions taken: {session?.actionsTaken?.length || 0}. Ready to complete?
-            </span>
-          ) : (
-            <span>
-              Analyze the incident. Identify the root cause. Take action to resolve it.
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {diagnosisSubmitted && !isCompleted && (
-            <button
-              onClick={async () => {
-                await handleCompleteIncident(session?.selectedRootCauseId || "");
-              }}
-              className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium transition-colors"
-            >
-              Complete Incident
-            </button>
-          )}
-          {isCompleted && (
-            <button
-              onClick={() => setShowReveal(true)}
-              className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium transition-colors"
-            >
-              Reveal Real Incident
-            </button>
-          )}
         </div>
       </div>
     </div>

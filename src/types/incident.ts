@@ -15,7 +15,8 @@ export interface IncidentMetricSnapshot {
 }
 
 export interface IncidentMetrics {
-  [key: string]: IncidentMetricSnapshot[]; /// e.g., { "cpu_usage": [...], "error_rate": [...] }
+  /** Time series from API, or legacy scalar current value */
+  [key: string]: IncidentMetricSnapshot[] | number;
 }
 
 export interface IncidentTimelineEvent {

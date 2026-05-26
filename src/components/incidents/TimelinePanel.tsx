@@ -2,6 +2,7 @@
 
 import { AlertCircle, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import type { IncidentSimulation } from "@/types/incident";
+import { IncidentPanel } from "./incident-ui";
 
 interface TimelinePanelProps {
   incident: IncidentSimulation;
@@ -13,121 +14,78 @@ export default function TimelinePanel({
   elapsedTime,
 }: TimelinePanelProps) {
   const events = incident.timelineEvents || [];
+  const triggered = events.filter((e) => e.timeSecond <= elapsedTime).length;
 
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case "critical":
-        return <AlertCircle className="w-4 h-4 text-red-500" />;
-      case "warning":
-        return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
-      default:
-        return <Clock className="w-4 h-4 text-blue-500" />;
-    }
-  };
-
-  const getPriorityColor = (priority: string): string => {
-    switch (priority) {
-      case "critical":
-        return "bg-red-50 border-l-4 border-red-500";
-      case "warning":
-        return "bg-yellow-50 border-l-4 border-yellow-500";
-      default:
-        return "bg-gray-50 border-l-4 border-gray-300";
-    }
+  const priorityStyles = {
+    critical: {
+      card: "border-l-2 border-red-500 bg-red-50/80 dark:border-red-400 dark:bg-red-950/25",
+      icon: <AlertCircle className="h-3 w-3 text-red-500" />,
+    },
+    warning: {
+      card: "border-l-2 border-amber-400 bg-amber-50/70 dark:border-amber-500/60 dark:bg-amber-950/20",
+      icon: <AlertTriangle className="h-3 w-3 text-amber-500" />,
+    },
+    default: {
+      card: "border-l-2 border-gray-300 bg-gray-50/80 dark:border-white/20 dark:bg-white/[0.04]",
+      icon: <Clock className="h-3 w-3 text-gray-500" />,
+    },
   };
 
   return (
-    <div className="h-full flex flex-col p-4 bg-white overflow-hidden">
-      <div className="mb-4">
-        <h3 className="text-sm font-semibold text-gray-900">
-          Timeline of Events
-        </h3>
-        <p className="text-xs text-gray-600">
-          {events.filter((e) => e.timeSecond <= elapsedTime).length} /{" "}
-          {events.length} events triggered
-        </p>
-      </div>
+    <IncidentPanel
+      title="Timeline"
+      subtitle={`${triggered}/${events.length} fired`}
+      bodyClassName="min-h-0 overflow-y-auto p-1.5"
+    >
+      {events.length > 0 ? (
+        <div className="space-y-1.5">
+          {events.map((event) => {
+            const hasOccurred = event.timeSecond <= elapsedTime;
+            const p =
+              event.priority === "critical" || event.priority === "warning"
+                ? priorityStyles[event.priority]
+                : priorityStyles.default;
 
-      <div className="flex-1 overflow-y-auto space-y-2">
-        {events.length > 0 ? (
-          <div className="space-y-3">
-            {events.map((event, idx) => {
-              const hasOccurred = event.timeSecond <= elapsedTime;
-              const isNext = !hasOccurred &&
-                events
-                  .filter((e) => e.timeSecond > elapsedTime)
-                  .some((e) => e.id === event.id);
-
-              return (
-                <div
-                  key={event.id}
-                  className={`p-3 rounded border transition-all ${
-                    hasOccurred
-                      ? getPriorityColor(event.priority)
-                      : isNext
-                        ? "bg-blue-50 border-l-4 border-blue-500"
-                        : "bg-gray-100 border-l-4 border-gray-300 opacity-60"
-                  }`}
-                >
-                  <div className="flex items-start gap-2">
-                    <div className="flex-shrink-0 mt-0.5">
-                      {hasOccurred ? (
-                        <CheckCircle2 className="w-4 h-4 text-green-600" />
-                      ) : (
-                        getPriorityIcon(event.priority)
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="text-xs font-semibold text-gray-900">
-                          {event.title}
-                        </p>
-                        <span className="text-xs font-mono text-gray-600">
-                          @ {event.timeSecond}s
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-700 leading-relaxed">
+            return (
+              <div
+                key={event.id}
+                className={`rounded-r px-2 py-1.5 ${
+                  hasOccurred
+                    ? p.card
+                    : "border-l-2 border-gray-200 opacity-40 dark:border-white/10"
+                }`}
+              >
+                <div className="flex items-start gap-1.5">
+                  <span className="mt-0.5 shrink-0">
+                    {hasOccurred ? (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                    ) : (
+                      p.icon
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono text-[10px] font-medium text-black dark:text-white">
+                      {event.title}
+                      <span className="ml-1 font-normal text-gray-500">
+                        {event.timeSecond}s
+                      </span>
+                    </p>
+                    {hasOccurred && (
+                      <p className="mt-0.5 text-[10px] leading-snug text-gray-600 dark:text-gray-400">
                         {event.description}
                       </p>
-                      {event.affectedServices && event.affectedServices.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {event.affectedServices.map((serviceId) => (
-                            <span
-                              key={serviceId}
-                              className="text-xs px-2 py-0.5 bg-gray-200 text-gray-700 rounded"
-                            >
-                              {serviceId}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            <p className="text-sm">No timeline events</p>
-          </div>
-        )}
-      </div>
-
-      {/* Progress Indicator */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <div className="text-xs text-gray-600 mb-2">
-          Simulation Progress: {elapsedTime} / {incident.durationSeconds} seconds
+              </div>
+            );
+          })}
         </div>
-        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-blue-600 transition-all duration-500"
-            style={{
-              width: `${(elapsedTime / incident.durationSeconds) * 100}%`,
-            }}
-          />
-        </div>
-      </div>
-    </div>
+      ) : (
+        <p className="py-6 text-center font-mono text-[10px] text-gray-500">
+          No events
+        </p>
+      )}
+    </IncidentPanel>
   );
 }

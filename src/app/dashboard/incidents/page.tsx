@@ -6,6 +6,10 @@ import Link from "next/link";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
 import type { IncidentSimulation } from "@/types/incident";
+import {
+  formatIncidentCode,
+  getIncidentDisplayTitle,
+} from "@/components/incidents/incident-display";
 
 interface IncidentListItem extends IncidentSimulation {
   status?: {
@@ -14,10 +18,10 @@ interface IncidentListItem extends IncidentSimulation {
   };
 }
 
-const DIFFICULTY_COLORS: Record<string, string> = {
-  easy: "bg-green-100 text-green-800",
-  medium: "bg-yellow-100 text-yellow-800",
-  hard: "bg-red-100 text-red-800",
+const DIFFICULTY_STYLES: Record<string, string> = {
+  easy: "border-emerald-300/60 text-emerald-800 dark:border-emerald-500/40 dark:text-emerald-300",
+  medium: "border-amber-300/60 text-amber-800 dark:border-amber-500/40 dark:text-amber-300",
+  hard: "border-red-300/60 text-red-800 dark:border-red-500/40 dark:text-red-300",
 };
 
 export default function IncidentsPage() {
@@ -58,137 +62,128 @@ export default function IncidentsPage() {
     return true;
   });
 
+  const tabClass = (active: boolean) =>
+    `border-b-2 py-4 px-1 font-mono text-xs font-medium transition-colors ${
+      active
+        ? "border-black text-black dark:border-white dark:text-white"
+        : "border-transparent text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white"
+    }`;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Historical Incident Simulations
+    <div className="min-h-screen bg-white dark:bg-black">
+      <div className="border-b border-gray-200 dark:border-white/10">
+        <div className="mx-auto max-w-6xl px-6 py-8">
+          <h1 className="font-mono text-2xl font-bold tracking-tight text-black dark:text-white md:text-3xl">
+            Incident Simulations
           </h1>
-          <p className="text-gray-600 max-w-2xl">
-            Experience recreated production incidents inspired by real-world outages.
-            Investigate logs, analyze metrics, and resolve critical issues to advance your
-            debugging skills.
+          <p className="mt-2 max-w-2xl text-sm text-gray-600 dark:text-gray-400">
+            Recreated production outages inspired by real-world incidents.
+            Investigate logs, analyze metrics, and practice incident response.
           </p>
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 flex gap-6">
+      <div className="sticky top-0 z-10 border-b border-gray-200 bg-white/95 backdrop-blur-sm dark:border-white/10 dark:bg-black/95">
+        <div className="mx-auto flex max-w-6xl gap-6 px-6">
           <button
+            type="button"
             onClick={() => setFilter("all")}
-            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-              filter === "all"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
-            }`}
+            className={tabClass(filter === "all")}
           >
-            All Incidents ({incidents.length})
+            All ({incidents.length})
           </button>
           <button
+            type="button"
             onClick={() => setFilter("attempted")}
-            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-              filter === "attempted"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
-            }`}
+            className={tabClass(filter === "attempted")}
           >
-            Attempted (
-            {incidents.filter((i) => i.status?.attempted).length})
+            Attempted ({incidents.filter((i) => i.status?.attempted).length})
           </button>
           <button
+            type="button"
             onClick={() => setFilter("completed")}
-            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-              filter === "completed"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
-            }`}
+            className={tabClass(filter === "completed")}
           >
-            Completed (
-            {incidents.filter((i) => i.status?.completed).length})
+            Completed ({incidents.filter((i) => i.status?.completed).length})
           </button>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-6xl mx-auto px-6 py-12">
+      <div className="mx-auto max-w-6xl px-6 py-10">
         {isLoading ? (
-          <div className="flex items-center justify-center h-96">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <div className="flex h-96 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-black dark:text-white" />
           </div>
         ) : error ? (
-          <div className="flex items-center justify-center h-96 bg-white rounded-lg border border-gray-200">
+          <div className="flex h-96 items-center justify-center rounded-xl border border-gray-200 dark:border-white/10">
             <div className="text-center">
-              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-              <p className="text-lg font-semibold text-gray-900 mb-2">
-                Error Loading Incidents
+              <AlertCircle className="mx-auto mb-4 h-12 w-12 text-red-500 dark:text-red-400" />
+              <p className="mb-2 text-lg font-semibold text-black dark:text-white">
+                Error loading incidents
               </p>
-              <p className="text-gray-600">{error}</p>
+              <p className="text-gray-600 dark:text-gray-400">{error}</p>
             </div>
           </div>
         ) : filteredIncidents.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredIncidents.map((incident) => (
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {filteredIncidents.map((incident, index) => (
               <Link
                 key={incident.id}
                 href={`/dashboard/incidents/${incident.id}`}
-                className="group bg-white rounded-lg border border-gray-200 hover:border-blue-500 hover:shadow-lg transition-all overflow-hidden"
+                className="group overflow-hidden rounded-xl border border-gray-200 bg-white transition-all hover:border-black hover:shadow-md dark:border-white/10 dark:bg-black dark:hover:border-white dark:hover:shadow-[0_0_24px_-8px_rgba(255,255,255,0.12)]"
               >
-                {/* Status Badge */}
                 {incident.status?.completed && (
-                  <div className="bg-green-50 border-b border-green-200 px-4 py-2">
-                    <p className="text-xs font-semibold text-green-700">
-                      ✓ Completed
+                  <div className="border-b border-emerald-200/80 bg-emerald-50/80 px-4 py-2 dark:border-emerald-500/30 dark:bg-emerald-950/25">
+                    <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                      Completed
                     </p>
                   </div>
                 )}
                 {incident.status?.attempted && !incident.status?.completed && (
-                  <div className="bg-blue-50 border-b border-blue-200 px-4 py-2">
-                    <p className="text-xs font-semibold text-blue-700">
-                      ⚡ In Progress
+                  <div className="border-b border-gray-200 bg-gray-50 px-4 py-2 dark:border-white/10 dark:bg-white/[0.04]">
+                    <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                      In progress
                     </p>
                   </div>
                 )}
 
-                {/* Content */}
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                      {incident.title}
+                <div className="p-5">
+                  <p className="mb-1 font-mono text-[10px] uppercase tracking-wider text-gray-400">
+                    {formatIncidentCode(index)}
+                  </p>
+                  <div className="mb-3 flex items-start justify-between gap-2">
+                    <h3 className="font-mono text-sm font-semibold text-black transition-colors group-hover:text-black dark:text-white dark:group-hover:text-white">
+                      {getIncidentDisplayTitle(incident)}
                     </h3>
                     <span
-                      className={`px-2 py-1 rounded text-xs font-semibold ${DIFFICULTY_COLORS[incident.difficulty]}`}
+                      className={`shrink-0 rounded border px-2 py-0.5 font-mono text-[10px] font-medium ${DIFFICULTY_STYLES[incident.difficulty] || DIFFICULTY_STYLES.medium}`}
                     >
                       {incident.difficulty.charAt(0).toUpperCase() +
                         incident.difficulty.slice(1)}
                     </span>
                   </div>
 
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                  <p className="mb-4 line-clamp-2 text-xs text-gray-600 dark:text-gray-400">
                     {incident.description}
                   </p>
 
-                  {/* Stats */}
-                  <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      <span>{incident.estimatedTime} min</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Zap className="w-4 h-4 text-yellow-500" />
-                      <span>+{incident.xpReward} XP</span>
-                    </div>
+                  <div className="mb-4 flex items-center gap-4 font-mono text-[11px] text-gray-500 dark:text-gray-400">
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      {incident.estimatedTime} min
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Zap className="h-3.5 w-3.5" />
+                      +{incident.xpReward} XP
+                    </span>
                   </div>
 
-                  {/* Tags */}
                   {incident.tags && incident.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-4">
+                    <div className="mb-4 flex flex-wrap gap-1.5">
                       {incident.tags.slice(0, 3).map((tag) => (
                         <span
                           key={tag}
-                          className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
+                          className="rounded border border-gray-200 px-1.5 py-0.5 font-mono text-[9px] text-gray-600 dark:border-white/10 dark:text-gray-400"
                         >
                           {tag}
                         </span>
@@ -196,14 +191,13 @@ export default function IncidentsPage() {
                     </div>
                   )}
 
-                  {/* CTA */}
-                  <div className="pt-4 border-t border-gray-100">
-                    <p className="text-sm font-semibold text-blue-600 group-hover:text-blue-700">
+                  <div className="border-t border-gray-100 pt-3 dark:border-white/8">
+                    <p className="font-mono text-[11px] font-medium text-black dark:text-white">
                       {incident.status?.completed
-                        ? "View Again →"
+                        ? "View again →"
                         : incident.status?.attempted
                           ? "Continue →"
-                          : "Start Incident →"}
+                          : "Start incident →"}
                     </p>
                   </div>
                 </div>
@@ -211,12 +205,12 @@ export default function IncidentsPage() {
             ))}
           </div>
         ) : (
-          <div className="flex items-center justify-center h-96 bg-white rounded-lg border border-gray-200">
+          <div className="flex h-96 items-center justify-center rounded-xl border border-gray-200 dark:border-white/10">
             <div className="text-center">
-              <p className="text-lg font-semibold text-gray-900 mb-2">
-                No Incidents Found
+              <p className="mb-2 text-lg font-semibold text-black dark:text-white">
+                No incidents found
               </p>
-              <p className="text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 {filter === "completed"
                   ? "You haven't completed any incidents yet."
                   : filter === "attempted"

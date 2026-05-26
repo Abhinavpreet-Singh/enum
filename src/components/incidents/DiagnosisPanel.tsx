@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle } from "lucide-react";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
 import type {
@@ -9,6 +9,7 @@ import type {
   IncidentSession,
   IncidentRootCauseOption,
 } from "@/types/incident";
+import { getHypothesisLabel } from "./incident-display";
 
 interface DiagnosisPanelProps {
   incident: IncidentSimulation;
@@ -16,17 +17,24 @@ interface DiagnosisPanelProps {
   onDiagnosisSubmit: (correct: boolean, selectedId: string) => void;
 }
 
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+const shell =
+  "rounded border border-gray-200 bg-gray-50/80 dark:border-white/10 dark:bg-white/[0.03]";
+
 export default function DiagnosisPanel({
   incident,
   session,
   onDiagnosisSubmit,
 }: DiagnosisPanelProps) {
-  const [selectedId, setSelectedId] = useState<string>("");
+  const [selectedId, setSelectedId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{
     correct: boolean;
     hint?: string;
   } | null>(null);
+
+  const options = incident.rootCauseOptions;
 
   const handleSubmit = async () => {
     if (!selectedId) return;
@@ -46,58 +54,45 @@ export default function DiagnosisPanel({
       onDiagnosisSubmit(correct, selectedId);
     } catch (err) {
       console.error("Error submitting diagnosis:", err);
-      setFeedback({ correct: false, hint: "Error submitting diagnosis" });
+      setFeedback({ correct: false, hint: "Could not submit — try again." });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   if (session.selectedRootCauseId) {
-    const selected = incident.rootCauseOptions.find(
-      (r) => r.id === session.selectedRootCauseId,
-    );
+    const selected = options.find((r) => r.id === session.selectedRootCauseId);
     const isCorrect = session.correctDiagnosis;
+    const letter = options.findIndex((o) => o.id === selected?.id);
 
     return (
-      <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-        <h3 className="font-semibold text-gray-900 mb-3">Your Diagnosis</h3>
+      <div className={`${shell} p-3`}>
+        <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+          Committed hypothesis
+        </p>
         <div
-          className={`p-3 rounded-lg border-2 ${
+          className={`rounded border px-2.5 py-2 ${
             isCorrect
-              ? "bg-green-50 border-green-300"
-              : "bg-red-50 border-red-300"
+              ? "border-emerald-400/60 bg-emerald-50/80 dark:border-emerald-500/35 dark:bg-emerald-950/25"
+              : "border-red-400/60 bg-red-50/80 dark:border-red-500/35 dark:bg-red-950/25"
           }`}
         >
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-2">
             {isCorrect ? (
-              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+              <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
             ) : (
-              <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
             )}
-            <div className="flex-1">
-              <p
-                className={`font-semibold ${
-                  isCorrect ? "text-green-900" : "text-red-900"
-                }`}
-              >
-                {selected?.title}
-              </p>
-              <p
-                className={`text-sm mt-1 ${
-                  isCorrect ? "text-green-700" : "text-red-700"
-                }`}
-              >
-                {isCorrect ? "✓ Correct diagnosis!" : "✗ Incorrect diagnosis"}
+            <div className="min-w-0">
+              <p className="font-mono text-xs font-semibold text-black dark:text-white">
+                {letter >= 0 ? LETTERS[letter] : "?"}.{" "}
+                {selected ? getHypothesisLabel(selected) : ""}
               </p>
               {!isCorrect && selected?.hint && (
-                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-                  <AlertCircle className="w-4 h-4 inline mr-1" />
+                <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
                   {selected.hint}
-                </div>
+                </p>
               )}
-              <p className="text-sm mt-2 text-gray-600">
-                {selected?.description}
-              </p>
             </div>
           </div>
         </div>
@@ -106,60 +101,79 @@ export default function DiagnosisPanel({
   }
 
   return (
-    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-      <h3 className="font-semibold text-gray-900 mb-3">Root Cause Diagnosis</h3>
-      <p className="text-sm text-gray-600 mb-3">
-        Based on the metrics, logs, and timeline, what caused this incident?
+    <div className={`${shell} p-3`}>
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-black dark:text-white">
+        What failed?
+      </p>
+      <p className="mt-1 text-xs leading-snug text-gray-500 dark:text-gray-400">
+        Pick the root cause that matches the logs and metrics.
       </p>
 
-      <div className="space-y-2 mb-4">
-        {incident.rootCauseOptions.map((option: IncidentRootCauseOption) => (
-          <label
-            key={option.id}
-            className="flex items-start gap-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors"
-          >
-            <input
-              type="radio"
-              name="rootCause"
-              value={option.id}
-              checked={selectedId === option.id}
-              onChange={(e) => setSelectedId(e.target.value)}
-              className="mt-1"
-              disabled={isSubmitting}
-            />
-            <div className="flex-1">
-              <p className="font-medium text-gray-900">{option.title}</p>
-              <p className="text-sm text-gray-600 mt-1">
-                {option.description}
-              </p>
-            </div>
-          </label>
-        ))}
+      <div
+        className="mt-2.5 space-y-1.5"
+        role="radiogroup"
+        aria-label="Root cause hypothesis"
+      >
+        {options.map((option: IncidentRootCauseOption, index) => {
+          const letter = LETTERS[index] ?? String(index + 1);
+          const selected = selectedId === option.id;
+
+          return (
+            <label
+              key={option.id}
+              className={`flex cursor-pointer items-start gap-2.5 rounded border px-2.5 py-2 transition-colors ${
+                selected
+                  ? "border-black bg-white dark:border-white dark:bg-white/[0.06]"
+                  : "border-gray-200 hover:border-gray-400 dark:border-white/10"
+              }`}
+            >
+              <input
+                type="radio"
+                name="rootCause"
+                value={option.id}
+                checked={selected}
+                onChange={(e) => setSelectedId(e.target.value)}
+                className="sr-only"
+                disabled={isSubmitting}
+              />
+              <span
+                className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded font-mono text-xs font-bold ${
+                  selected
+                    ? "bg-black text-white dark:bg-white dark:text-black"
+                    : "border border-gray-300 text-gray-600 dark:border-white/20"
+                }`}
+              >
+                {letter}
+              </span>
+              <span className="min-w-0 flex-1 font-mono text-xs leading-snug text-black dark:text-white">
+                {getHypothesisLabel(option)}
+              </span>
+            </label>
+          );
+        })}
       </div>
 
       <button
+        type="button"
         onClick={handleSubmit}
         disabled={!selectedId || isSubmitting}
-        className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors"
+        className="mt-3 w-full rounded bg-black py-2 font-mono text-xs font-medium text-white disabled:opacity-40 dark:bg-white dark:text-black"
       >
-        {isSubmitting ? "Submitting..." : "Submit Diagnosis"}
+        {isSubmitting ? "Committing…" : "Commit hypothesis"}
       </button>
 
-      {feedback && (
-        <div
-          className={`mt-3 p-3 rounded-lg text-sm ${
+      {feedback && !session.selectedRootCauseId && (
+        <p
+          className={`mt-2 text-xs ${
             feedback.correct
-              ? "bg-green-50 text-green-800 border border-green-200"
-              : "bg-red-50 text-red-800 border border-red-200"
+              ? "text-emerald-700 dark:text-emerald-300"
+              : "text-red-700 dark:text-red-300"
           }`}
         >
           {feedback.correct
-            ? "✓ Correct! You identified the root cause."
-            : "✗ Incorrect. Try again or review the logs."}
-          {feedback.hint && (
-            <p className="mt-1 text-xs opacity-90">{feedback.hint}</p>
-          )}
-        </div>
+            ? "Correct — run one remediation, then submit your report."
+            : feedback.hint || "Try again after reviewing the evidence."}
+        </p>
       )}
     </div>
   );
