@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { AxiosProvider } from "@/providers/axios-provider";
 import LoadingBar from "@/components/loading-bar";
+import BotpressChat from "@/components/botpress/BotpressChat";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -60,6 +61,7 @@ export default function RootLayout({
           <AxiosProvider>
             <LoadingBar />
             {children}
+            <BotpressChat />
           </AxiosProvider>
         </ThemeProvider>
       </body>
