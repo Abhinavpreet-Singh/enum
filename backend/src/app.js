@@ -72,6 +72,7 @@ import simulationEngineRouter from "./routes/simulationEngine.route.js";
 import submissionRouter from "./routes/submission.route.js";
 import complexityRouter from "./routes/complexity.route.js";
 import systemDesignRouter from "./routes/systemDesign.route.js";
+import incidentRouter from "./routes/incident.route.js";
 import authRouter from "./routes/auth.routes.js";
 
 app.use("/api/auth", authRouter)
@@ -90,6 +91,7 @@ app.use("/api/v1/simulation-engine", simulationEngineRouter);
 app.use("/api/v1/submissions", submissionRouter);
 app.use("/api/v1/complexity", complexityRouter);
 app.use("/api/v1/system-design", systemDesignRouter);
+app.use("/api/v1/incidents", incidentRouter);
 
 // ── Global error handler ─────────────────────────────────────────────────────
 // Must be last — converts ApiError (and any other thrown error) to a JSON
