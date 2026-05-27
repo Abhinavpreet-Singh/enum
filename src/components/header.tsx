@@ -25,6 +25,69 @@ function ThemeButton() {
   );
 }
 
+const DESKTOP_APP_DOWNLOAD =
+  process.env.NEXT_PUBLIC_DESKTOP_APP_URL ||
+  "https://github.com/Abhinavpreet-Singh/enum/releases/latest";
+
+function DownloadButton({
+  className = "",
+}: {
+  className?: string;
+}) {
+  return (
+    <a
+      href={DESKTOP_APP_DOWNLOAD}
+      target="_blank"
+      rel="noreferrer"
+      className={`rounded-full border border-black/90 bg-white px-5 py-2 font-mono text-xs tracking-[0.18em] text-black transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm hover:bg-gray-50 dark:border-white/90 dark:bg-black dark:text-white dark:hover:bg-gray-900 cursor-pointer ${className}`}
+    >
+      DOWNLOAD
+    </a>
+  );
+}
+
+function ProfileTrigger({
+  isProfileMenuOpen,
+  setIsProfileMenuOpen,
+  profileAvatar,
+  profileName,
+}: {
+  isProfileMenuOpen: boolean;
+  setIsProfileMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  profileAvatar: string | null;
+  profileName: string | null;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => setIsProfileMenuOpen((open) => !open)}
+      aria-label={
+        isProfileMenuOpen ? "Close profile menu" : "Open profile menu"
+      }
+      aria-expanded={isProfileMenuOpen}
+      title={profileName || "Profile"}
+      className="group flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-white transition-all duration-300 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-sm active:scale-95 dark:border-gray-700 dark:bg-black dark:hover:border-gray-500"
+    >
+      {profileAvatar ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={profileAvatar}
+          alt="Profile avatar"
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span className="flex h-full w-full items-center justify-center bg-linear-to-br from-gray-800 to-black text-[10px] font-bold tracking-[0.16em] text-white dark:from-gray-700 dark:to-gray-950">
+          {(profileName || "G")
+            .split(" ")
+            .slice(0, 2)
+            .map((w) => w[0]?.toUpperCase())
+            .join("")}
+        </span>
+      )}
+    </button>
+  );
+}
+
 export default function Header() {
   const isAuthenticated = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -132,46 +195,6 @@ export default function Header() {
     }
   };
 
-  const ProfileTrigger = () => (
-    <button
-      type="button"
-      onClick={() => setIsProfileMenuOpen((open) => !open)}
-      aria-label={
-        isProfileMenuOpen ? "Close profile menu" : "Open profile menu"
-      }
-      aria-expanded={isProfileMenuOpen}
-      title={profileName || "Profile"}
-      className="group flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-white transition-all duration-300 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-sm active:scale-95 dark:border-gray-700 dark:bg-black dark:hover:border-gray-500"
-    >
-      {profileAvatar ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={profileAvatar}
-          alt="Profile avatar"
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <span className="flex h-full w-full items-center justify-center bg-linear-to-br from-gray-800 to-black text-[10px] font-bold tracking-[0.16em] text-white dark:from-gray-700 dark:to-gray-950">
-          {(profileName || "G")
-            .split(" ")
-            .slice(0, 2)
-            .map((w) => w[0]?.toUpperCase())
-            .join("")}
-        </span>
-      )}
-    </button>
-  );
-
-  const DownloadButton = ({ className = "" }: { className?: string }) => (
-    <button
-      type="button"
-      onClick={() => {}}
-      className={`rounded-full border border-black/90 bg-white px-5 py-2 font-mono text-xs tracking-[0.18em] text-black transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm hover:bg-gray-50 dark:border-white/90 dark:bg-black dark:text-white dark:hover:bg-gray-900 cursor-pointer ${className}`}
-    >
-      DOWNLOAD
-    </button>
-  );
-
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-md dark:border-gray-600 dark:bg-black/95 px-4 md:px-6">
       <div className="mx-auto max-w-7xl py-3 md:py-4">
@@ -229,7 +252,12 @@ export default function Header() {
             ) : (
               <div className="relative hidden items-center gap-3 md:flex">
                 <DownloadButton />
-                <ProfileTrigger />
+                <ProfileTrigger
+                  isProfileMenuOpen={isProfileMenuOpen}
+                  setIsProfileMenuOpen={setIsProfileMenuOpen}
+                  profileAvatar={profileAvatar}
+                  profileName={profileName}
+                />
                 {isProfileMenuOpen && (
                   <div className="absolute right-0 top-12 z-50 w-56 rounded-2xl border border-gray-200 bg-white p-2 shadow-lg shadow-black/5 dark:border-gray-800 dark:bg-black dark:shadow-black/20">
                     <Link
