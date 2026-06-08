@@ -30,7 +30,6 @@ model User {
   refreshToken String?
   displayName  String?
   bio          String   @default("")
-  college      String   @default("")
   role         String   @default("Student")
   location     String   @default("")
   resume       String   @default("")
@@ -54,6 +53,7 @@ model User {
   incidentSessions       IncidentSession[]
   activityLogs           UserActivityLog[]
   xpAwards               UserXpAward[]
+  candidateAttempts      CandidateAttempt[]
 
   @@map("users")
 }
@@ -102,6 +102,225 @@ model OtpVerification {
   expiresAt DateTime
 
   @@map("otp_verifications")
+}
+
+// ─── Organization ────────────────────────────────────────────────────────────
+
+model Organization {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  email          String   @unique
+  password       String
+  refreshToken   String?
+  website        String   @default("")
+  industry       String   @default("")
+  size           String   @default("")   // "1-10" | "11-50" | "51-200" | "200+"
+  location       String   @default("")
+  description    String   @default("")
+  logo           String   @default("")
+  approvalStatus String   @default("approved") // "pending" | "approved" | "rejected"
+  contactName    String   @default("")
+  contactEmail   String   @default("")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  assessments    Assessment[]
+  questionBanks  QuestionBank[]
+
+  @@map("organizations")
+}
+
+model OrganizationOtpVerification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String
+  otp       String
+  expiresAt DateTime
+
+  @@map("organization_otp_verifications")
+}
+
+// ─── Assessment Platform ─────────────────────────────────────────────────────
+
+model Assessment {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  organizationId   String    @db.ObjectId
+  title            String
+  description      String    @default("")
+  duration         Int       @default(60) // minutes
+  startDate        DateTime?
+  endDate          DateTime?
+  maxAttempts      Int       @default(1)
+  passingScore     Int       @default(60) // percentage
+  status           String    @default("draft") // "draft" | "published" | "archived"
+  accessType       String    @default("public") // "public" | "invite_only" | "password"
+  accessPassword   String?
+  testCode         String    @unique
+  totalQuestions   Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  settings         AssessmentSetting?
+  questions        AssessmentQuestion[]
+  invites          AssessmentInvite[]
+  attempts         CandidateAttempt[]
+
+  @@index([organizationId])
+  @@map("assessments")
+}
+
+model AssessmentSetting {
+  id                    String  @id @default(auto()) @map("_id") @db.ObjectId
+  assessmentId          String  @unique @db.ObjectId
+  // Device restrictions
+  lockScreen            Boolean @default(false)
+  disableAltTab         Boolean @default(false)
+  disableWinKey         Boolean @default(false)
+  disableTaskSwitch     Boolean @default(false)
+  disableMultiMonitor   Boolean @default(false)
+  forceFullscreen       Boolean @default(false)
+  requireDesktopApp     Boolean @default(false)
+  // Screen monitoring
+  requireScreenShare    Boolean @default(false)
+  recordScreen          Boolean @default(false)
+  periodicScreenshots   Boolean @default(false)
+  liveMonitoring        Boolean @default(false)
+  // Webcam
+  requireWebcam         Boolean @default(false)
+  recordWebcam          Boolean @default(false)
+  faceDetection         Boolean @default(false)
+  multipleFaceDetection Boolean @default(false)
+  phoneDetection        Boolean @default(false)
+  eyeTracking           Boolean @default(false)
+  // Audio
+  requireMicrophone     Boolean @default(false)
+  recordAudio           Boolean @default(false)
+  voiceDetection        Boolean @default(false)
+  // Anti-cheating
+  copyPasteDetection    Boolean @default(true)
+  typingPatternAnalysis Boolean @default(false)
+  aiDetection           Boolean @default(false)
+  devToolsDetection     Boolean @default(true)
+  vmDetection           Boolean @default(false)
+  remoteDesktopDetection Boolean @default(false)
+  // Network
+  allowInternet         Boolean @default(false)
+  allowExternalSites    Boolean @default(false)
+  whitelistDomains      String[] @default([])
+
+  assessment            Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@map("assessmentsettings")
+}
+
+model QuestionBank {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  organizationId String   @db.ObjectId
+  name           String
+  category       String   // "mcq" | "coding" | "sql" | "linux" | "frontend" | "backend" | "devops" | "system_design" | "incident"
+  description    String   @default("")
+  tags           String[] @default([])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  questions      BankQuestion[]
+
+  @@index([organizationId])
+  @@map("questionbanks")
+}
+
+model BankQuestion {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  bankId         String   @db.ObjectId
+  type           String   // "mcq" | "msq" | "numerical" | "coding" | "sql" | "linux"
+  title          String
+  description    String   @default("")
+  difficulty     String   @default("medium") // "easy" | "medium" | "hard"
+  options        Json?    // for MCQ/MSQ: [{ text, isCorrect }]
+  correctAnswer  Json?    // answer data
+  codeTemplate   String?  // for coding questions
+  testCases      Json[]   @default([])
+  points         Int      @default(10)
+  tags           String[] @default([])
+  technology     String   @default("")
+  topic          String   @default("")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  bank           QuestionBank @relation(fields: [bankId], references: [id], onDelete: Cascade)
+
+  @@index([bankId])
+  @@map("bankquestions")
+}
+
+model AssessmentQuestion {
+  id             String  @id @default(auto()) @map("_id") @db.ObjectId
+  assessmentId   String  @db.ObjectId
+  questionType   String  // "bank" | "simulation" | "system_design" | "incident"
+  bankQuestionId String? @db.ObjectId
+  simulationId   String? @db.ObjectId
+  order          Int     @default(0)
+  points         Int     @default(10)
+  required       Boolean @default(true)
+
+  assessment     Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([assessmentId])
+  @@map("assessmentquestions")
+}
+
+model AssessmentInvite {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  assessmentId String   @db.ObjectId
+  email        String
+  rollNumber   String?
+  status       String   @default("pending") // "pending" | "accepted" | "completed"
+  sentAt       DateTime @default(now())
+
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([assessmentId])
+  @@map("assessmentinvites")
+}
+
+model CandidateAttempt {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  assessmentId    String    @db.ObjectId
+  userId          String?   @db.ObjectId
+  email           String
+  rollNumber      String?
+  status          String    @default("in_progress") // "in_progress" | "submitted" | "auto_submitted" | "flagged"
+  startedAt       DateTime  @default(now())
+  submittedAt     DateTime?
+  totalScore      Int       @default(0)
+  maxScore        Int       @default(0)
+  answers         Json[]    @default([])
+  codeSubmissions Json[]    @default([])
+  suspicionLevel  String    @default("low") // "low" | "medium" | "high"
+
+  assessment      Assessment @relation(fields: [assessmentId], references: [id])
+  user            User?      @relation(fields: [userId], references: [id])
+  violations      Violation[]
+
+  @@index([assessmentId])
+  @@index([userId])
+  @@map("candidateattempts")
+}
+
+model Violation {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  attemptId   String   @db.ObjectId
+  type        String   // "tab_switch" | "fullscreen_exit" | "copy_paste" | "multi_face" | "devtools" | "disconnect"
+  description String   @default("")
+  timestamp   DateTime @default(now())
+  severity    String   @default("low") // "low" | "medium" | "high"
+  metadata    Json?
+
+  attempt     CandidateAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId])
+  @@map("violations")
 }
 
 // ─── Question ────────────────────────────────────────────────────────────────
@@ -449,7 +668,7 @@ model IncidentSession {
   incident IncidentSimulation   @relation(fields: [incidentId], references: [id], onDelete: Cascade)
   state    IncidentSessionState?
 
-  @@unique([userId, incidentId])
+  @@index([userId, incidentId])
   @@map("incidentsessions")
 }
 

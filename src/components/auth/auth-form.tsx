@@ -8,6 +8,7 @@ import { proxy } from "@/app/proxy.js";
 
 type AuthMode = "login" | "register";
 type RegisterStep = "form" | "otp";
+type AccountType = "user" | "organization" | "admin";
 
 interface AuthFormProps {
   initialMode?: AuthMode;
@@ -20,15 +21,36 @@ export default function AuthForm({
 }: AuthFormProps) {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>(initialMode);
+  const [accountType, setAccountType] = useState<AccountType>("user");
   const [registerStep, setRegisterStep] = useState<RegisterStep>("form");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>("");
   const [otpValue, setOtpValue] = useState("");
   const [otpSentTo, setOtpSentTo] = useState("");
-  const [formData, setFormData] = useState({
+
+  // Login form (shared, no type selector)
+  const [loginForm, setLoginForm] = useState({
+    identifier: "", // email or username
+    password: "",
+  });
+
+  // User register fields
+  const [userForm, setUserForm] = useState({
     username: "",
     email: "",
     password: "",
+  });
+
+  // organization register fields
+  const [organizationForm, setorganizationForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    website: "",
+    industry: "",
+    size: "",
+    location: "",
+    description: "",
   });
 
   const returnTo = initialReturnTo || "/dashboard";
@@ -40,14 +62,19 @@ export default function AuthForm({
     setError("");
   };
 
+  const switchAccountType = (type: AccountType) => {
+    setAccountType(type);
+    resetRegister();
+    setError("");
+  };
+
   const startOAuth = (provider: "google" | "github") => {
     setError("");
     setIsLoading(true);
-    const successRedirect = `${window.location.origin}/auth/success?returnTo=${encodeURIComponent(returnTo)}`;
+    const successRedirect = `${window.location.origin}/oauth-success?returnTo=${encodeURIComponent(returnTo)}`;
     const failureRedirect = `${window.location.origin}/login?error=${provider}_auth_failed`;
     const url = new URL(`/auth/${provider}`, proxy);
 
-    // Different backend implementations use different query key names.
     url.searchParams.set("redirect", successRedirect);
     url.searchParams.set("redirect_uri", successRedirect);
     url.searchParams.set("successRedirect", successRedirect);
@@ -56,17 +83,24 @@ export default function AuthForm({
     window.location.assign(url.toString());
   };
 
-  // Step 1 for register: send OTP
+  // ── OTP Send ────────────────────────────────────────────────────────────────
+
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
+    const email =
+      accountType === "user" ? userForm.email
+      : organizationForm.email
+    const endpoint =
+      accountType === "user"
+        ? `${proxy}/api/v1/users/send-otp`
+        : `${proxy}/api/v1/companies/send-otp`
+
     try {
-      await axios.post(`${proxy}/api/v1/users/send-otp`, {
-        email: formData.email,
-      });
-      setOtpSentTo(formData.email);
+      await axios.post(endpoint, { email });
+      setOtpSentTo(email);
       setRegisterStep("otp");
     } catch (err) {
       if (axios.isAxiosError(err)) {
@@ -88,30 +122,59 @@ export default function AuthForm({
     }
   };
 
-  // Step 2 for register: verify OTP and create account
+  // ── OTP Verify + Register ───────────────────────────────────────────────────
+
   const handleVerifyAndRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
     try {
-      const response = await axios.post(
-        `${proxy}/api/v1/users/register`,
-        {
-          username: formData.username,
-          email: formData.email,
-          password: formData.password,
-          otp: otpValue,
-        },
-        { withCredentials: true },
-      );
+      let response;
 
-      localStorage.setItem("Name", response.data.data.username);
-      localStorage.setItem(
-        "id",
-        response.data.data.id ?? response.data.data._id,
-      );
-      localStorage.setItem("accessToken", response.data.accessToken);
+      if (accountType === "user") {
+        response = await axios.post(
+          `${proxy}/api/v1/users/register`,
+          {
+            username: userForm.username,
+            email: userForm.email,
+            password: userForm.password,
+            otp: otpValue,
+          },
+          { withCredentials: true },
+        );
+        localStorage.setItem("Name", response.data.data.username);
+        localStorage.setItem(
+          "id",
+          response.data.data.id ?? response.data.data._id,
+        );
+        localStorage.setItem("accessToken", response.data.accessToken);
+        localStorage.setItem("accountType", "user");
+      } else if (accountType === "organization") {
+        response = await axios.post(
+          `${proxy}/api/v1/companies/register`,
+          {
+            name: organizationForm.name,
+            email: organizationForm.email,
+            password: organizationForm.password,
+            otp: otpValue,
+            website: organizationForm.website,
+            industry: organizationForm.industry,
+            size: organizationForm.size,
+            location: organizationForm.location,
+            description: organizationForm.description,
+          },
+          { withCredentials: true },
+        );
+        localStorage.setItem("Name", response.data.data.name);
+        localStorage.setItem(
+          "id",
+          response.data.data.id ?? response.data.data._id,
+        );
+        localStorage.setItem("accessToken", response.data.accessToken);
+        localStorage.setItem("accountType", "organization");
+      }
+
       router.push(returnTo);
     } catch (err) {
       setIsLoading(false);
@@ -129,7 +192,7 @@ export default function AuthForm({
           lower.includes("already exists") ||
           err.response?.status === 409
         ) {
-          setError("You're already a user! Please log in to continue.");
+          setError("This account already exists! Please log in to continue.");
         } else {
           setError(raw || "Registration failed. Please try again.");
         }
@@ -139,30 +202,35 @@ export default function AuthForm({
     }
   };
 
-  // Login submit
+  // ── Login (unified – backend auto-detects user vs organization) ─────────────────
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
     try {
-      const isEmail = formData.email.includes("@");
+      const isEmail = loginForm.identifier.includes("@");
       const payload = {
         ...(isEmail
-          ? { email: formData.email }
-          : { username: formData.email.toLowerCase() }),
-        password: formData.password,
+          ? { email: loginForm.identifier }
+          : { username: loginForm.identifier.toLowerCase() }),
+        password: loginForm.password,
       };
 
       const response = await axios.post(
-        `${proxy}/api/v1/users/login`,
+        `${proxy}/api/v1/auth/login`,
         payload,
-        {
-          withCredentials: true,
-        },
+        { withCredentials: true },
       );
 
-      localStorage.setItem("Name", response.data.data.username);
+      const detectedType: AccountType = response.data.accountType ?? "user";
+      localStorage.setItem("accountType", detectedType);
+      localStorage.setItem(
+        "Name",
+        detectedType === "organization"
+          && response.data.data.name
+      );
       localStorage.setItem(
         "id",
         response.data.data.id ?? response.data.data._id,
@@ -204,9 +272,19 @@ export default function AuthForm({
         ? handleSendOtp
         : handleVerifyAndRegister;
 
+  // ── Shared input class ──────────────────────────────────────────────────────
+
+  const inputCls =
+    "w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-black dark:text-white font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white transition-colors";
+
+  const labelCls =
+    "block font-mono text-xs tracking-wider text-gray-700 dark:text-neutral-400 mb-1";
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
   return (
-    <div className="relative h-screen w-full flex items-center justify-center px-4 py-4 bg-gray-50 dark:bg-black overflow-hidden">
-      {/* Grid Background */}
+    <div className="relative min-h-screen w-full flex items-center justify-center px-4 py-8 bg-gray-50 dark:bg-black overflow-hidden">
+      {/* Grid Background – light */}
       <div className="absolute inset-0 opacity-[0.07]">
         <div
           className="absolute inset-0"
@@ -220,6 +298,7 @@ export default function AuthForm({
           }}
         />
       </div>
+      {/* Grid Background – dark */}
       <div className="absolute inset-0 opacity-[0.15] dark:block hidden">
         <div
           className="absolute inset-0"
@@ -235,7 +314,7 @@ export default function AuthForm({
       </div>
 
       <div className="relative z-10 w-full max-w-sm">
-        {/* Logo/Brand */}
+        {/* Logo */}
         <div className="text-center mb-4">
           <Link href="/" className="inline-block">
             <h1
@@ -252,9 +331,10 @@ export default function AuthForm({
 
         {/* Auth Card */}
         <div className="bg-white dark:bg-neutral-950 border border-gray-300 dark:border-white p-6">
-          {/* Mode Toggle */}
+          {/* LOGIN / REGISTER tab toggle */}
           <div className="flex mb-3 border-b border-gray-200 dark:border-neutral-800">
             <button
+              id="auth-login-tab"
               onClick={() => {
                 setMode("login");
                 resetRegister();
@@ -268,6 +348,7 @@ export default function AuthForm({
               LOGIN
             </button>
             <button
+              id="auth-register-tab"
               onClick={() => {
                 setMode("register");
                 resetRegister();
@@ -282,37 +363,72 @@ export default function AuthForm({
             </button>
           </div>
 
-          {/* OAuth */}
-          <div className="mb-3">
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => startOAuth("google")}
-                disabled={isLoading}
-                className="w-full border border-gray-300 dark:border-white px-3 py-2 font-mono text-xs tracking-wider text-black dark:text-white hover:bg-gray-50 dark:hover:bg-neutral-900 transition-colors disabled:opacity-60"
-              >
-                CONTINUE WITH GOOGLE
-              </button>
-              <button
-                type="button"
-                onClick={() => startOAuth("github")}
-                disabled={isLoading}
-                className="w-full border border-gray-300 dark:border-white px-3 py-2 font-mono text-xs tracking-wider text-black dark:text-white hover:bg-gray-50 dark:hover:bg-neutral-900 transition-colors disabled:opacity-60"
-              >
-                CONTINUE WITH GITHUB
-              </button>
+          {/* Account-type selector – register only */}
+          {mode === "register" && (
+            <div className="flex mb-3 gap-0">
+              {(["user", "organization"] as const).map((type, i) => (
+                <button
+                  key={type}
+                  id={`auth-type-${type}`}
+                  type="button"
+                  onClick={() => switchAccountType(type)}
+                  className={`flex-1 py-1.5 font-mono text-[11px] tracking-wider border transition-colors ${
+                    i > 0 ? "border-l-0" : ""
+                  } ${
+                    accountType === type
+                      ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white"
+                      : "bg-white dark:bg-neutral-950 text-gray-500 dark:text-neutral-500 border-gray-300 dark:border-neutral-700 hover:border-gray-500 dark:hover:border-neutral-500"
+                  }`}
+                >
+                  {type === "user" ? "STUDENT" : type.toUpperCase()}
+                </button>
+              ))}
             </div>
+          )}
 
-            <div className="flex items-center gap-3 mt-3">
-              <div className="flex-1 h-px bg-gray-200 dark:bg-neutral-800" />
-              <span className="font-mono text-[10px] tracking-wider text-gray-400 dark:text-neutral-600">
-                OR
-              </span>
-              <div className="flex-1 h-px bg-gray-200 dark:bg-neutral-800" />
+          {/* OAuth – only shown for user register or on login tab */}
+          {(mode === "login" || (mode === "register" && (accountType === "user"))) && (
+            <div className="mb-3">
+              <div className="space-y-2">
+                <button
+                  id="auth-google-btn"
+                  type="button"
+                  onClick={() => startOAuth("google")}
+                  disabled={isLoading}
+                  className="w-full border border-gray-300 dark:border-white px-3 py-2 font-mono text-xs tracking-wider text-black dark:text-white hover:bg-gray-50 dark:hover:bg-neutral-900 transition-colors disabled:opacity-60"
+                >
+                  CONTINUE WITH GOOGLE
+                </button>
+                <button
+                  id="auth-github-btn"
+                  type="button"
+                  onClick={() => startOAuth("github")}
+                  disabled={isLoading}
+                  className="w-full border border-gray-300 dark:border-white px-3 py-2 font-mono text-xs tracking-wider text-black dark:text-white hover:bg-gray-50 dark:hover:bg-neutral-900 transition-colors disabled:opacity-60"
+                >
+                  CONTINUE WITH GITHUB
+                </button>
+              </div>
+              <div className="flex items-center gap-3 mt-3">
+                <div className="flex-1 h-px bg-gray-200 dark:bg-neutral-800" />
+                <span className="font-mono text-[10px] tracking-wider text-gray-400 dark:text-neutral-600">
+                  OR
+                </span>
+                <div className="flex-1 h-px bg-gray-200 dark:bg-neutral-800" />
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Error Message */}
+          {/* Account type banner */}
+          {mode === "register" && accountType === "organization" && (
+            <div className="mb-3 px-3 py-2 border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900">
+              <p className="font-mono text-[10px] tracking-wider text-gray-500 dark:text-neutral-400">
+                ORGANIZATION ACCOUNT · Post tests & access hiring tools
+              </p>
+            </div>
+          )}
+
+          {/* Error */}
           {error && (
             <div className="mb-3 p-3 border border-red-300 dark:border-red-900 bg-red-50 dark:bg-red-950/30">
               <p className="text-xs font-mono text-red-700 dark:text-red-400 leading-relaxed">
@@ -321,23 +437,18 @@ export default function AuthForm({
             </div>
           )}
 
-          {/* OTP Step — shown only during register step 2 */}
+          {/* OTP Step */}
           {mode === "register" && registerStep === "otp" ? (
             <form onSubmit={handleSubmit} className="space-y-3">
               <div className="mb-2">
                 <p className="text-xs font-mono text-gray-500 dark:text-neutral-400 leading-relaxed">
                   A 6-digit code was sent to{" "}
-                  <span className="text-black dark:text-white">
-                    {otpSentTo}
-                  </span>
+                  <span className="text-black dark:text-white">{otpSentTo}</span>
                   . Enter it below to verify your email.
                 </p>
               </div>
               <div>
-                <label
-                  htmlFor="otp"
-                  className="block font-mono text-xs tracking-wider text-gray-700 dark:text-neutral-400 mb-1"
-                >
+                <label htmlFor="otp" className={labelCls}>
                   VERIFICATION CODE
                 </label>
                 <input
@@ -347,7 +458,7 @@ export default function AuthForm({
                   onChange={(e) =>
                     setOtpValue(e.target.value.replace(/\D/g, "").slice(0, 6))
                   }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-black dark:text-white font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white transition-colors tracking-[0.5em] text-center"
+                  className={`${inputCls} tracking-[0.5em] text-center`}
                   placeholder="000000"
                   maxLength={6}
                   required
@@ -359,28 +470,7 @@ export default function AuthForm({
                 disabled={isLoading || otpValue.length !== 6}
                 className="w-full px-4 py-2 bg-black dark:bg-white text-white dark:text-black font-mono text-xs tracking-wider hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors mt-3 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {isLoading && (
-                  <svg
-                    className="animate-spin h-4 w-4 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                )}
+                {isLoading && <SpinnerIcon />}
                 {isLoading ? "VERIFYING..." : "VERIFY & CREATE ACCOUNT"}
               </button>
               <button
@@ -392,101 +482,229 @@ export default function AuthForm({
               </button>
             </form>
           ) : (
-            /* Login form OR Register step 1 form */
+            /* Login OR Register step-1 form */
             <form onSubmit={handleSubmit} className="space-y-3">
-              {/* Username - Only for Register */}
-              {mode === "register" && (
+              {/* ── USER REGISTER FIELDS ── */}
+              {mode === "register" && accountType === "user" && (
                 <div>
-                  <label
-                    htmlFor="username"
-                    className="block font-mono text-xs tracking-wider text-gray-700 dark:text-neutral-400 mb-1"
-                  >
+                  <label htmlFor="username" className={labelCls}>
                     USERNAME
                   </label>
                   <input
                     type="text"
                     id="username"
-                    value={formData.username}
+                    value={userForm.username}
                     onChange={(e) =>
-                      setFormData({ ...formData, username: e.target.value })
+                      setUserForm({ ...userForm, username: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-black dark:text-white font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white transition-colors"
+                    className={inputCls}
                     placeholder="Username"
                     required
                   />
                 </div>
               )}
 
-              {/* Email or Username */}
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block font-mono text-xs tracking-wider text-gray-700 dark:text-neutral-400 mb-1"
-                >
-                  {mode === "login" ? "USERNAME OR EMAIL" : "EMAIL"}
-                </label>
-                <input
-                  type={mode === "login" ? "text" : "email"}
-                  id="email"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-black dark:text-white font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white transition-colors"
-                  placeholder={mode === "login" ? "Username or Email" : "Email"}
-                  required
-                />
-              </div>
+              {/* ── organization REGISTER FIELDS ── */}
+              {mode === "register" && accountType === "organization" && (
+                <>
+                  <div>
+                    <label htmlFor="organization-name" className={labelCls}>
+                      ORGANIZATION NAME
+                    </label>
+                    <input
+                      type="text"
+                      id="organization-name"
+                      value={organizationForm.name}
+                      onChange={(e) =>
+                        setorganizationForm({ ...organizationForm, name: e.target.value })
+                      }
+                      className={inputCls}
+                      placeholder="Acme Inc."
+                      required
+                    />
+                  </div>
 
-              {/* Password */}
-              <div>
-                <label
-                  htmlFor="password"
-                  className="block font-mono text-xs tracking-wider text-gray-700 dark:text-neutral-400 mb-1"
-                >
-                  PASSWORD
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-black dark:text-white font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white transition-colors"
-                  placeholder="Password"
-                  required
-                />
-              </div>
+                  <div>
+                    <label htmlFor="organization-website" className={labelCls}>
+                      WEBSITE
+                    </label>
+                    <input
+                      type="url"
+                      id="organization-website"
+                      value={organizationForm.website}
+                      onChange={(e) =>
+                        setorganizationForm({ ...organizationForm, website: e.target.value })
+                      }
+                      className={inputCls}
+                      placeholder="https://yourorganization.com"
+                    />
+                  </div>
 
-              {/* Submit Button */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label htmlFor="organization-industry" className={labelCls}>
+                        INDUSTRY
+                      </label>
+                      <input
+                        type="text"
+                        id="organization-industry"
+                        value={organizationForm.industry}
+                        onChange={(e) =>
+                          setorganizationForm({ ...organizationForm, industry: e.target.value })
+                        }
+                        className={inputCls}
+                        placeholder="Software"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="organization-size" className={labelCls}>
+                        ORGANIZATION SIZE
+                      </label>
+                      <select
+                        id="organization-size"
+                        value={organizationForm.size}
+                        onChange={(e) =>
+                          setorganizationForm({ ...organizationForm, size: e.target.value })
+                        }
+                        className={`${inputCls} appearance-none`}
+                      >
+                        <option value="">Select</option>
+                        <option value="1-10">1 – 10</option>
+                        <option value="11-50">11 – 50</option>
+                        <option value="51-200">51 – 200</option>
+                        <option value="201-500">201 – 500</option>
+                        <option value="500+">500+</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="organization-location" className={labelCls}>
+                      LOCATION
+                    </label>
+                    <input
+                      type="text"
+                      id="organization-location"
+                      value={organizationForm.location}
+                      onChange={(e) =>
+                        setorganizationForm({ ...organizationForm, location: e.target.value })
+                      }
+                      className={inputCls}
+                      placeholder="San Francisco, CA"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="organization-description" className={labelCls}>
+                      DESCRIPTION
+                    </label>
+                    <textarea
+                      id="organization-description"
+                      value={organizationForm.description}
+                      onChange={(e) =>
+                        setorganizationForm({ ...organizationForm, description: e.target.value })
+                      }
+                      className={`${inputCls} resize-none`}
+                      rows={2}
+                      placeholder="Brief description of your organization…"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* ── LOGIN FIELDS (unified) ── */}
+              {mode === "login" ? (
+                <>
+                  <div>
+                    <label htmlFor="login-identifier" className={labelCls}>
+                      USERNAME OR EMAIL
+                    </label>
+                    <input
+                      type="text"
+                      id="login-identifier"
+                      value={loginForm.identifier}
+                      onChange={(e) =>
+                        setLoginForm({ ...loginForm, identifier: e.target.value })
+                      }
+                      className={inputCls}
+                      placeholder="Username or Email"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="login-password" className={labelCls}>
+                      PASSWORD
+                    </label>
+                    <input
+                      type="password"
+                      id="login-password"
+                      value={loginForm.password}
+                      onChange={(e) =>
+                        setLoginForm({ ...loginForm, password: e.target.value })
+                      }
+                      className={inputCls}
+                      placeholder="Password"
+                      required
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* ── REGISTER EMAIL FIELD ── */}
+                  <div>
+                    <label htmlFor="email" className={labelCls}>
+                      EMAIL
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      value={
+                        accountType === "user" ? userForm.email
+                        : organizationForm.email
+                      }
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (accountType === "user") setUserForm({ ...userForm, email: v });
+                        else if (accountType === "organization") setorganizationForm({ ...organizationForm, email: v });;
+                      }}
+                      className={inputCls}
+                      placeholder="Email"
+                      required
+                    />
+                  </div>
+
+                  {/* ── REGISTER PASSWORD FIELD ── */}
+                  <div>
+                    <label htmlFor="password" className={labelCls}>
+                      PASSWORD
+                    </label>
+                    <input
+                      type="password"
+                      id="password"
+                      value={
+                        accountType === "user" ? userForm.password
+                        : organizationForm.password
+                      }
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (accountType === "user") setUserForm({ ...userForm, password: v });
+                        else if (accountType === "organization") setorganizationForm({ ...organizationForm, password: v });
+                      }}
+                      className={inputCls}
+                      placeholder="Password"
+                      required
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* ── SUBMIT ── */}
               <button
                 type="submit"
                 disabled={isLoading}
                 className="w-full px-4 py-2 bg-black dark:bg-white text-white dark:text-black font-mono text-xs tracking-wider hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors mt-3 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {isLoading && (
-                  <svg
-                    className="animate-spin h-4 w-4 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                )}
+                {isLoading && <SpinnerIcon />}
                 {isLoading
                   ? mode === "login"
                     ? "LOGGING IN..."
@@ -498,7 +716,7 @@ export default function AuthForm({
             </form>
           )}
 
-          {/* Footer Text */}
+          {/* Footer */}
           {mode === "login" ? (
             <p className="text-center mt-3 text-xs text-gray-600 dark:text-neutral-400">
               Don&apos;t have an account?{" "}
@@ -539,5 +757,30 @@ export default function AuthForm({
         </div>
       </div>
     </div>
+  );
+}
+
+function SpinnerIcon() {
+  return (
+    <svg
+      className="animate-spin h-4 w-4"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
+    </svg>
   );
 }

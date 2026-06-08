@@ -39,49 +39,101 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
   try {
     decodedToken = verifyAccessToken(token);
   } catch (err) {
-    if (err instanceof ApiError) {
-      throw err;
+    if (err instanceof ApiError) throw err;
+    throw new ApiError(401, "Invalid access token");
+  }
+
+  const accountType = decodedToken?.accountType || "user";
+
+  // ── Admin token (stateless — no DB lookup) ─────────────────────────────────
+  if (accountType === "admin") {
+    if (decodedToken?.email !== process.env.ADMIN_EMAIL) {
+      throw new ApiError(401, "Invalid admin token");
     }
+    req.accountType = "admin";
+    req.admin = { email: decodedToken.email, name: decodedToken.name || "Admin" };
+    req.user = null; req.organization = null;
+    return next();
+  }
+
+  const id = decodedToken?._id || decodedToken?.userId || decodedToken?.id;
+  if (!id) {
     throw new ApiError(401, "Invalid access token");
   }
 
-  const userId = decodedToken?._id || decodedToken?.userId || decodedToken?.id;
-  if (!userId) {
-    throw new ApiError(401, "Invalid access token");
+  // ── Organization token ──────────────────────────────────────────────────────────
+  if (accountType === "organization") {
+    const organization = await prisma.organization.findUnique({ where: { id } });
+    if (!organization) throw new ApiError(401, "Invalid access token");
+    const { password, refreshToken, ...safe } = organization;
+    req.organization = safe;
+    req.user = null;
+    req.accountType = "organization";
+    return next();
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-  });
-
-  if (!user) {
-    throw new ApiError(401, "Invalid access token");
-  }
-
+  // ── User token (default) ───────────────────────────────────────────────────
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) throw new ApiError(401, "Invalid access token");
   const { password, refreshToken, ...safeUser } = user;
   req.user = safeUser;
+  req.organization = null;
+  req.accountType = "user";
   next();
 });
 
-// Optional authentication - doesn't require valid token
-export const optionalAuth = asyncHandler(async (req, res, next) => {
+// ── Role gate ────────────────────────────────────────────────────────────────
+// Usage: requireRole("organization")
+export const requireRole = (...roles) => {
+  return (req, _res, next) => {
+    if (!roles.includes(req.accountType)) {
+      throw new ApiError(403, "Access denied. Insufficient role.");
+    }
+    next();
+  };
+};
+
+// ── Approval gate (organization must be approved) ─────────────────────────────────
+export const requireApproved = (req, _res, next) => {
+  if (req.accountType === "organization") {
+    if (req.organization?.approvalStatus !== "approved") {
+      throw new ApiError(403, "Your organization account is awaiting approval.");
+    }
+  }
+  next();
+};
+
+export const optionalAuth = asyncHandler(async (req, _res, next) => {
   try {
     const token = getAccessTokenFromRequest(req);
-
     if (!token) {
       req.user = null;
+      req.accountType = null;
       return next();
     }
 
     const decodedToken = verifyAccessToken(token);
-    const userId = decodedToken?._id || decodedToken?.userId || decodedToken?.id;
-    if (!userId) {
+    const id = decodedToken?._id || decodedToken?.userId || decodedToken?.id;
+    if (!id) {
       req.user = null;
       return next();
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const accountType = decodedToken?.accountType || "user";
 
+    if (accountType === "organization") {
+      const organization = await prisma.organization.findUnique({ where: { id } });
+      if (organization) {
+        const { password, refreshToken, ...safe } = organization;
+        req.organization = safe;
+        req.accountType = "organization";
+      } else {
+        req.user = null;
+      }
+      return next();
+    }
+
+    const user = await prisma.user.findUnique({ where: { id } });
     if (!user) {
       req.user = null;
       return next();
@@ -89,9 +141,11 @@ export const optionalAuth = asyncHandler(async (req, res, next) => {
 
     const { password, refreshToken, ...safeUser } = user;
     req.user = safeUser;
+    req.accountType = "user";
     next();
   } catch (error) {
     req.user = null;
+    req.accountType = null;
     next();
   }
 });

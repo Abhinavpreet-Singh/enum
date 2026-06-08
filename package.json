@@ -7,16 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-<<<<<<< Updated upstream
-    "export": "next build",
-    "tauri": "tauri"
-=======
-    "load:discover": "node tests/load/discover-routes.js",
-    "load:login": "npm run load:discover && node tests/load/run-k6.js run tests/load/login-load-test.js",
-    "load:user-journey": "npm run load:discover && node tests/load/run-k6.js run tests/load/full-user-journey.js",
-    "load:smoke": "npm run load:discover && node tests/load/run-k6.js run -e LOGIN_STAGES=15s:1,20s:2,10s:0 tests/load/login-load-test.js"
->>>>>>> Stashed changes
+    "lint": "eslint"
   },
   "dependencies": {
     "@codesandbox/sandpack-react": "^2.20.0",

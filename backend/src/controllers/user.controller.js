@@ -317,7 +317,6 @@ const updateProfile = asyncHandler(async (req, res) => {
   const allowedFields = [
     "displayName",
     "bio",
-    "college",
     "role",
     "location",
     "resume",
