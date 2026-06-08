@@ -1,14 +1,19 @@
+"use client";
+
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import LinuxArenaPage from "@/components/linux/LinuxArenaPage";
 
-interface LinuxSimulationRouteProps {
-  searchParams?: Promise<{
-    id?: string;
-  }>;
+function LinuxArenaContent() {
+  const searchParams = useSearchParams();
+  return <LinuxArenaPage initialQuestionId={searchParams.get("id") ?? undefined} />;
 }
 
-export default async function Page({
-  searchParams,
-}: LinuxSimulationRouteProps) {
-  const resolvedSearchParams = await searchParams;
-  return <LinuxArenaPage initialQuestionId={resolvedSearchParams?.id} />;
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <LinuxArenaContent />
+    </Suspense>
+  );
 }
+

@@ -4,14 +4,17 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "export": "next build",
+    "tauri": "tauri"
   },
   "dependencies": {
     "@codesandbox/sandpack-react": "^2.20.0",
     "@monaco-editor/react": "^4.7.0",
+    "@tauri-apps/api": "^2.11.0",
     "axios": "^1.13.5",
     "chart.js": "^4.5.1",
     "jwt-decode": "^4.0.0",
@@ -29,7 +32,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@tauri-apps/cli": "^2.10.1",
+    "@tauri-apps/cli": "^2.11.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

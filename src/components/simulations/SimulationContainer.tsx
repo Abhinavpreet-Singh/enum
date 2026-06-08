@@ -23,6 +23,7 @@ import type {
   SimulationStatus,
 } from "@/types/simulation";
 import { fetchSimulationFiles } from "@/services/cloudinary";
+import { proxy } from "@/app/proxy";
 import FileExplorer from "./FileExplorer";
 import CodeEditor from "./CodeEditor";
 import ConsolePanel from "./ConsolePanel";
@@ -211,7 +212,7 @@ export default function SimulationContainer({
         if (!token) return;
 
         const res = await fetch(
-          `/api/simulations/progress?simulationId=${simulation.id}`,
+          `${proxy}/api/v1/simulations/progress?simulationId=${simulation.id}`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
 
@@ -244,7 +245,7 @@ export default function SimulationContainer({
         const token = localStorage.getItem("accessToken");
         if (!token) return;
 
-        const res = await fetch("/api/simulations/progress", {
+        const res = await fetch(`${proxy}/api/v1/simulations/progress`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -324,7 +325,8 @@ export default function SimulationContainer({
         content,
       }));
 
-      const response = await fetch("/api/simulations/engine/run", {
+      // Call the backend simulation engine directly (no Next.js server in Tauri .exe)
+      const response = await fetch(`${proxy}/api/v1/simulation-engine/run`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -337,12 +339,14 @@ export default function SimulationContainer({
         }),
       });
 
-      const data = await response.json();
+      const json = await response.json();
 
-      if (data.success) {
-        const engineData = data as SimulationEngineResponse & {
-          success: boolean;
-        };
+      // Direct backend response: { status: 'success', data: { passedTests, totalTests, logs, score } }
+      // or error response: { status: 'error', message: '...' }
+      const isSuccess = response.ok && (json.status === "success" || json.success);
+      const engineData = (json.data ?? json) as SimulationEngineResponse;
+
+      if (isSuccess) {
         const allPassed =
           engineData.passedTests === engineData.totalTests &&
           engineData.totalTests > 0;
@@ -382,7 +386,7 @@ export default function SimulationContainer({
         setStatus("error");
         setConsoleOutput((prev) => [
           ...prev,
-          `Error: ${data.error || "Execution failed"}`,
+          `Error: ${json.message || json.error || "Execution failed"}`,
         ]);
         setLatestXpEarned(0);
         await persistProgress(false);

@@ -123,7 +123,8 @@ export default function LinuxArenaPage({
     setOutputLines(["$ Running Bash command...", ""]);
 
     try {
-      const response = await fetch("/api/run", {
+      // Call the external compiler API directly (no Next.js server in Tauri .exe)
+      const response = await fetch("http://enumcompiler.duckdns.org/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ language: "bash", code }),

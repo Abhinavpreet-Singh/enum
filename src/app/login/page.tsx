@@ -1,13 +1,13 @@
+"use client";
+
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import AuthForm from "@/components/auth/auth-form";
 import PublicRoute from "@/components/auth/public-route";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ returnTo?: string }>;
-}) {
-  const resolvedSearchParams = await searchParams;
-  const returnTo = resolvedSearchParams?.returnTo;
+function LoginContent() {
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo") ?? undefined;
 
   return (
     <PublicRoute returnTo={returnTo}>
@@ -15,3 +15,12 @@ export default async function LoginPage({
     </PublicRoute>
   );
 }
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
