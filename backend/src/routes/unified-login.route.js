@@ -26,33 +26,18 @@ const makeUserTokens = async (user) => {
   return { access, refresh };
 };
 
-const makeCompanyTokens = async (company) => {
+const makeOrganizationTokens = async (organization) => {
   const access = signToken(
-    { _id: company.id, email: company.email, name: company.name, accountType: "company" },
+    { _id: organization.id, email: organization.email, name: organization.name, accountType: "organization" },
     process.env.ACCESS_TOKEN_SECRET,
     process.env.ACCESS_TOKEN_EXPIRY,
   );
   const refresh = signToken(
-    { _id: company.id, accountType: "company" },
+    { _id: organization.id, accountType: "organization" },
     process.env.REFRESH_TOKEN_SECRET,
     process.env.REFRESH_TOKEN_EXPIRY,
   );
-  await prisma.company.update({ where: { id: company.id }, data: { refreshToken: refresh } });
-  return { access, refresh };
-};
-
-const makeCollegeTokens = async (college) => {
-  const access = signToken(
-    { _id: college.id, email: college.email, name: college.name, accountType: "college" },
-    process.env.ACCESS_TOKEN_SECRET,
-    process.env.ACCESS_TOKEN_EXPIRY,
-  );
-  const refresh = signToken(
-    { _id: college.id, accountType: "college" },
-    process.env.REFRESH_TOKEN_SECRET,
-    process.env.REFRESH_TOKEN_EXPIRY,
-  );
-  await prisma.college.update({ where: { id: college.id }, data: { refreshToken: refresh } });
+  await prisma.organization.update({ where: { id: organization.id }, data: { refreshToken: refresh } });
   return { access, refresh };
 };
 
@@ -66,6 +51,24 @@ router.post(
     if (!password) throw new ApiError(400, "Password is required.");
 
     const options = getAuthCookieOptions();
+
+    // ── Admin credentials (env-based, no DB) ───────────────────────────────
+    if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
+      const access = signToken(
+        { accountType: "admin", email: process.env.ADMIN_EMAIL, name: "Admin" },
+        process.env.ACCESS_TOKEN_SECRET,
+        process.env.ACCESS_TOKEN_EXPIRY,
+      );
+      return res
+        .status(200)
+        .cookie("accessToken", access, options)
+        .json({
+          message: "Admin logged in.",
+          data: { name: "Admin", email: process.env.ADMIN_EMAIL },
+          accessToken: access,
+          accountType: "admin",
+        });
+    }
 
     // ── Username → users only ───────────────────────────────────────────────
     if (username && !email) {
@@ -89,7 +92,7 @@ router.post(
         .json({ message: "Logged in.", data: safe, accessToken: access, accountType: "user" });
     }
 
-    // ── Email → try User → Company → College ────────────────────────────────
+    // ── Email → try User → Company ──────────────────────────────────────────
     const user = await prisma.user.findUnique({ where: { email } });
     if (user) {
       if (!user.password) throw new ApiError(401, "Please log in with Google or GitHub.");
@@ -107,36 +110,20 @@ router.post(
         .json({ message: "Logged in.", data: safe, accessToken: access, accountType: "user" });
     }
 
-    const company = await prisma.company.findUnique({ where: { email } });
-    if (company) {
-      const ok = await bcrypt.compare(password, company.password);
+    const organization = await prisma.organization.findUnique({ where: { email } });
+    if (organization) {
+      const ok = await bcrypt.compare(password, organization.password);
       if (!ok) throw new ApiError(401, "Invalid password.");
-      const { access, refresh } = await makeCompanyTokens(company);
-      const safe = await prisma.company.findUnique({
-        where: { id: company.id },
+      const { access, refresh } = await makeOrganizationTokens(organization);
+      const safe = await prisma.organization.findUnique({
+        where: { id: organization.id },
         omit: { password: true, refreshToken: true },
       });
       return res
         .status(200)
         .cookie("accessToken", access, options)
         .cookie("refreshToken", refresh, options)
-        .json({ message: "Logged in.", data: safe, accessToken: access, accountType: "company" });
-    }
-
-    const college = await prisma.college.findUnique({ where: { email } });
-    if (college) {
-      const ok = await bcrypt.compare(password, college.password);
-      if (!ok) throw new ApiError(401, "Invalid password.");
-      const { access, refresh } = await makeCollegeTokens(college);
-      const safe = await prisma.college.findUnique({
-        where: { id: college.id },
-        omit: { password: true, refreshToken: true },
-      });
-      return res
-        .status(200)
-        .cookie("accessToken", access, options)
-        .cookie("refreshToken", refresh, options)
-        .json({ message: "Logged in.", data: safe, accessToken: access, accountType: "college" });
+        .json({ message: "Logged in.", data: safe, accessToken: access, accountType: "organization" });
     }
 
     throw new ApiError(404, "No account found. Please check your credentials or register first.");

@@ -10,7 +10,7 @@ import {
 
 const router = Router();
 
-const guard = [verifyJWT, requireRole("company"), requireApproved];
+const guard = [verifyJWT, requireRole("organization"), requireApproved];
 
 router.post("/", ...guard, createQuestionBank);
 router.get("/", ...guard, getQuestionBanks);

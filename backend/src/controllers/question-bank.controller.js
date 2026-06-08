@@ -3,7 +3,7 @@ import { ApiError } from "../utils/apiError.js";
 import prisma from "../db/index.js";
 
 export const createQuestionBank = asyncHandler(async (req, res) => {
-  const companyId = req.company.id;
+  const organizationId = req.organization.id;
   const { name, category, description, tags } = req.body;
 
   if (!name?.trim()) throw new ApiError(400, "Question bank name is required.");
@@ -11,7 +11,7 @@ export const createQuestionBank = asyncHandler(async (req, res) => {
 
   const bank = await prisma.questionBank.create({
     data: {
-      companyId,
+      organizationId,
       name: name.trim(),
       category,
       description: description || "",
@@ -24,10 +24,10 @@ export const createQuestionBank = asyncHandler(async (req, res) => {
 });
 
 export const getQuestionBanks = asyncHandler(async (req, res) => {
-  const companyId = req.company.id;
+  const organizationId = req.organization.id;
   const { category } = req.query;
 
-  const where = { companyId };
+  const where = { organizationId };
   if (category && category !== "all") where.category = category;
 
   const banks = await prisma.questionBank.findMany({
@@ -41,7 +41,7 @@ export const getQuestionBanks = asyncHandler(async (req, res) => {
 
 export const getQuestionBankById = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const companyId = req.company.id;
+  const organizationId = req.organization.id;
 
   const bank = await prisma.questionBank.findUnique({
     where: { id },
@@ -52,19 +52,19 @@ export const getQuestionBankById = asyncHandler(async (req, res) => {
   });
 
   if (!bank) throw new ApiError(404, "Question bank not found.");
-  if (bank.companyId !== companyId) throw new ApiError(403, "Access denied.");
+  if (bank.organizationId !== organizationId) throw new ApiError(403, "Access denied.");
 
   return res.status(200).json({ message: "Question bank fetched.", data: bank });
 });
 
 export const updateQuestionBank = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const companyId = req.company.id;
+  const organizationId = req.organization.id;
   const { name, category, description, tags } = req.body;
 
   const existing = await prisma.questionBank.findUnique({ where: { id } });
   if (!existing) throw new ApiError(404, "Question bank not found.");
-  if (existing.companyId !== companyId) throw new ApiError(403, "Access denied.");
+  if (existing.organizationId !== organizationId) throw new ApiError(403, "Access denied.");
 
   const updateData = {};
   if (name !== undefined) updateData.name = name.trim();
@@ -83,11 +83,11 @@ export const updateQuestionBank = asyncHandler(async (req, res) => {
 
 export const deleteQuestionBank = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const companyId = req.company.id;
+  const organizationId = req.organization.id;
 
   const existing = await prisma.questionBank.findUnique({ where: { id } });
   if (!existing) throw new ApiError(404, "Question bank not found.");
-  if (existing.companyId !== companyId) throw new ApiError(403, "Access denied.");
+  if (existing.organizationId !== organizationId) throw new ApiError(403, "Access denied.");
 
   await prisma.questionBank.delete({ where: { id } });
   return res.status(200).json({ message: "Question bank deleted." });

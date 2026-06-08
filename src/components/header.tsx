@@ -106,7 +106,7 @@ export default function Header() {
     { href: "/#how-it-works", label: "HOW IT WORKS" },
     { href: "/#features", label: "FEATURES" },
     { href: "/#simulations", label: "SIMULATIONS" },
-    { href: "/#colleges", label: "BENEFITS" },
+    { href: "/#benefits", label: "BENEFITS" },
   ];
 
   const handleHomeAnchorClick = (

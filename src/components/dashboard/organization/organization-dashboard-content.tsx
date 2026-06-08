@@ -64,7 +64,7 @@ interface RecentViolation {
   attempt: { email: string; assessment: { title: string } };
 }
 
-export default function CompanyDashboardContent() {
+export default function OrganizationDashboardContent() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [recentTests, setRecentTests] = useState<RecentTest[]>([]);
   const [recentAttempts, setRecentAttempts] = useState<RecentAttempt[]>([]);
@@ -72,16 +72,16 @@ export default function CompanyDashboardContent() {
   const [loading, setLoading] = useState(true);
   const [activityTab, setActivityTab] = useState<"tests" | "attempts" | "violations">("tests");
 
-  const [companyName] = useState(() =>
+  const [organizationName] = useState(() =>
     typeof window !== "undefined"
-      ? localStorage.getItem("displayName") || localStorage.getItem("Name") || "Company"
-      : "Company",
+      ? localStorage.getItem("displayName") || localStorage.getItem("Name") || "Organization"
+      : "Organization",
   );
 
   useEffect(() => {
     Promise.all([
-      axios.get(`${proxy}/api/v1/company-dashboard/metrics`).catch(() => null),
-      axios.get(`${proxy}/api/v1/company-dashboard/recent-activity`).catch(() => null),
+      axios.get(`${proxy}/api/v1/organization-dashboard/metrics`).catch(() => null),
+      axios.get(`${proxy}/api/v1/organization-dashboard/recent-activity`).catch(() => null),
     ]).then(([mRes, aRes]) => {
       if (mRes?.data?.data) setMetrics(mRes.data.data);
       if (aRes?.data?.data) {
@@ -173,7 +173,7 @@ export default function CompanyDashboardContent() {
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white md:text-3xl">
-            {greeting} {companyName}.
+            {greeting} {organizationName}.
           </h1>
           <p className="mt-1 font-mono text-xs text-gray-500 dark:text-gray-400">
             Your assessment command center.

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
 
-export type AccountType = "student" | "company" | "college" | "recruiter" | "admin";
+export type AccountType = "student" | "organization" | "admin";
 
 interface TokenPayload {
   accountType?: string;
@@ -13,14 +13,12 @@ interface TokenPayload {
 function detect(): AccountType {
   if (typeof window === "undefined") return "student";
   const stored = localStorage.getItem("accountType");
-  if (stored === "company" || stored === "college") return stored;
+  if (stored === "organization") return stored;
   try {
     const token = localStorage.getItem("accessToken");
     if (token) {
       const decoded = jwtDecode<TokenPayload>(token);
-      if (decoded.accountType === "company") return "company";
-      if (decoded.accountType === "college") return "college";
-      if (decoded.accountRole === "recruiter") return "recruiter";
+      if (decoded.accountType === "organization") return "organization";
       if (decoded.accountRole === "admin") return "admin";
     }
   } catch {}

@@ -30,9 +30,7 @@ model User {
   refreshToken String?
   displayName  String?
   bio          String   @default("")
-  college      String   @default("")
   role         String   @default("Student")
-  accountRole  String   @default("student") // "student" | "recruiter" | "admin"
   location     String   @default("")
   resume       String   @default("")
   skills       String[] @default([])
@@ -106,9 +104,9 @@ model OtpVerification {
   @@map("otp_verifications")
 }
 
-// ─── Company ─────────────────────────────────────────────────────────────────
+// ─── Organization ────────────────────────────────────────────────────────────
 
-model Company {
+model Organization {
   id             String   @id @default(auto()) @map("_id") @db.ObjectId
   name           String
   email          String   @unique
@@ -129,74 +127,45 @@ model Company {
   assessments    Assessment[]
   questionBanks  QuestionBank[]
 
-  @@map("companies")
+  @@map("organizations")
 }
 
-model CompanyOtpVerification {
+model OrganizationOtpVerification {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   email     String
   otp       String
   expiresAt DateTime
 
-  @@map("company_otp_verifications")
-}
-
-// ─── College ─────────────────────────────────────────────────────────────────
-
-model College {
-  id               String   @id @default(auto()) @map("_id") @db.ObjectId
-  name             String
-  email            String   @unique
-  password         String
-  refreshToken     String?
-  website          String   @default("")
-  coordinatorName  String   @default("")
-  coordinatorEmail String   @default("")
-  approvalStatus   String   @default("pending") // "pending" | "approved" | "rejected"
-  logo             String   @default("")
-  location         String   @default("")
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  @@map("colleges")
-}
-
-model CollegeOtpVerification {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  email     String
-  otp       String
-  expiresAt DateTime
-
-  @@map("college_otp_verifications")
+  @@map("organization_otp_verifications")
 }
 
 // ─── Assessment Platform ─────────────────────────────────────────────────────
 
 model Assessment {
-  id             String    @id @default(auto()) @map("_id") @db.ObjectId
-  companyId      String    @db.ObjectId
-  title          String
-  description    String    @default("")
-  duration       Int       @default(60) // minutes
-  startDate      DateTime?
-  endDate        DateTime?
-  maxAttempts    Int       @default(1)
-  passingScore   Int       @default(60) // percentage
-  status         String    @default("draft") // "draft" | "published" | "archived"
-  accessType     String    @default("public") // "public" | "invite_only" | "password"
-  accessPassword String?
-  testCode       String    @unique
-  totalQuestions Int       @default(0)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  organizationId   String    @db.ObjectId
+  title            String
+  description      String    @default("")
+  duration         Int       @default(60) // minutes
+  startDate        DateTime?
+  endDate          DateTime?
+  maxAttempts      Int       @default(1)
+  passingScore     Int       @default(60) // percentage
+  status           String    @default("draft") // "draft" | "published" | "archived"
+  accessType       String    @default("public") // "public" | "invite_only" | "password"
+  accessPassword   String?
+  testCode         String    @unique
+  totalQuestions   Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  company        Company   @relation(fields: [companyId], references: [id])
-  settings       AssessmentSetting?
-  questions      AssessmentQuestion[]
-  invites        AssessmentInvite[]
-  attempts       CandidateAttempt[]
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  settings         AssessmentSetting?
+  questions        AssessmentQuestion[]
+  invites          AssessmentInvite[]
+  attempts         CandidateAttempt[]
 
-  @@index([companyId])
+  @@index([organizationId])
   @@map("assessments")
 }
 
@@ -245,19 +214,19 @@ model AssessmentSetting {
 }
 
 model QuestionBank {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  companyId   String   @db.ObjectId
-  name        String
-  category    String   // "mcq" | "coding" | "sql" | "linux" | "frontend" | "backend" | "devops" | "system_design" | "incident"
-  description String   @default("")
-  tags        String[] @default([])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  organizationId String   @db.ObjectId
+  name           String
+  category       String   // "mcq" | "coding" | "sql" | "linux" | "frontend" | "backend" | "devops" | "system_design" | "incident"
+  description    String   @default("")
+  tags           String[] @default([])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  company     Company  @relation(fields: [companyId], references: [id])
-  questions   BankQuestion[]
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  questions      BankQuestion[]
 
-  @@index([companyId])
+  @@index([organizationId])
   @@map("questionbanks")
 }
 

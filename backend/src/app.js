@@ -74,13 +74,12 @@ import complexityRouter from "./routes/complexity.route.js";
 import systemDesignRouter from "./routes/systemDesign.route.js";
 import incidentRouter from "./routes/incident.route.js";
 import authRouter from "./routes/auth.routes.js";
-import companyRouter from "./routes/company.route.js";
+import organizationRouter from "./routes/organization.route.js";
 import unifiedLoginRouter from "./routes/unified-login.route.js";
-import collegeRouter from "./routes/college.route.js";
 import assessmentRouter from "./routes/assessment.route.js";
 import questionBankRouter from "./routes/question-bank.route.js";
 import bankQuestionRouter from "./routes/bank-question.route.js";
-import companyDashboardRouter from "./routes/company-dashboard.route.js";
+import organizationDashboardRouter from "./routes/organization-dashboard.route.js";
 import assessmentInviteRouter from "./routes/assessment-invite.route.js";
 
 app.use("/api/auth", authRouter)
@@ -100,14 +99,13 @@ app.use("/api/v1/submissions", submissionRouter);
 app.use("/api/v1/complexity", complexityRouter);
 app.use("/api/v1/system-design", systemDesignRouter);
 app.use("/api/v1/incidents", incidentRouter);
-app.use("/api/v1/companies", companyRouter);
+app.use("/api/v1/organizations", organizationRouter);
 app.use("/api/v1/auth", unifiedLoginRouter);
-app.use("/api/v1/colleges", collegeRouter);
 app.use("/api/v1/assessments", assessmentRouter);
 app.use("/api/v1/assessments", assessmentInviteRouter);
 app.use("/api/v1/question-banks", questionBankRouter);
 app.use("/api/v1/question-banks", bankQuestionRouter);
-app.use("/api/v1/company-dashboard", companyDashboardRouter);
+app.use("/api/v1/organization-dashboard", organizationDashboardRouter);
 
 
 // ── Global error handler ─────────────────────────────────────────────────────

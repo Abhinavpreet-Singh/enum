@@ -38,7 +38,7 @@ const STUDENT_NAV = [
   { icon: History, label: "Activity", href: "/dashboard/activity", matchExact: false },
 ];
 
-const COMPANY_NAV = [
+const ORGANIZATION_NAV = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard", matchExact: true },
   { icon: FileText, label: "Tests", href: "/dashboard/tests", matchExact: false },
   { icon: BookOpen, label: "Question Banks", href: "/dashboard/question-banks", matchExact: false },
@@ -49,7 +49,7 @@ const COMPANY_NAV = [
 ];
 
 function getNavForRole(role: string) {
-  if (role === "company") return COMPANY_NAV;
+  if (role === "organization") return ORGANIZATION_NAV;
   return STUDENT_NAV;
 }
 
@@ -119,9 +119,9 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
     const token = localStorage.getItem("accessToken");
     if (!token) return;
 
-    // Company accounts use a different profile endpoint
-    const profileUrl = accountType === "company"
-      ? `${proxy}/api/v1/company-dashboard/profile`
+    // Organization accounts use a different profile endpoint
+    const profileUrl = accountType === "organization"
+      ? `${proxy}/api/v1/organization-dashboard/profile`
       : `${proxy}/api/v1/users/profile`;
 
     axios
@@ -147,7 +147,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
 
   useEffect(() => {
     // Admin check only for student/user accounts
-    if (accountType === "company" || accountType === "college") return;
+    if (accountType === "organization") return;
 
     const adminPrev = async () => {
       try {
