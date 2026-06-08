@@ -18,8 +18,40 @@ import {
   Moon,
   AlertTriangle,
   History,
+  FileText,
+  BookOpen,
+  Users,
+  BarChart3,
+  Award,
+  Settings,
 } from "lucide-react";
 import { useTheme } from "@/providers/theme-provider";
+import useAccountType from "@/hooks/useAccountType";
+
+const STUDENT_NAV = [
+  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard", matchExact: true },
+  { icon: Code, label: "Simulations", href: "/dashboard/simulations", matchExact: false },
+  { icon: AlertTriangle, label: "Incidents", href: "/dashboard/incidents", matchExact: false },
+  { icon: Target, label: "DSA Arena", href: "/dashboard/dsa-arena", matchExact: false },
+  { icon: Trophy, label: "Leaderboard", href: "/dashboard/leaderboard", matchExact: false },
+  { icon: HandshakeIcon, label: "Collaboration", href: "/dashboard/collab", matchExact: false },
+  { icon: History, label: "Activity", href: "/dashboard/activity", matchExact: false },
+];
+
+const COMPANY_NAV = [
+  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard", matchExact: true },
+  { icon: FileText, label: "Tests", href: "/dashboard/tests", matchExact: false },
+  { icon: BookOpen, label: "Question Banks", href: "/dashboard/question-banks", matchExact: false },
+  { icon: Users, label: "Candidates", href: "/dashboard/candidates", matchExact: false },
+  { icon: BarChart3, label: "Analytics", href: "/dashboard/analytics", matchExact: false },
+  { icon: Award, label: "Certificates", href: "/dashboard/certificates", matchExact: false },
+  { icon: Settings, label: "Settings", href: "/dashboard/settings", matchExact: false },
+];
+
+function getNavForRole(role: string) {
+  if (role === "company") return COMPANY_NAV;
+  return STUDENT_NAV;
+}
 
 // Sidebar dimensions (in px)
 const COLLAPSED_W = 72;
@@ -32,50 +64,13 @@ interface SidebarProps {
 
 export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
   const pathname = usePathname();
-  const [navItems, setNavItems] = useState([
-    {
-      icon: LayoutDashboard,
-      label: "Dashboard",
-      href: "/dashboard",
-      matchExact: true,
-    },
-    {
-      icon: Code,
-      label: "Simulations",
-      href: "/dashboard/simulations",
-      matchExact: false,
-    },
-    {
-      icon: AlertTriangle,
-      label: "Incidents",
-      href: "/dashboard/incidents",
-      matchExact: false,
-    },
-    {
-      icon: Target,
-      label: "DSA Arena",
-      href: "/dashboard/dsa-arena",
-      matchExact: false,
-    },
-    {
-      icon: Trophy,
-      label: "Leaderboard",
-      href: "/dashboard/leaderboard",
-      matchExact: false,
-    },
-    {
-      icon: HandshakeIcon,
-      label: "Collaboration",
-      href: "/dashboard/collab",
-      matchExact: false,
-    },
-    {
-      icon: History,
-      label: "Activity",
-      href: "/dashboard/activity",
-      matchExact: false,
-    },
-  ]);
+  const accountType = useAccountType();
+  const [navItems, setNavItems] = useState(() => getNavForRole(accountType));
+
+  // Update nav when role changes
+  useEffect(() => {
+    setNavItems(getNavForRole(accountType));
+  }, [accountType]);
   const [hovered, setHovered] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -123,26 +118,37 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
     if (!token) return;
+
+    // Company accounts use a different profile endpoint
+    const profileUrl = accountType === "company"
+      ? `${proxy}/api/v1/company-dashboard/profile`
+      : `${proxy}/api/v1/users/profile`;
+
     axios
-      .get(`${proxy}/api/v1/users/profile`, {
+      .get(profileUrl, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => {
         const data = res?.data?.data;
         if (!data) return;
-        if (data.displayName) {
-          localStorage.setItem("displayName", data.displayName);
-          setUserName(data.displayName);
+        const name = data.displayName || data.name;
+        if (name) {
+          localStorage.setItem("displayName", name);
+          setUserName(name);
         }
-        if (data.avatar) {
-          localStorage.setItem("userAvatar", data.avatar);
-          setSidebarAvatar(data.avatar);
+        if (data.avatar || data.logo) {
+          const img = data.avatar || data.logo;
+          localStorage.setItem("userAvatar", img);
+          setSidebarAvatar(img);
         }
       })
       .catch(() => {});
-  }, []);
+  }, [accountType]);
 
   useEffect(() => {
+    // Admin check only for student/user accounts
+    if (accountType === "company" || accountType === "college") return;
+
     const adminPrev = async () => {
       try {
         const userId = localStorage.getItem("id");
@@ -170,15 +176,13 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
               },
             ];
           });
-        } else {
-          // not admin
         }
       } catch (error) {
         console.log(error);
       }
     };
     adminPrev();
-  }, []);
+  }, [accountType]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
