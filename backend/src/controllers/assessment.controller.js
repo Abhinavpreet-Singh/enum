@@ -6,7 +6,7 @@ import crypto from "crypto";
 const generateTestCode = () => crypto.randomBytes(4).toString("hex"); // 8-char hex
 
 export const createAssessment = asyncHandler(async (req, res) => {
-  const companyId = req.company.id;
+  const organizationId = req.organization.id;
   const { title, description, duration, startDate, endDate, maxAttempts, passingScore, settings } = req.body;
 
   if (!title?.trim()) throw new ApiError(400, "Assessment title is required.");
@@ -19,7 +19,7 @@ export const createAssessment = asyncHandler(async (req, res) => {
 
   const assessment = await prisma.assessment.create({
     data: {
-      companyId,
+      organizationId,
       title: title.trim(),
       description: description || "",
       duration: duration || 60,
@@ -39,10 +39,10 @@ export const createAssessment = asyncHandler(async (req, res) => {
 });
 
 export const getAssessments = asyncHandler(async (req, res) => {
-  const companyId = req.company.id;
+  const organizationId = req.organization.id;
   const { status, search } = req.query;
 
-  const where = { companyId };
+  const where = { organizationId };
   if (status && status !== "all") where.status = status;
   if (search) where.title = { contains: search, mode: "insensitive" };
 
@@ -60,7 +60,7 @@ export const getAssessments = asyncHandler(async (req, res) => {
 
 export const getAssessmentById = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const companyId = req.company.id;
+  const organizationId = req.organization.id;
 
   const assessment = await prisma.assessment.findUnique({
     where: { id },
@@ -72,19 +72,19 @@ export const getAssessmentById = asyncHandler(async (req, res) => {
   });
 
   if (!assessment) throw new ApiError(404, "Assessment not found.");
-  if (assessment.companyId !== companyId) throw new ApiError(403, "Access denied.");
+  if (assessment.organizationId !== organizationId) throw new ApiError(403, "Access denied.");
 
   return res.status(200).json({ message: "Assessment fetched.", data: assessment });
 });
 
 export const updateAssessment = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const companyId = req.company.id;
+  const organizationId = req.organization.id;
   const { title, description, duration, startDate, endDate, maxAttempts, passingScore, accessType, accessPassword, settings } = req.body;
 
   const existing = await prisma.assessment.findUnique({ where: { id } });
   if (!existing) throw new ApiError(404, "Assessment not found.");
-  if (existing.companyId !== companyId) throw new ApiError(403, "Access denied.");
+  if (existing.organizationId !== organizationId) throw new ApiError(403, "Access denied.");
 
   const updateData = {};
   if (title !== undefined) updateData.title = title.trim();
@@ -125,11 +125,11 @@ export const updateAssessment = asyncHandler(async (req, res) => {
 
 export const deleteAssessment = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const companyId = req.company.id;
+  const organizationId = req.organization.id;
 
   const existing = await prisma.assessment.findUnique({ where: { id } });
   if (!existing) throw new ApiError(404, "Assessment not found.");
-  if (existing.companyId !== companyId) throw new ApiError(403, "Access denied.");
+  if (existing.organizationId !== organizationId) throw new ApiError(403, "Access denied.");
 
   await prisma.assessment.delete({ where: { id } });
   return res.status(200).json({ message: "Assessment deleted." });
@@ -137,11 +137,11 @@ export const deleteAssessment = asyncHandler(async (req, res) => {
 
 export const publishAssessment = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const companyId = req.company.id;
+  const organizationId = req.organization.id;
 
   const existing = await prisma.assessment.findUnique({ where: { id } });
   if (!existing) throw new ApiError(404, "Assessment not found.");
-  if (existing.companyId !== companyId) throw new ApiError(403, "Access denied.");
+  if (existing.organizationId !== organizationId) throw new ApiError(403, "Access denied.");
 
   const assessment = await prisma.assessment.update({
     where: { id },
@@ -154,11 +154,11 @@ export const publishAssessment = asyncHandler(async (req, res) => {
 
 export const unpublishAssessment = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const companyId = req.company.id;
+  const organizationId = req.organization.id;
 
   const existing = await prisma.assessment.findUnique({ where: { id } });
   if (!existing) throw new ApiError(404, "Assessment not found.");
-  if (existing.companyId !== companyId) throw new ApiError(403, "Access denied.");
+  if (existing.organizationId !== organizationId) throw new ApiError(403, "Access denied.");
 
   const assessment = await prisma.assessment.update({
     where: { id },
@@ -171,14 +171,14 @@ export const unpublishAssessment = asyncHandler(async (req, res) => {
 
 export const duplicateAssessment = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const companyId = req.company.id;
+  const organizationId = req.organization.id;
 
   const source = await prisma.assessment.findUnique({
     where: { id },
     include: { settings: true, questions: true },
   });
   if (!source) throw new ApiError(404, "Assessment not found.");
-  if (source.companyId !== companyId) throw new ApiError(403, "Access denied.");
+  if (source.organizationId !== organizationId) throw new ApiError(403, "Access denied.");
 
   let testCode = generateTestCode();
   while (await prisma.assessment.findUnique({ where: { testCode } })) {
@@ -206,11 +206,11 @@ export const duplicateAssessment = asyncHandler(async (req, res) => {
 
 export const archiveAssessment = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const companyId = req.company.id;
+  const organizationId = req.organization.id;
 
   const existing = await prisma.assessment.findUnique({ where: { id } });
   if (!existing) throw new ApiError(404, "Assessment not found.");
-  if (existing.companyId !== companyId) throw new ApiError(403, "Access denied.");
+  if (existing.organizationId !== organizationId) throw new ApiError(403, "Access denied.");
 
   const assessment = await prisma.assessment.update({
     where: { id },

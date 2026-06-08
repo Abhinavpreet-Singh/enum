@@ -8,7 +8,7 @@ import { proxy } from "@/app/proxy.js";
 
 type AuthMode = "login" | "register";
 type RegisterStep = "form" | "otp";
-type AccountType = "user" | "company" | "college" | "recruiter";
+type AccountType = "user" | "organization" | "admin";
 
 interface AuthFormProps {
   initialMode?: AuthMode;
@@ -41,8 +41,8 @@ export default function AuthForm({
     password: "",
   });
 
-  // Company register fields
-  const [companyForm, setCompanyForm] = useState({
+  // organization register fields
+  const [organizationForm, setorganizationForm] = useState({
     name: "",
     email: "",
     password: "",
@@ -51,23 +51,6 @@ export default function AuthForm({
     size: "",
     location: "",
     description: "",
-  });
-
-  // College register fields
-  const [collegeForm, setCollegeForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    website: "",
-    coordinatorName: "",
-    coordinatorEmail: "",
-  });
-
-  // Recruiter register fields (uses User model with accountRole)
-  const [recruiterForm, setRecruiterForm] = useState({
-    username: "",
-    email: "",
-    password: "",
   });
 
   const returnTo = initialReturnTo || "/dashboard";
@@ -88,7 +71,7 @@ export default function AuthForm({
   const startOAuth = (provider: "google" | "github") => {
     setError("");
     setIsLoading(true);
-    const successRedirect = `${window.location.origin}/auth/success?returnTo=${encodeURIComponent(returnTo)}`;
+    const successRedirect = `${window.location.origin}/oauth-success?returnTo=${encodeURIComponent(returnTo)}`;
     const failureRedirect = `${window.location.origin}/login?error=${provider}_auth_failed`;
     const url = new URL(`/auth/${provider}`, proxy);
 
@@ -109,15 +92,11 @@ export default function AuthForm({
 
     const email =
       accountType === "user" ? userForm.email
-      : accountType === "company" ? companyForm.email
-      : accountType === "college" ? collegeForm.email
-      : recruiterForm.email;
+      : organizationForm.email
     const endpoint =
-      accountType === "user" || accountType === "recruiter"
+      accountType === "user"
         ? `${proxy}/api/v1/users/send-otp`
-        : accountType === "company"
-          ? `${proxy}/api/v1/companies/send-otp`
-          : `${proxy}/api/v1/colleges/send-otp`;
+        : `${proxy}/api/v1/companies/send-otp`
 
     try {
       await axios.post(endpoint, { email });
@@ -171,19 +150,19 @@ export default function AuthForm({
         );
         localStorage.setItem("accessToken", response.data.accessToken);
         localStorage.setItem("accountType", "user");
-      } else if (accountType === "company") {
+      } else if (accountType === "organization") {
         response = await axios.post(
           `${proxy}/api/v1/companies/register`,
           {
-            name: companyForm.name,
-            email: companyForm.email,
-            password: companyForm.password,
+            name: organizationForm.name,
+            email: organizationForm.email,
+            password: organizationForm.password,
             otp: otpValue,
-            website: companyForm.website,
-            industry: companyForm.industry,
-            size: companyForm.size,
-            location: companyForm.location,
-            description: companyForm.description,
+            website: organizationForm.website,
+            industry: organizationForm.industry,
+            size: organizationForm.size,
+            location: organizationForm.location,
+            description: organizationForm.description,
           },
           { withCredentials: true },
         );
@@ -193,48 +172,7 @@ export default function AuthForm({
           response.data.data.id ?? response.data.data._id,
         );
         localStorage.setItem("accessToken", response.data.accessToken);
-        localStorage.setItem("accountType", "company");
-      } else if (accountType === "college") {
-        response = await axios.post(
-          `${proxy}/api/v1/colleges/register`,
-          {
-            name: collegeForm.name,
-            email: collegeForm.email,
-            password: collegeForm.password,
-            otp: otpValue,
-            website: collegeForm.website,
-            coordinatorName: collegeForm.coordinatorName,
-            coordinatorEmail: collegeForm.coordinatorEmail,
-          },
-          { withCredentials: true },
-        );
-        localStorage.setItem("Name", response.data.data.name);
-        localStorage.setItem(
-          "id",
-          response.data.data.id ?? response.data.data._id,
-        );
-        localStorage.setItem("accessToken", response.data.accessToken || "");
-        localStorage.setItem("accountType", "college");
-      } else {
-        // recruiter — uses user registration endpoint
-        response = await axios.post(
-          `${proxy}/api/v1/users/register`,
-          {
-            username: recruiterForm.username,
-            email: recruiterForm.email,
-            password: recruiterForm.password,
-            otp: otpValue,
-            accountRole: "recruiter",
-          },
-          { withCredentials: true },
-        );
-        localStorage.setItem("Name", response.data.data.username);
-        localStorage.setItem(
-          "id",
-          response.data.data.id ?? response.data.data._id,
-        );
-        localStorage.setItem("accessToken", response.data.accessToken);
-        localStorage.setItem("accountType", "recruiter");
+        localStorage.setItem("accountType", "organization");
       }
 
       router.push(returnTo);
@@ -264,7 +202,7 @@ export default function AuthForm({
     }
   };
 
-  // ── Login (unified – backend auto-detects user vs company) ─────────────────
+  // ── Login (unified – backend auto-detects user vs organization) ─────────────────
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -290,11 +228,8 @@ export default function AuthForm({
       localStorage.setItem("accountType", detectedType);
       localStorage.setItem(
         "Name",
-        detectedType === "company"
-          ? response.data.data.name
-          : detectedType === "college"
-            ? response.data.data.name
-            : response.data.data.username,
+        detectedType === "organization"
+          && response.data.data.name
       );
       localStorage.setItem(
         "id",
@@ -431,7 +366,7 @@ export default function AuthForm({
           {/* Account-type selector – register only */}
           {mode === "register" && (
             <div className="flex mb-3 gap-0">
-              {(["user", "company", "college", "recruiter"] as const).map((type, i) => (
+              {(["user", "organization"] as const).map((type, i) => (
                 <button
                   key={type}
                   id={`auth-type-${type}`}
@@ -451,8 +386,8 @@ export default function AuthForm({
             </div>
           )}
 
-          {/* OAuth – only shown for user/recruiter register or on login tab */}
-          {(mode === "login" || (mode === "register" && (accountType === "user" || accountType === "recruiter"))) && (
+          {/* OAuth – only shown for user register or on login tab */}
+          {(mode === "login" || (mode === "register" && (accountType === "user"))) && (
             <div className="mb-3">
               <div className="space-y-2">
                 <button
@@ -485,24 +420,10 @@ export default function AuthForm({
           )}
 
           {/* Account type banner */}
-          {mode === "register" && accountType === "company" && (
+          {mode === "register" && accountType === "organization" && (
             <div className="mb-3 px-3 py-2 border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900">
               <p className="font-mono text-[10px] tracking-wider text-gray-500 dark:text-neutral-400">
-                COMPANY ACCOUNT · Post tests & access hiring tools
-              </p>
-            </div>
-          )}
-          {mode === "register" && accountType === "college" && (
-            <div className="mb-3 px-3 py-2 border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900">
-              <p className="font-mono text-[10px] tracking-wider text-gray-500 dark:text-neutral-400">
-                COLLEGE ACCOUNT · Manage exams & student assessments
-              </p>
-            </div>
-          )}
-          {mode === "register" && accountType === "recruiter" && (
-            <div className="mb-3 px-3 py-2 border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900">
-              <p className="font-mono text-[10px] tracking-wider text-gray-500 dark:text-neutral-400">
-                RECRUITER ACCOUNT · Search candidates & view reports
+                ORGANIZATION ACCOUNT · Post tests & access hiring tools
               </p>
             </div>
           )}
@@ -583,19 +504,19 @@ export default function AuthForm({
                 </div>
               )}
 
-              {/* ── COMPANY REGISTER FIELDS ── */}
-              {mode === "register" && accountType === "company" && (
+              {/* ── organization REGISTER FIELDS ── */}
+              {mode === "register" && accountType === "organization" && (
                 <>
                   <div>
-                    <label htmlFor="company-name" className={labelCls}>
-                      COMPANY NAME
+                    <label htmlFor="organization-name" className={labelCls}>
+                      ORGANIZATION NAME
                     </label>
                     <input
                       type="text"
-                      id="company-name"
-                      value={companyForm.name}
+                      id="organization-name"
+                      value={organizationForm.name}
                       onChange={(e) =>
-                        setCompanyForm({ ...companyForm, name: e.target.value })
+                        setorganizationForm({ ...organizationForm, name: e.target.value })
                       }
                       className={inputCls}
                       placeholder="Acme Inc."
@@ -604,46 +525,46 @@ export default function AuthForm({
                   </div>
 
                   <div>
-                    <label htmlFor="company-website" className={labelCls}>
+                    <label htmlFor="organization-website" className={labelCls}>
                       WEBSITE
                     </label>
                     <input
                       type="url"
-                      id="company-website"
-                      value={companyForm.website}
+                      id="organization-website"
+                      value={organizationForm.website}
                       onChange={(e) =>
-                        setCompanyForm({ ...companyForm, website: e.target.value })
+                        setorganizationForm({ ...organizationForm, website: e.target.value })
                       }
                       className={inputCls}
-                      placeholder="https://yourcompany.com"
+                      placeholder="https://yourorganization.com"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label htmlFor="company-industry" className={labelCls}>
+                      <label htmlFor="organization-industry" className={labelCls}>
                         INDUSTRY
                       </label>
                       <input
                         type="text"
-                        id="company-industry"
-                        value={companyForm.industry}
+                        id="organization-industry"
+                        value={organizationForm.industry}
                         onChange={(e) =>
-                          setCompanyForm({ ...companyForm, industry: e.target.value })
+                          setorganizationForm({ ...organizationForm, industry: e.target.value })
                         }
                         className={inputCls}
                         placeholder="Software"
                       />
                     </div>
                     <div>
-                      <label htmlFor="company-size" className={labelCls}>
-                        COMPANY SIZE
+                      <label htmlFor="organization-size" className={labelCls}>
+                        ORGANIZATION SIZE
                       </label>
                       <select
-                        id="company-size"
-                        value={companyForm.size}
+                        id="organization-size"
+                        value={organizationForm.size}
                         onChange={(e) =>
-                          setCompanyForm({ ...companyForm, size: e.target.value })
+                          setorganizationForm({ ...organizationForm, size: e.target.value })
                         }
                         className={`${inputCls} appearance-none`}
                       >
@@ -658,15 +579,15 @@ export default function AuthForm({
                   </div>
 
                   <div>
-                    <label htmlFor="company-location" className={labelCls}>
+                    <label htmlFor="organization-location" className={labelCls}>
                       LOCATION
                     </label>
                     <input
                       type="text"
-                      id="company-location"
-                      value={companyForm.location}
+                      id="organization-location"
+                      value={organizationForm.location}
                       onChange={(e) =>
-                        setCompanyForm({ ...companyForm, location: e.target.value })
+                        setorganizationForm({ ...organizationForm, location: e.target.value })
                       }
                       className={inputCls}
                       placeholder="San Francisco, CA"
@@ -674,110 +595,21 @@ export default function AuthForm({
                   </div>
 
                   <div>
-                    <label htmlFor="company-description" className={labelCls}>
+                    <label htmlFor="organization-description" className={labelCls}>
                       DESCRIPTION
                     </label>
                     <textarea
-                      id="company-description"
-                      value={companyForm.description}
+                      id="organization-description"
+                      value={organizationForm.description}
                       onChange={(e) =>
-                        setCompanyForm({ ...companyForm, description: e.target.value })
+                        setorganizationForm({ ...organizationForm, description: e.target.value })
                       }
                       className={`${inputCls} resize-none`}
                       rows={2}
-                      placeholder="Brief description of your company…"
+                      placeholder="Brief description of your organization…"
                     />
                   </div>
                 </>
-              )}
-
-              {/* ── COLLEGE REGISTER FIELDS ── */}
-              {mode === "register" && accountType === "college" && (
-                <>
-                  <div>
-                    <label htmlFor="college-name" className={labelCls}>
-                      COLLEGE NAME
-                    </label>
-                    <input
-                      type="text"
-                      id="college-name"
-                      value={collegeForm.name}
-                      onChange={(e) =>
-                        setCollegeForm({ ...collegeForm, name: e.target.value })
-                      }
-                      className={inputCls}
-                      placeholder="MIT, Stanford, etc."
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="college-website" className={labelCls}>
-                      WEBSITE
-                    </label>
-                    <input
-                      type="url"
-                      id="college-website"
-                      value={collegeForm.website}
-                      onChange={(e) =>
-                        setCollegeForm({ ...collegeForm, website: e.target.value })
-                      }
-                      className={inputCls}
-                      placeholder="https://college.edu"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label htmlFor="coordinator-name" className={labelCls}>
-                        COORDINATOR NAME
-                      </label>
-                      <input
-                        type="text"
-                        id="coordinator-name"
-                        value={collegeForm.coordinatorName}
-                        onChange={(e) =>
-                          setCollegeForm({ ...collegeForm, coordinatorName: e.target.value })
-                        }
-                        className={inputCls}
-                        placeholder="Prof. Smith"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="coordinator-email" className={labelCls}>
-                        COORDINATOR EMAIL
-                      </label>
-                      <input
-                        type="email"
-                        id="coordinator-email"
-                        value={collegeForm.coordinatorEmail}
-                        onChange={(e) =>
-                          setCollegeForm({ ...collegeForm, coordinatorEmail: e.target.value })
-                        }
-                        className={inputCls}
-                        placeholder="coordinator@college.edu"
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* ── RECRUITER REGISTER FIELDS ── */}
-              {mode === "register" && accountType === "recruiter" && (
-                <div>
-                  <label htmlFor="recruiter-username" className={labelCls}>
-                    USERNAME
-                  </label>
-                  <input
-                    type="text"
-                    id="recruiter-username"
-                    value={recruiterForm.username}
-                    onChange={(e) =>
-                      setRecruiterForm({ ...recruiterForm, username: e.target.value })
-                    }
-                    className={inputCls}
-                    placeholder="Username"
-                    required
-                  />
-                </div>
               )}
 
               {/* ── LOGIN FIELDS (unified) ── */}
@@ -828,16 +660,12 @@ export default function AuthForm({
                       id="email"
                       value={
                         accountType === "user" ? userForm.email
-                        : accountType === "company" ? companyForm.email
-                        : accountType === "college" ? collegeForm.email
-                        : recruiterForm.email
+                        : organizationForm.email
                       }
                       onChange={(e) => {
                         const v = e.target.value;
                         if (accountType === "user") setUserForm({ ...userForm, email: v });
-                        else if (accountType === "company") setCompanyForm({ ...companyForm, email: v });
-                        else if (accountType === "college") setCollegeForm({ ...collegeForm, email: v });
-                        else setRecruiterForm({ ...recruiterForm, email: v });
+                        else if (accountType === "organization") setorganizationForm({ ...organizationForm, email: v });;
                       }}
                       className={inputCls}
                       placeholder="Email"
@@ -855,16 +683,12 @@ export default function AuthForm({
                       id="password"
                       value={
                         accountType === "user" ? userForm.password
-                        : accountType === "company" ? companyForm.password
-                        : accountType === "college" ? collegeForm.password
-                        : recruiterForm.password
+                        : organizationForm.password
                       }
                       onChange={(e) => {
                         const v = e.target.value;
                         if (accountType === "user") setUserForm({ ...userForm, password: v });
-                        else if (accountType === "company") setCompanyForm({ ...companyForm, password: v });
-                        else if (accountType === "college") setCollegeForm({ ...collegeForm, password: v });
-                        else setRecruiterForm({ ...recruiterForm, password: v });
+                        else if (accountType === "organization") setorganizationForm({ ...organizationForm, password: v });
                       }}
                       className={inputCls}
                       placeholder="Password"

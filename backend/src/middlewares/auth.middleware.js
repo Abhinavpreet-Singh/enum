@@ -39,10 +39,21 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
   try {
     decodedToken = verifyAccessToken(token);
   } catch (err) {
-    if (err instanceof ApiError) {
-      throw err;
-    }
+    if (err instanceof ApiError) throw err;
     throw new ApiError(401, "Invalid access token");
+  }
+
+  const accountType = decodedToken?.accountType || "user";
+
+  // ── Admin token (stateless — no DB lookup) ─────────────────────────────────
+  if (accountType === "admin") {
+    if (decodedToken?.email !== process.env.ADMIN_EMAIL) {
+      throw new ApiError(401, "Invalid admin token");
+    }
+    req.accountType = "admin";
+    req.admin = { email: decodedToken.email, name: decodedToken.name || "Admin" };
+    req.user = null; req.organization = null;
+    return next();
   }
 
   const id = decodedToken?._id || decodedToken?.userId || decodedToken?.id;
@@ -50,29 +61,14 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
     throw new ApiError(401, "Invalid access token");
   }
 
-  const accountType = decodedToken?.accountType || "user";
-
-  // ── Company token ──────────────────────────────────────────────────────────
-  if (accountType === "company") {
-    const company = await prisma.company.findUnique({ where: { id } });
-    if (!company) throw new ApiError(401, "Invalid access token");
-    const { password, refreshToken, ...safe } = company;
-    req.company = safe;
+  // ── Organization token ──────────────────────────────────────────────────────────
+  if (accountType === "organization") {
+    const organization = await prisma.organization.findUnique({ where: { id } });
+    if (!organization) throw new ApiError(401, "Invalid access token");
+    const { password, refreshToken, ...safe } = organization;
+    req.organization = safe;
     req.user = null;
-    req.college = null;
-    req.accountType = "company";
-    return next();
-  }
-
-  // ── College token ──────────────────────────────────────────────────────────
-  if (accountType === "college") {
-    const college = await prisma.college.findUnique({ where: { id } });
-    if (!college) throw new ApiError(401, "Invalid access token");
-    const { password, refreshToken, ...safe } = college;
-    req.college = safe;
-    req.user = null;
-    req.company = null;
-    req.accountType = "college";
+    req.accountType = "organization";
     return next();
   }
 
@@ -81,14 +77,13 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
   if (!user) throw new ApiError(401, "Invalid access token");
   const { password, refreshToken, ...safeUser } = user;
   req.user = safeUser;
-  req.company = null;
-  req.college = null;
+  req.organization = null;
   req.accountType = "user";
   next();
 });
 
 // ── Role gate ────────────────────────────────────────────────────────────────
-// Usage: requireRole("company")  or  requireRole("company", "college")
+// Usage: requireRole("organization")
 export const requireRole = (...roles) => {
   return (req, _res, next) => {
     if (!roles.includes(req.accountType)) {
@@ -98,26 +93,19 @@ export const requireRole = (...roles) => {
   };
 };
 
-// ── Approval gate (company / college must be approved) ───────────────────────
+// ── Approval gate (organization must be approved) ─────────────────────────────────
 export const requireApproved = (req, _res, next) => {
-  if (req.accountType === "company") {
-    if (req.company?.approvalStatus !== "approved") {
-      throw new ApiError(403, "Your company account is pending approval.");
-    }
-  }
-  if (req.accountType === "college") {
-    if (req.college?.approvalStatus !== "approved") {
-      throw new ApiError(403, "Your college account is pending approval.");
+  if (req.accountType === "organization") {
+    if (req.organization?.approvalStatus !== "approved") {
+      throw new ApiError(403, "Your organization account is awaiting approval.");
     }
   }
   next();
 };
 
-// Optional authentication - doesn't require valid token
-export const optionalAuth = asyncHandler(async (req, res, next) => {
+export const optionalAuth = asyncHandler(async (req, _res, next) => {
   try {
     const token = getAccessTokenFromRequest(req);
-
     if (!token) {
       req.user = null;
       req.accountType = null;
@@ -133,24 +121,12 @@ export const optionalAuth = asyncHandler(async (req, res, next) => {
 
     const accountType = decodedToken?.accountType || "user";
 
-    if (accountType === "company") {
-      const company = await prisma.company.findUnique({ where: { id } });
-      if (company) {
-        const { password, refreshToken, ...safe } = company;
-        req.company = safe;
-        req.accountType = "company";
-      } else {
-        req.user = null;
-      }
-      return next();
-    }
-
-    if (accountType === "college") {
-      const college = await prisma.college.findUnique({ where: { id } });
-      if (college) {
-        const { password, refreshToken, ...safe } = college;
-        req.college = safe;
-        req.accountType = "college";
+    if (accountType === "organization") {
+      const organization = await prisma.organization.findUnique({ where: { id } });
+      if (organization) {
+        const { password, refreshToken, ...safe } = organization;
+        req.organization = safe;
+        req.accountType = "organization";
       } else {
         req.user = null;
       }

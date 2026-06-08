@@ -4,7 +4,7 @@ import { sendInvites, getInvites, revokeInvite } from "../controllers/assessment
 
 const router = Router();
 
-const guard = [verifyJWT, requireRole("company"), requireApproved];
+const guard = [verifyJWT, requireRole("organization"), requireApproved];
 
 router.post("/:assessmentId/invites", ...guard, sendInvites);
 router.get("/:assessmentId/invites", ...guard, getInvites);

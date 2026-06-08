@@ -4,7 +4,7 @@ import prisma from "../db/index.js";
 
 export const sendInvites = asyncHandler(async (req, res) => {
   const { assessmentId } = req.params;
-  const companyId = req.company.id;
+  const organizationId = req.organization.id;
   const { emails, rollNumbers } = req.body;
 
   if (!Array.isArray(emails) || emails.length === 0) {
@@ -13,7 +13,7 @@ export const sendInvites = asyncHandler(async (req, res) => {
 
   const assessment = await prisma.assessment.findUnique({ where: { id: assessmentId } });
   if (!assessment) throw new ApiError(404, "Assessment not found.");
-  if (assessment.companyId !== companyId) throw new ApiError(403, "Access denied.");
+  if (assessment.organizationId !== organizationId) throw new ApiError(403, "Access denied.");
 
   const inviteData = emails.map((email, i) => ({
     assessmentId,
@@ -31,11 +31,11 @@ export const sendInvites = asyncHandler(async (req, res) => {
 
 export const getInvites = asyncHandler(async (req, res) => {
   const { assessmentId } = req.params;
-  const companyId = req.company.id;
+  const organizationId = req.organization.id;
 
   const assessment = await prisma.assessment.findUnique({ where: { id: assessmentId } });
   if (!assessment) throw new ApiError(404, "Assessment not found.");
-  if (assessment.companyId !== companyId) throw new ApiError(403, "Access denied.");
+  if (assessment.organizationId !== organizationId) throw new ApiError(403, "Access denied.");
 
   const invites = await prisma.assessmentInvite.findMany({
     where: { assessmentId },
@@ -47,11 +47,11 @@ export const getInvites = asyncHandler(async (req, res) => {
 
 export const revokeInvite = asyncHandler(async (req, res) => {
   const { assessmentId, inviteId } = req.params;
-  const companyId = req.company.id;
+  const organizationId = req.organization.id;
 
   const assessment = await prisma.assessment.findUnique({ where: { id: assessmentId } });
   if (!assessment) throw new ApiError(404, "Assessment not found.");
-  if (assessment.companyId !== companyId) throw new ApiError(403, "Access denied.");
+  if (assessment.organizationId !== organizationId) throw new ApiError(403, "Access denied.");
 
   await prisma.assessmentInvite.delete({ where: { id: inviteId } }).catch(() => {
     throw new ApiError(404, "Invite not found.");

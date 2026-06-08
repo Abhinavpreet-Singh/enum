@@ -8,36 +8,36 @@ import { getAuthCookieOptions } from "../utils/cookieOptions.js";
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
 
-const generateCompanyAccessToken = (company) => {
+const generateOrganizationAccessToken = (organization) => {
   return jwt.sign(
     {
-      _id: company.id,
-      email: company.email,
-      name: company.name,
-      accountType: "company",
+      _id: organization.id,
+      email: organization.email,
+      name: organization.name,
+      accountType: "organization",
     },
     process.env.ACCESS_TOKEN_SECRET,
     { expiresIn: process.env.ACCESS_TOKEN_EXPIRY },
   );
 };
 
-const generateCompanyRefreshToken = (company) => {
+const generateOrganizationRefreshToken = (organization) => {
   return jwt.sign(
-    { _id: company.id, accountType: "company" },
+    { _id: organization.id, accountType: "organization" },
     process.env.REFRESH_TOKEN_SECRET,
     { expiresIn: process.env.REFRESH_TOKEN_EXPIRY },
   );
 };
 
-const generateCompanyTokens = async (companyId) => {
-  const company = await prisma.company.findUnique({ where: { id: companyId } });
-  if (!company) throw new ApiError(500, "Company not found while generating tokens");
+const generateOrganizationTokens = async (organizationId) => {
+  const organization = await prisma.organization.findUnique({ where: { id: organizationId } });
+  if (!organization) throw new ApiError(500, "Organization not found while generating tokens");
 
-  const accessToken = generateCompanyAccessToken(company);
-  const refreshToken = generateCompanyRefreshToken(company);
+  const accessToken = generateOrganizationAccessToken(organization);
+  const refreshToken = generateOrganizationRefreshToken(organization);
 
-  await prisma.company.update({
-    where: { id: companyId },
+  await prisma.organization.update({
+    where: { id: organizationId },
     data: { refreshToken },
   });
 
@@ -46,24 +46,24 @@ const generateCompanyTokens = async (companyId) => {
 
 // ─── Send OTP ─────────────────────────────────────────────────────────────────
 
-const sendCompanyOtp = asyncHandler(async (req, res) => {
+const sendOrganizationOtp = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
   if (!email || !email.trim()) {
     throw new ApiError(400, "Email is required.");
   }
 
-  const existing = await prisma.company.findUnique({ where: { email } });
+  const existing = await prisma.organization.findUnique({ where: { email } });
   if (existing) {
     throw new ApiError(409, "An account with this email already exists.");
   }
 
-  await prisma.companyOtpVerification.deleteMany({ where: { email } });
+  await prisma.organizationOtpVerification.deleteMany({ where: { email } });
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-  await prisma.companyOtpVerification.create({
+  await prisma.organizationOtpVerification.create({
     data: { email, otp, expiresAt },
   });
 
@@ -74,7 +74,7 @@ const sendCompanyOtp = asyncHandler(async (req, res) => {
 
 // ─── Register ─────────────────────────────────────────────────────────────────
 
-const registerCompany = asyncHandler(async (req, res) => {
+const registerOrganization = asyncHandler(async (req, res) => {
   const {
     email,
     name,
@@ -92,7 +92,7 @@ const registerCompany = asyncHandler(async (req, res) => {
   }
 
   // Verify OTP
-  const otpRecord = await prisma.companyOtpVerification.findFirst({
+  const otpRecord = await prisma.organizationOtpVerification.findFirst({
     where: { email },
     orderBy: { expiresAt: "desc" },
   });
@@ -102,7 +102,7 @@ const registerCompany = asyncHandler(async (req, res) => {
   }
 
   if (new Date() > otpRecord.expiresAt) {
-    await prisma.companyOtpVerification.deleteMany({ where: { email } });
+    await prisma.organizationOtpVerification.deleteMany({ where: { email } });
     throw new ApiError(400, "OTP has expired. Please request a new one.");
   }
 
@@ -110,16 +110,16 @@ const registerCompany = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid OTP. Please try again.");
   }
 
-  await prisma.companyOtpVerification.deleteMany({ where: { email } });
+  await prisma.organizationOtpVerification.deleteMany({ where: { email } });
 
-  const existingCompany = await prisma.company.findUnique({ where: { email } });
-  if (existingCompany) {
-    throw new ApiError(409, "Company already exists.");
+  const existingOrganization = await prisma.organization.findUnique({ where: { email } });
+  if (existingOrganization) {
+    throw new ApiError(409, "Organization already exists.");
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  const createdCompany = await prisma.company.create({
+  const createdOrganization = await prisma.organization.create({
     data: {
       name: name.trim(),
       email,
@@ -133,26 +133,26 @@ const registerCompany = asyncHandler(async (req, res) => {
     omit: { password: true, refreshToken: true },
   });
 
-  if (!createdCompany) {
-    throw new ApiError(500, "Something went wrong while registering company.");
+  if (!createdOrganization) {
+    throw new ApiError(500, "Something went wrong while registering organization.");
   }
 
-  const { accessToken } = await generateCompanyTokens(createdCompany.id);
+  const { accessToken } = await generateOrganizationTokens(createdOrganization.id);
   const options = getAuthCookieOptions();
 
   return res
     .status(201)
     .cookie("accessToken", accessToken, options)
     .json({
-      message: "Company registered successfully.",
-      data: createdCompany,
+      message: "Organization registered successfully.",
+      data: createdOrganization,
       accessToken,
     });
 });
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 
-const loginCompany = asyncHandler(async (req, res) => {
+const loginOrganization = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !email.trim()) {
@@ -162,21 +162,21 @@ const loginCompany = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Password is required.");
   }
 
-  const company = await prisma.company.findUnique({ where: { email } });
+  const organization = await prisma.organization.findUnique({ where: { email } });
 
-  if (!company) {
-    throw new ApiError(404, "Company not found. Please register first.");
+  if (!organization) {
+    throw new ApiError(404, "Organization not found. Please register first.");
   }
 
-  const isPasswordValid = await bcrypt.compare(password, company.password);
+  const isPasswordValid = await bcrypt.compare(password, organization.password);
   if (!isPasswordValid) {
     throw new ApiError(401, "Invalid password.");
   }
 
-  const { accessToken, refreshToken } = await generateCompanyTokens(company.id);
+  const { accessToken, refreshToken } = await generateOrganizationTokens(organization.id);
 
-  const loggedInCompany = await prisma.company.findUnique({
-    where: { id: company.id },
+  const loggedInOrganization = await prisma.organization.findUnique({
+    where: { id: organization.id },
     omit: { password: true, refreshToken: true },
   });
 
@@ -188,9 +188,9 @@ const loginCompany = asyncHandler(async (req, res) => {
     .cookie("refreshToken", refreshToken, options)
     .json({
       message: "Logged in successfully.",
-      data: loggedInCompany,
+      data: loggedInOrganization,
       accessToken,
     });
 });
 
-export { sendCompanyOtp, registerCompany, loginCompany };
+export { sendOrganizationOtp, registerOrganization, loginOrganization };

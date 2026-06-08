@@ -7,9 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "export": "next build",
-    "tauri": "tauri"
+    "lint": "eslint"
   },
   "dependencies": {
     "@codesandbox/sandpack-react": "^2.20.0",

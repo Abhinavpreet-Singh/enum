@@ -80,7 +80,7 @@ const buildFailureRedirectUrl = (req, provider) => {
 // to the frontend callback route. The backend never renders a raw callback page.
 const respondWithOAuthSuccess = (req, res, token) => {
   const options = getAuthCookieOptions();
-  const redirectUrl = getFrontendRedirectUrl(req, "/auth/success");
+  const redirectUrl = getFrontendRedirectUrl(req, "/oauth-success");
 
   redirectUrl.searchParams.set("token", token);
   redirectUrl.searchParams.set("accessToken", token);

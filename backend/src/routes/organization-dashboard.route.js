@@ -3,15 +3,15 @@ import { verifyJWT, requireRole } from "../middlewares/auth.middleware.js";
 import {
   getDashboardMetrics,
   getRecentActivity,
-  getCompanyProfile,
-} from "../controllers/company-dashboard.controller.js";
+  getOrganizationProfile,
+} from "../controllers/organization-dashboard.controller.js";
 
 const router = Router();
 
-const guard = [verifyJWT, requireRole("company")];
+const guard = [verifyJWT, requireRole("organization")];
 
 router.get("/metrics", ...guard, getDashboardMetrics);
 router.get("/recent-activity", ...guard, getRecentActivity);
-router.get("/profile", ...guard, getCompanyProfile);
+router.get("/profile", ...guard, getOrganizationProfile);
 
 export default router;

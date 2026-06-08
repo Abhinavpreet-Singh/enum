@@ -32,7 +32,7 @@ export function DashboardPageHeader({
   description,
   children,
 }: {
-  breadcrumb?: string;
+  breadcrumb?: ReactNode;
   title: string;
   description?: string;
   children?: ReactNode;
@@ -40,9 +40,9 @@ export function DashboardPageHeader({
   return (
     <header className="mb-6 border-b border-gray-200 pb-6 dark:border-white/10">
       {breadcrumb ? (
-        <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-gray-400">
+        <div className="mb-2 font-mono text-[10px] uppercase tracking-widest text-gray-400">
           {breadcrumb}
-        </p>
+        </div>
       ) : null}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">

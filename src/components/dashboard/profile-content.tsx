@@ -31,7 +31,6 @@ import {
 interface ProfileData {
   name: string;
   bio: string;
-  college: string;
   role: string;
   location: string;
   resume: string;
@@ -239,7 +238,6 @@ export default function ProfileContent() {
             localStorage.getItem("Name") ||
             "Guest",
           bio: data.bio || "",
-          college: data.college || "",
           role: data.role || "Student",
           location: data.location || "",
           resume: data.resume || "",
@@ -278,7 +276,6 @@ export default function ProfileContent() {
           "Guest"
         : "Guest",
     bio: "",
-    college: "",
     role: "Student",
     location: "",
     resume: "",
@@ -461,7 +458,6 @@ export default function ProfileContent() {
         {
           displayName: data.name,
           bio: data.bio,
-          college: data.college,
           role: data.role,
           location: data.location,
           resume: data.resume,
@@ -737,7 +733,7 @@ export default function ProfileContent() {
                 </div>
               </div>
 
-              {/* ABOUT — role, college, location */}
+              {/* ABOUT — role, location */}
               <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-white/8">
                 <div className="flex items-center justify-between">
                   <p className="font-mono text-[10px] tracking-widest text-gray-400">
@@ -756,17 +752,6 @@ export default function ProfileContent() {
                           setDraft((d) => ({ ...d, role: e.target.value }))
                         }
                         placeholder="Role (e.g. Student, Developer)"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <GraduationCap className="w-4 h-4 text-gray-300 shrink-0" />
-                      <input
-                        className="flex-1 font-mono text-xs border-b border-gray-200 dark:border-white/10 focus:border-black dark:focus:border-white outline-none pb-0.5 bg-transparent text-gray-700 dark:text-gray-200"
-                        value={draft.college}
-                        onChange={(e) =>
-                          setDraft((d) => ({ ...d, college: e.target.value }))
-                        }
-                        placeholder="College / Organization"
                       />
                     </div>
                     <div className="flex items-center gap-2">
@@ -791,14 +776,6 @@ export default function ProfileContent() {
                         </span>
                       </div>
                     )}
-                    {profile.college && (
-                      <div className="flex items-center gap-2">
-                        <GraduationCap className="w-3.5 h-3.5 text-gray-300" />
-                        <span className="font-mono text-xs text-gray-600 dark:text-gray-300">
-                          {profile.college}
-                        </span>
-                      </div>
-                    )}
                     {profile.location && (
                       <div className="flex items-center gap-2">
                         <MapPin className="w-3.5 h-3.5 text-gray-300" />
@@ -807,7 +784,7 @@ export default function ProfileContent() {
                         </span>
                       </div>
                     )}
-                    {!profile.role && !profile.college && !profile.location && (
+                    {!profile.role && !profile.location && (
                       <p className="font-mono text-xs text-gray-300 italic">
                         No details added
                       </p>

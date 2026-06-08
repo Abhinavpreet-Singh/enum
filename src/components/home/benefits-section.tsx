@@ -9,14 +9,6 @@ const benefits = [
     description: "Become job-ready before joining companies",
   },
   {
-    audience: "Colleges",
-    description: "Structured practical training tool",
-  },
-  {
-    audience: "Recruiters",
-    description: "Real signal of engineering readiness",
-  },
-  {
     audience: "Companies",
     description: "Faster onboarding, lower training cost",
   },
@@ -28,7 +20,7 @@ export default function BenefitsSection() {
   const [hovered, setHovered] = useState(false);
 
   return (
-    <section id="colleges" className="py-16 md:py-20 px-4 md:px-6 bg-white dark:bg-black">
+    <section id="benefits" className="py-16 md:py-20 px-4 md:px-6 bg-white dark:bg-black">
       <div className="max-w-7xl mx-auto">
         {/* Section header */}
         <div className="mb-12 md:mb-16">

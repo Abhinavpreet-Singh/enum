@@ -14,16 +14,16 @@ import {
 
 const router = Router();
 
-const companyGuard = [verifyJWT, requireRole("company"), requireApproved];
+const organizationGuard = [verifyJWT, requireRole("organization"), requireApproved];
 
-router.post("/", ...companyGuard, createAssessment);
-router.get("/", ...companyGuard, getAssessments);
-router.get("/:id", ...companyGuard, getAssessmentById);
-router.put("/:id", ...companyGuard, updateAssessment);
-router.delete("/:id", ...companyGuard, deleteAssessment);
-router.put("/:id/publish", ...companyGuard, publishAssessment);
-router.put("/:id/unpublish", ...companyGuard, unpublishAssessment);
-router.post("/:id/duplicate", ...companyGuard, duplicateAssessment);
-router.put("/:id/archive", ...companyGuard, archiveAssessment);
+router.post("/", ...organizationGuard, createAssessment);
+router.get("/", ...organizationGuard, getAssessments);
+router.get("/:id", ...organizationGuard, getAssessmentById);
+router.put("/:id", ...organizationGuard, updateAssessment);
+router.delete("/:id", ...organizationGuard, deleteAssessment);
+router.put("/:id/publish", ...organizationGuard, publishAssessment);
+router.put("/:id/unpublish", ...organizationGuard, unpublishAssessment);
+router.post("/:id/duplicate", ...organizationGuard, duplicateAssessment);
+router.put("/:id/archive", ...organizationGuard, archiveAssessment);
 
 export default router;

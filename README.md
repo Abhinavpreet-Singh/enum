@@ -243,7 +243,7 @@ DELETE /api/v1/admin/deleteQuestion/:id      — Delete question (admin only)
 - `email` (String, unique)
 - `password` (String, optional for OAuth users)
 - `refreshToken` (String, for JWT)
-- `displayName`, `bio`, `college`, `location`, `resume` — Profile data
+- `displayName`, `bio`, `location`, `resume` — Profile data
 - `role` (String) — Default: "Student"
 - `avatar` (String) — Cloudinary URL
 - `provider` (String) — OAuth provider (google, github)
