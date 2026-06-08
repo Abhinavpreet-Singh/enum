@@ -128,13 +128,13 @@ function OverviewTab() {
           <div className="px-4 py-3 border-b border-black/5 dark:border-white/5">
             <p className="font-mono text-[10px] uppercase tracking-widest text-gray-400">Recent Users</p>
           </div>
-          {((stats.recentUsers || []) as { id: string; username: string; email: string; createdAt: string }[]).map(u => (
+          {((stats.recentUsers || []) as { id: string; username: string; email: string; createdAt: string; accountRole?: string }[]).map(u => (
             <div key={u.id} className="flex items-center justify-between px-4 py-2.5 border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/[0.01] dark:hover:bg-white/[0.01]">
               <div>
                 <p className="font-mono text-xs font-semibold text-black dark:text-white">{u.username}</p>
                 <p className="font-mono text-[10px] text-gray-400">{u.email}</p>
               </div>
-              <span className="font-mono text-[9px] uppercase tracking-wider text-gray-400 border border-black/10 dark:border-white/10 px-2 py-0.5">{u.accountRole}</span>
+              <span className="font-mono text-[9px] uppercase tracking-wider text-gray-400 border border-black/10 dark:border-white/10 px-2 py-0.5">{u.accountRole || "user"}</span>
             </div>
           ))}
         </div>
@@ -318,6 +318,31 @@ function UsersTab() {
 }
 
 // ─── Companies tab ────────────────────────────────────────────────────────────
+type CompanyAssessmentSummary = {
+  id: string;
+  title: string;
+  status: string;
+  testCode: string;
+  _count: { attempts: number };
+};
+
+type CompanyDetail = {
+  id: string;
+  name: string;
+  email: string;
+  website?: string;
+  industry?: string;
+  size?: string;
+  location?: string;
+  approvalStatus: string;
+  createdAt: string;
+  contactName?: string;
+  contactEmail?: string;
+  description?: string;
+  _count: { assessments: number; questionBanks: number };
+  assessments?: CompanyAssessmentSummary[];
+};
+
 function CompaniesTab() {
   const [companies, setCompanies] = useState<{
     id: string; name: string; email: string; website: string; industry: string;
@@ -329,7 +354,7 @@ function CompaniesTab() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
+  const [selected, setSelected] = useState<CompanyDetail | null>(null);
   const [delConfirm, setDelConfirm] = useState<string | null>(null);
   const [approvalLoading, setApprovalLoading] = useState(false);
 
@@ -348,7 +373,7 @@ function CompaniesTab() {
 
   const openDetail = async (c: typeof companies[0]) => {
     const r = await axios.get(`${proxy}/api/v1/admin/companies/${c.id}`);
-    setSelected(r.data.data);
+    setSelected(r.data.data as CompanyDetail);
   };
 
   const handleApproval = async (id: string, status: string) => {
@@ -472,12 +497,12 @@ function CompaniesTab() {
                 </DetailSection>
               )}
               <DetailSection title="Activity">
-                <DetailRow label="Assessments"    value={String((selected._count as { assessments: number }).assessments)} />
-                <DetailRow label="Question Banks" value={String((selected._count as { questionBanks: number }).questionBanks)} />
+                <DetailRow label="Assessments"    value={String(selected._count.assessments)} />
+                <DetailRow label="Question Banks" value={String(selected._count.questionBanks)} />
               </DetailSection>
-              {((selected.assessments as unknown[]) || []).length > 0 && (
+              {(selected.assessments || []).length > 0 && (
                 <DetailSection title="Recent Assessments">
-                  {(selected.assessments as { id: string; title: string; status: string; testCode: string; _count: { attempts: number } }[]).slice(0, 5).map(a => (
+                  {(selected.assessments || []).slice(0, 5).map(a => (
                     <div key={a.id} className="flex justify-between items-center py-1.5 border-b border-black/5 dark:border-white/5 last:border-b-0">
                       <div>
                         <p className="font-mono text-xs text-black dark:text-white">{a.title}</p>
