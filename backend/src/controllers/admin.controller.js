@@ -129,7 +129,8 @@ export const getAllOrganizations = asyncHandler(async (req, res) => {
     prisma.organization.count({ where }),
   ]);
 
-  return res.status(200).json({ message: "Organizations fetched.", data: organizations, total, page: parseInt(page), limit: parseInt(limit) });\n});
+  return res.status(200).json({ message: "Organizations fetched.", data: organizations, total, page: parseInt(page), limit: parseInt(limit) });
+});
 
 export const getOrganizationById = asyncHandler(async (req, res) => {
   const { id } = req.params;
