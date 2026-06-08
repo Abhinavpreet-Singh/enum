@@ -23,22 +23,29 @@ export default function ContactPage() {
           ? localStorage.getItem("accessToken")
           : null;
 
-      const res = await fetch("/api/contact", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ message }),
-      });
+      // In the Tauri .exe there is no Next.js server, so we call the contact
+      // endpoint directly if configured, otherwise accept locally.
+      const contactEndpoint = process.env.NEXT_PUBLIC_CONTACT_ENDPOINT;
 
-      const data = await res.json().catch(() => null);
+      if (contactEndpoint) {
+        const res = await fetch(contactEndpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ message }),
+        });
 
-      if (!res.ok) {
-        const serverMessage =
-          data?.error || data?.message || "Failed to send message";
-        throw new Error(`${serverMessage} (${res.status})`);
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          const serverMessage =
+            data?.error || data?.message || "Failed to send message";
+          throw new Error(`${serverMessage} (${res.status})`);
+        }
       }
+      // If no endpoint is configured, accept the message locally (desktop app).
 
       setStatus("success");
       setMessage("");

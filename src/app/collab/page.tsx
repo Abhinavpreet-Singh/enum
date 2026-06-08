@@ -1,22 +1,35 @@
-import { redirect } from "next/navigation";
+"use client";
 
-export default function CollabPage({
-  searchParams,
-}: {
-  searchParams?: Record<string, string | string[] | undefined>;
-}) {
-  const params = new URLSearchParams();
+import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense, useEffect } from "react";
 
-  for (const key of ["room", "roomId", "code", "invite"]) {
-    const value = searchParams?.[key];
-    if (typeof value === "string" && value.trim()) {
-      params.set(key, value.trim());
+function CollabRedirect() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    for (const key of ["room", "roomId", "code", "invite"]) {
+      const value = searchParams.get(key);
+      if (value && value.trim()) {
+        params.set(key, value.trim());
+      }
     }
-  }
+    router.replace(
+      params.toString()
+        ? `/dashboard/collab?${params.toString()}`
+        : "/dashboard/collab",
+    );
+  }, [searchParams, router]);
 
-  redirect(
-    params.toString()
-      ? `/dashboard/collab?${params.toString()}`
-      : "/dashboard/collab",
+  return null;
+}
+
+export default function CollabPage() {
+  return (
+    <Suspense fallback={null}>
+      <CollabRedirect />
+    </Suspense>
   );
 }
+

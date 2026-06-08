@@ -1,1 +1,11 @@
-export { default } from "@/app/oauth-success/page";
+import AuthCatchAllClientPage from "./ClientPage";
+
+export const dynamicParams = false;
+
+export async function generateStaticParams() {
+  return [{ slug: ["callback"] }];
+}
+
+export default function AuthCatchAllPage() {
+  return <AuthCatchAllClientPage />;
+}

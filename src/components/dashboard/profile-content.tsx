@@ -379,7 +379,7 @@ export default function ProfileContent() {
     Promise.all([
       axios.get(`${proxy}/api/v1/users/leaderboard`).catch(() => null),
       token
-        ? fetch("/api/submissions/recent", {
+        ? fetch(`${proxy}/api/v1/submissions/recent`, {
             headers: { Authorization: `Bearer ${token}` },
           })
             .then((r) => r.json())

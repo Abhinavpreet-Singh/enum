@@ -124,7 +124,8 @@ export default function SimulationWorkspace({
       // Prepare code to run - combine all files if needed
       const mainFile = files[activeFile.name] || "";
 
-      const response = await fetch("/api/run", {
+      // Call the external compiler API directly (no Next.js server in Tauri .exe)
+      const response = await fetch("http://enumcompiler.duckdns.org/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -151,7 +152,7 @@ export default function SimulationWorkspace({
         try {
           const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
           if (token) {
-            await fetch("/api/simulations/progress", {
+            await fetch(`${proxy}/api/v1/simulations/progress`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",

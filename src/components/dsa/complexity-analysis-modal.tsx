@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { proxy } from "@/app/proxy";
 import {
   X,
   Brain,
@@ -62,7 +63,8 @@ export default function ComplexityAnalysisModal({
 
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await fetch("/api/complexity/analyze", {
+      // Call the backend directly (no Next.js server in Tauri .exe)
+      const response = await fetch(`${proxy}/api/v1/complexity/analyze`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

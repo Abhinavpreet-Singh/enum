@@ -1,16 +1,29 @@
-import { redirect } from "next/navigation";
+"use client";
 
-interface LinuxArenaRouteProps {
-  searchParams?: Promise<{
-    id?: string;
-  }>;
+import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense, useEffect } from "react";
+
+function LinuxArenaRedirect() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    const id = searchParams.get("id");
+    router.replace(
+      id
+        ? `/dashboard/simulations/linux?id=${encodeURIComponent(id)}`
+        : "/dashboard/simulations/linux",
+    );
+  }, [searchParams, router]);
+
+  return null;
 }
 
-export default async function Page({ searchParams }: LinuxArenaRouteProps) {
-  const resolvedSearchParams = await searchParams;
-  redirect(
-    resolvedSearchParams?.id
-      ? `/dashboard/simulations/linux?id=${encodeURIComponent(resolvedSearchParams.id)}`
-      : "/dashboard/simulations/linux",
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <LinuxArenaRedirect />
+    </Suspense>
   );
 }
+
