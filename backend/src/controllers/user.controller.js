@@ -34,6 +34,8 @@ const buildStreakUpdate = (user, now) => {
   return { currentStreak: 1, lastActivityDate: now };
 };
 
+const isValidObjectId = (value) => /^[a-f\d]{24}$/i.test(String(value || ""));
+
 const generateAccessToken = (user) => {
   return jwt.sign(
     {
@@ -225,8 +227,8 @@ const loginUser = asyncHandler(async (req, res) => {
 const getUserById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  if (!id) {
-    throw new ApiError(404, "User Id not found");
+  if (!id || !isValidObjectId(id)) {
+    throw new ApiError(400, "Valid user id is required");
   }
 
   const user = await prisma.user.findUnique({
@@ -298,6 +300,21 @@ const userForgetPassword = asyncHandler(async (req, res) => {
 });
 
 const getProfile = asyncHandler(async (req, res) => {
+  if (req.accountType === "admin") {
+    return res.status(200).json({
+      message: "Profile fetched",
+      data: {
+        name: req.admin?.name || "Admin",
+        email: req.admin?.email || process.env.ADMIN_EMAIL,
+        accountType: "admin",
+      },
+    });
+  }
+
+  if (!req.user?.id) {
+    throw new ApiError(401, "Unauthorized request");
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: req.user.id },
     omit: { password: true, refreshToken: true },

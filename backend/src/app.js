@@ -100,6 +100,7 @@ app.use("/api/v1/complexity", complexityRouter);
 app.use("/api/v1/system-design", systemDesignRouter);
 app.use("/api/v1/incidents", incidentRouter);
 app.use("/api/v1/organizations", organizationRouter);
+app.use("/api/v1/companies", organizationRouter);
 app.use("/api/v1/auth", unifiedLoginRouter);
 app.use("/api/v1/assessments", assessmentRouter);
 app.use("/api/v1/assessments", assessmentInviteRouter);

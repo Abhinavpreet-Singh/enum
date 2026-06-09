@@ -146,13 +146,37 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
   }, [accountType]);
 
   useEffect(() => {
-    // Admin check only for student/user accounts
+    const addAdminNav = () => {
+      setNavItems((prev) => {
+        if (prev.some((item) => item.href === "/dashboard/admin")) {
+          return prev;
+        }
+
+        return [
+          ...prev,
+          {
+            icon: Shield,
+            label: "Admin",
+            href: "/dashboard/admin",
+            matchExact: false,
+          },
+        ];
+      });
+    };
+
+    // Organization accounts should never see admin nav.
     if (accountType === "organization") return;
+
+    // Admin account is explicit in token/localStorage, so no extra API calls needed.
+    if (accountType === "admin") {
+      addAdminNav();
+      return;
+    }
 
     const adminPrev = async () => {
       try {
         const userId = localStorage.getItem("id");
-        if (!userId) return;
+        if (!userId || userId === "undefined" || userId === "null") return;
 
         const [adminRes, userRes] = await Promise.all([
           axios.get(`${proxy}/api/v1/admin/getAdminPrev`),
@@ -163,19 +187,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
         const userEmail = userRes?.data?.data?.email;
 
         if (adminEmail === userEmail) {
-          setNavItems((prev) => {
-            if (prev.some((item) => item.href === "/dashboard/admin"))
-              return prev;
-            return [
-              ...prev,
-              {
-                icon: Shield,
-                label: "Admin",
-                href: "/dashboard/admin",
-                matchExact: false,
-              },
-            ];
-          });
+          addAdminNav();
         }
       } catch (error) {
         console.log(error);

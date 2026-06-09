@@ -7,15 +7,14 @@ import { proxy } from "@/app/proxy";
 import AdminRoute from "@/components/auth/admin-route";
 import { DashboardPageShell, DashboardPageHeader } from "@/components/dashboard/dashboard-page-shell";
 import {
-  Users, Building2, GraduationCap, FileText, BarChart3,
+  Users, Building2, FileText, BarChart3,
   ShieldCheck, Trash2, CheckCircle, XCircle, Clock,
-  Search, ChevronRight, AlertTriangle, X, Eye,
+  Search, AlertTriangle, X, Eye,
 } from "lucide-react";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const panelBorder = "border border-black/20 dark:border-white/25";
 const panelSurface = `${panelBorder} bg-white/80 dark:bg-black/75`;
-const inputCls = "w-full border border-gray-300 dark:border-neutral-700 bg-white dark:bg-black px-3 py-2 font-mono text-xs text-black dark:text-white outline-none focus:border-black dark:focus:border-white transition-colors";
 const labelCls = "block font-mono text-[10px] tracking-[0.2em] text-gray-500 dark:text-gray-400 uppercase mb-1.5";
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
@@ -129,7 +128,7 @@ function OverviewTab() {
             <p className="font-mono text-[10px] uppercase tracking-widest text-gray-400">Recent Users</p>
           </div>
           {((stats.recentUsers || []) as { id: string; username: string; email: string; createdAt: string; accountRole?: string }[]).map(u => (
-            <div key={u.id} className="flex items-center justify-between px-4 py-2.5 border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/[0.01] dark:hover:bg-white/[0.01]">
+            <div key={u.id} className="flex items-center justify-between px-4 py-2.5 border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/1 dark:hover:bg-white/1">
               <div>
                 <p className="font-mono text-xs font-semibold text-black dark:text-white">{u.username}</p>
                 <p className="font-mono text-[10px] text-gray-400">{u.email}</p>
@@ -145,7 +144,7 @@ function OverviewTab() {
             <p className="font-mono text-[10px] uppercase tracking-widest text-gray-400">Recent Companies</p>
           </div>
           {((stats.recentCompanies || []) as { id: string; name: string; email: string; approvalStatus: string; createdAt: string }[]).map(c => (
-            <div key={c.id} className="flex items-center justify-between px-4 py-2.5 border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/[0.01] dark:hover:bg-white/[0.01]">
+            <div key={c.id} className="flex items-center justify-between px-4 py-2.5 border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/1 dark:hover:bg-white/1">
               <div>
                 <p className="font-mono text-xs font-semibold text-black dark:text-white">{c.name}</p>
                 <p className="font-mono text-[10px] text-gray-400">{c.email}</p>
@@ -184,7 +183,12 @@ function UsersTab() {
       .finally(() => setLoading(false));
   }, [page, search]);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetch();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetch]);
 
   const openDetail = async (u: typeof users[0]) => {
     setSelected(u);
@@ -225,7 +229,7 @@ function UsersTab() {
             </thead>
             <tbody>
               {users.map(u => (
-                <tr key={u.id} className="border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/[0.015] dark:hover:bg-white/[0.015] transition-colors">
+                <tr key={u.id} className="border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/1.5 dark:hover:bg-white/1.5 transition-colors">
                   <td className="px-4 py-3 font-mono text-xs font-semibold text-black dark:text-white">{u.username}</td>
                   <td className="px-4 py-3 font-mono text-xs text-gray-500">{u.email}</td>
                   <td className="px-4 py-3"><span className="font-mono text-[9px] uppercase border border-black/10 dark:border-white/10 px-2 py-0.5 text-gray-500">{u.accountRole}</span></td>
@@ -351,6 +355,7 @@ function CompaniesTab() {
   }[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
@@ -358,34 +363,73 @@ function CompaniesTab() {
   const [delConfirm, setDelConfirm] = useState<string | null>(null);
   const [approvalLoading, setApprovalLoading] = useState(false);
 
+  const getOrganizations = (params?: Record<string, string>) => {
+    return axios.get(`${proxy}/api/v1/admin/organizations`, {
+      params,
+    }).catch(() => axios.get(`${proxy}/api/v1/admin/companies`, {
+      params,
+    }));
+  };
+
+  const getOrganizationById = (id: string) => {
+    return axios.get(`${proxy}/api/v1/admin/organizations/${id}`, {
+      params: {},
+    }).catch(() => axios.get(`${proxy}/api/v1/admin/companies/${id}`, {
+      params: {},
+    }));
+  };
+
+  const patchOrganizationApproval = (id: string, status: string) => {
+    return axios.patch(`${proxy}/api/v1/admin/organizations/${id}/approval`, { status })
+      .catch(() => axios.patch(`${proxy}/api/v1/admin/companies/${id}/approval`, { status }));
+  };
+
+  const deleteOrganizationById = (id: string) => {
+    return axios.delete(`${proxy}/api/v1/admin/organizations/${id}`)
+      .catch(() => axios.delete(`${proxy}/api/v1/admin/companies/${id}`));
+  };
+
   const fetch = useCallback(() => {
     setLoading(true);
+    setError("");
     const params: Record<string, string> = { page: String(page), limit: "15" };
     if (search) params.search = search;
     if (statusFilter !== "all") params.status = statusFilter;
-    axios.get(`${proxy}/api/v1/admin/companies`, { params })
+    getOrganizations(params)
       .then(r => { setCompanies(r.data.data); setTotal(r.data.total); })
-      .catch(() => {})
+      .catch(() => {
+        setCompanies([]);
+        setTotal(0);
+        setError("Failed to load companies. Please refresh or check admin login.");
+      })
       .finally(() => setLoading(false));
   }, [page, search, statusFilter]);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetch();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetch]);
 
   const openDetail = async (c: typeof companies[0]) => {
-    const r = await axios.get(`${proxy}/api/v1/admin/companies/${c.id}`);
+    setError("");
+    const r = await getOrganizationById(c.id);
     setSelected(r.data.data as CompanyDetail);
   };
 
   const handleApproval = async (id: string, status: string) => {
     setApprovalLoading(true);
-    await axios.patch(`${proxy}/api/v1/admin/companies/${id}/approval`, { status });
+    setError("");
+    await patchOrganizationApproval(id, status);
     setApprovalLoading(false);
     if (selected) setSelected({ ...selected, approvalStatus: status });
     fetch();
   };
 
   const handleDelete = async (id: string) => {
-    await axios.delete(`${proxy}/api/v1/admin/companies/${id}`);
+    setError("");
+    await deleteOrganizationById(id);
     setDelConfirm(null); setSelected(null); fetch();
   };
 
@@ -408,6 +452,11 @@ function CompaniesTab() {
       </div>
 
       <div className={`${panelSurface} overflow-hidden`}>
+        {error && (
+          <div className="px-4 py-2 border-b border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/20">
+            <p className="font-mono text-[10px] text-red-700 dark:text-red-400">{error}</p>
+          </div>
+        )}
         {loading ? (
           Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-12 border-b border-black/5 dark:border-white/5 animate-pulse" />)
         ) : companies.length === 0 ? (
@@ -423,7 +472,7 @@ function CompaniesTab() {
             </thead>
             <tbody>
               {companies.map(c => (
-                <tr key={c.id} className="border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/[0.015] dark:hover:bg-white/[0.015] transition-colors">
+                <tr key={c.id} className="border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/1.5 dark:hover:bg-white/1.5 transition-colors">
                   <td className="px-4 py-3 font-mono text-xs font-semibold text-black dark:text-white">{c.name}</td>
                   <td className="px-4 py-3 font-mono text-xs text-gray-500">{c.email}</td>
                   <td className="px-4 py-3 font-mono text-[10px] text-gray-400">{c.industry || "—"}</td>
@@ -547,7 +596,7 @@ function DetailRow({ label, value, mono }: { label: string; value: string; mono?
 
 function ConfirmDelete({ onCancel, onConfirm, label }: { onCancel: () => void; onConfirm: () => void; label: string }) {
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 dark:bg-black/70">
+    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 dark:bg-black/70">
       <div className={`${panelSurface} p-6 w-full max-w-sm mx-4 bg-white dark:bg-black shadow-2xl`}>
         <div className="flex items-center gap-2 mb-2">
           <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
