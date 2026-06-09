@@ -10,7 +10,7 @@
 !.yarn/versions
 # testing 
 /coverage
-tests/
+/tests/
 scripts/
 # next.js
 /.next/
