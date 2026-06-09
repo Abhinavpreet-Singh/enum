@@ -81,6 +81,7 @@ import questionBankRouter from "./routes/question-bank.route.js";
 import bankQuestionRouter from "./routes/bank-question.route.js";
 import organizationDashboardRouter from "./routes/organization-dashboard.route.js";
 import assessmentInviteRouter from "./routes/assessment-invite.route.js";
+import desktopRouter from "./routes/desktop.route.js";
 
 app.use("/api/auth", authRouter)
 app.use("/auth", authRouter)
@@ -107,6 +108,7 @@ app.use("/api/v1/assessments", assessmentInviteRouter);
 app.use("/api/v1/question-banks", questionBankRouter);
 app.use("/api/v1/question-banks", bankQuestionRouter);
 app.use("/api/v1/organization-dashboard", organizationDashboardRouter);
+app.use("/api/v1/desktop", desktopRouter);
 
 
 // ── Global error handler ─────────────────────────────────────────────────────

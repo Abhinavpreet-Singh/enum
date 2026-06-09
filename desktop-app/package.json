@@ -1,0 +1,47 @@
+{
+  "name": "enum-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "export": "next build",
+    "start": "next start",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.6.0",
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-dialog": "^2.0.0",
+    "@tauri-apps/plugin-fs": "^2.0.0",
+    "@tauri-apps/plugin-http": "^2.0.0",
+    "@tauri-apps/plugin-notification": "^2.0.0",
+    "@tauri-apps/plugin-os": "^2.0.0",
+    "@tauri-apps/plugin-process": "^2.0.0",
+    "@tauri-apps/plugin-shell": "^2.0.0",
+    "axios": "^1.7.9",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.0.0",
+    "lucide-react": "^0.468.0",
+    "next": "^15.3.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "socket.io-client": "^4.8.1",
+    "tailwind-merge": "^2.6.0",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "postcss": "^8",
+    "@tailwindcss/postcss": "^4.0.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5"
+  }
+}

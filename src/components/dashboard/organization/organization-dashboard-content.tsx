@@ -12,13 +12,13 @@ import {
   BookOpen,
   Plus,
   ArrowRight,
-  ChevronRight,
   Clock,
   CheckCircle,
   Eye,
   Send,
   TrendingUp,
 } from "lucide-react";
+import { TestLinkCopy } from "@/components/dashboard/organization/test-link-copy";
 
 const panelBorder = "border border-black/20 dark:border-white/25";
 const panelSurface = `${panelBorder} bg-white/80 backdrop-blur-[2px] dark:bg-black/75`;
@@ -262,25 +262,30 @@ export default function OrganizationDashboardContent() {
               </div>
             ) : (
               recentTests.map((test) => (
-                <Link
+                <div
                   key={test.id}
-                  href={`/dashboard/tests`}
-                  className={`flex items-center justify-between p-3 ${panelBorder} hover:border-black dark:hover:border-white transition-colors`}
+                  className={`p-3 ${panelBorder} hover:border-black dark:hover:border-white transition-colors`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <FileText className="w-4 h-4 shrink-0 text-gray-400" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-black dark:text-white truncate">{test.title}</p>
-                      <p className="font-mono text-[10px] text-gray-400">{new Date(test.createdAt).toLocaleDateString()}</p>
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <Link href="/dashboard/tests" className="flex items-center gap-3 min-w-0 flex-1 group">
+                      <FileText className="w-4 h-4 shrink-0 text-gray-400" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-black dark:text-white truncate group-hover:underline">
+                          {test.title}
+                        </p>
+                        <p className="font-mono text-[10px] text-gray-400">
+                          {new Date(test.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </Link>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`border px-2 py-0.5 font-mono text-[9px] uppercase ${statusColor(test.status)}`}>
+                        {test.status}
+                      </span>
+                      <TestLinkCopy testCode={test.testCode} compact />
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className={`border px-2 py-0.5 font-mono text-[9px] uppercase ${statusColor(test.status)}`}>
-                      {test.status}
-                    </span>
-                    <ChevronRight className="w-3 h-3 text-gray-400" />
-                  </div>
-                </Link>
+                </div>
               ))
             )}
           </div>
