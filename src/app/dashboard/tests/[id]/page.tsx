@@ -1,14 +1,17 @@
 "use client";
 
 import { Suspense } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import TestEditor from "@/components/dashboard/tests/test-editor";
+import type { TestEditorTab } from "@/components/dashboard/tests/test-editor-types";
 
 function EditTestInner() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = typeof params.id === "string" ? params.id : "";
+  const tab = (searchParams.get("tab") ?? "general") as TestEditorTab;
 
-  return <TestEditor mode="edit" assessmentId={id} />;
+  return <TestEditor mode="edit" assessmentId={id} initialTab={tab} />;
 }
 
 export default function EditTestPage() {

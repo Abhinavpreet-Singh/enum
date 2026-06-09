@@ -1,5 +1,16 @@
 import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
   title: "ENUM — Secure Exam Client",
@@ -12,24 +23,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
             __html: `
               try {
                 const t = localStorage.getItem('enum_theme');
-                if (t === 'light') {
-                  document.documentElement.classList.remove('dark');
-                } else {
+                if (t === 'dark') {
                   document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
                 }
               } catch {}
             `,
           }}
         />
       </head>
-      <body className="min-h-screen bg-black text-white antialiased">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-white text-[#0a0a0a] antialiased`}
+      >
         {children}
       </body>
     </html>

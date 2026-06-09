@@ -4,18 +4,18 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: ui-monospace, "Cascadia Code", monospace;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "Cascadia Code", monospace;
 }
 
 :root {
   --background: #ffffff;
-  --foreground: #000000;
+  --foreground: #0a0a0a;
 }
 
 .dark {
-  --background: #000000;
-  --foreground: #ffffff;
+  --background: #0a0a0a;
+  --foreground: #fafafa;
 }
 
 * {
@@ -25,17 +25,17 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Prevent text selection during exam */
+  letter-spacing: -0.01em;
+  transition: background-color 0.3s ease, color 0.25s ease;
+}
+
+/* Text selection — monochrome (matches main site) */
+::selection {
+  background: #000;
+  color: #fff;
 }
 
 /* Prevent user-select during exam — overridden in editor areas */
@@ -44,7 +44,32 @@ body {
   user-select: none;
 }
 
-/* Monochrome scrollbar */
+/* ── Background textures (light theme) ───────────────────────────────── */
+
+/* 40px grid — subtle ink lines on white, matches main site */
+.enum-grid-bg {
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.045) 1px, transparent 1px);
+  background-size: 40px 40px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 30%, transparent 100%);
+}
+
+/* Fine dot grid — alternative texture */
+.enum-dot-bg {
+  background-image: radial-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Soft ambient glow blobs to add depth on white */
+.enum-glow {
+  background:
+    radial-gradient(40% 36% at 18% 12%, rgba(0, 0, 0, 0.04) 0%, transparent 70%),
+    radial-gradient(38% 34% at 84% 82%, rgba(0, 0, 0, 0.035) 0%, transparent 70%);
+}
+
+/* ── Scrollbar (dark thumb on light) ─────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -53,11 +78,16 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(127, 127, 127, 0.4);
+  background: rgba(0, 0, 0, 0.18);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(127, 127, 127, 0.7);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.18) transparent;
 }
 
 /* Tauri drag region */
@@ -65,8 +95,126 @@ body {
   -webkit-app-region: drag;
   cursor: default;
 }
+[data-tauri-drag-region] button,
+[data-tauri-drag-region] a,
+[data-tauri-drag-region] input {
+  -webkit-app-region: no-drag;
+}
 
-/* Smooth transitions */
-.transition-all {
-  transition: all 0.2s ease;
+/* ── Inputs ───────────────────────────────────────────────────────────── */
+.input-field {
+  width: 100%;
+  border-radius: 0.625rem;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #ffffff;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: #0a0a0a;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.input-field::placeholder {
+  color: rgba(0, 0, 0, 0.32);
+}
+.input-field:focus {
+  border-color: #0a0a0a;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.07);
+}
+
+/* ── Primary button (ink) ─────────────────────────────────────────────── */
+.btn-primary {
+  width: 100%;
+  border-radius: 0.625rem;
+  background: #0a0a0a;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  cursor: pointer;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #1f1f1f;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px -8px rgba(0, 0, 0, 0.45);
+}
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px -4px rgba(0, 0, 0, 0.4);
+}
+.btn-primary:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── Ghost / secondary button ─────────────────────────────────────────── */
+.btn-ghost {
+  border-radius: 0.625rem;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  background: #ffffff;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.55);
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
+}
+.btn-ghost:hover:not(:disabled) {
+  border-color: rgba(0, 0, 0, 0.4);
+  color: #0a0a0a;
+  background: rgba(0, 0, 0, 0.02);
+  transform: translateY(-1px);
+}
+.btn-ghost:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── Card container ───────────────────────────────────────────────────── */
+.enum-card {
+  border-radius: 0.875rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 32px -16px rgba(0, 0, 0, 0.12);
+}
+
+/* ── Animations ───────────────────────────────────────────────────────── */
+@keyframes loadbar {
+  0% { width: 0%; opacity: 1; }
+  80% { width: 100%; opacity: 1; }
+  100% { width: 100%; opacity: 0; }
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-slide-up {
+  animation: fadeSlideUp 0.4s ease-out both;
+}
+
+.animate-delay-100 { animation-delay: 0.1s; }
+.animate-delay-200 { animation-delay: 0.2s; }
+.animate-delay-300 { animation-delay: 0.3s; }
+.animate-delay-400 { animation-delay: 0.4s; }
+
+/* Monaco Editor scrollbar styling */
+.monaco-scrollable-element > .scrollbar > .slider {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border-radius: 3px !important;
+}
+.monaco-scrollable-element > .scrollbar > .slider:hover {
+  background: rgba(0, 0, 0, 0.4) !important;
+}
+.monaco-scrollable-element > .scrollbar {
+  width: 6px !important;
+  height: 6px !important;
+}
+
+/* Resize prevention during exam */
+.resize-active * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
 }

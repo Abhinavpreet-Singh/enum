@@ -26,12 +26,12 @@ export default function QuestionNavigator({
             key={q.aqId}
             onClick={() => onNavigate(idx)}
             title={q.title ?? `Question ${idx + 1}`}
-            className={`h-8 w-8 rounded text-xs font-semibold transition-all ${
+            className={`h-8 w-8 rounded-lg text-xs font-semibold transition-all duration-150 ${
               isCurrent
-                ? "bg-white text-black"
+                ? "bg-[#0a0a0a] text-white shadow-sm"
                 : answered
-                ? "bg-white/20 text-white border border-white/30"
-                : "bg-white/5 text-gray-500 border border-white/10 hover:border-white/30 hover:text-gray-300"
+                ? "border border-[#0a0a0a]/30 bg-[#0a0a0a]/8 text-[#0a0a0a] hover:bg-[#0a0a0a]/15"
+                : "border border-black/10 bg-white text-gray-400 hover:border-black/30 hover:text-gray-700"
             }`}
           >
             {idx + 1}

@@ -81,7 +81,11 @@ export interface ExamQuestion {
   difficulty?: string;
   options?: QuestionOption[];
   codeTemplate?: string;
-  testCases?: { input: string }[];
+  testCases?: { input: string; expectedOutput?: string }[];
+  // Judge harness metadata (coding questions only)
+  functionName?: string | null;
+  parameterTypes?: string[];
+  returnType?: string | null;
   tags?: string[];
   technology?: string;
   topic?: string;

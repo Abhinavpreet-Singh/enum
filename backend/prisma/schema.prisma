@@ -241,6 +241,10 @@ model BankQuestion {
   correctAnswer  Json?    // answer data
   codeTemplate   String?  // for coding questions
   testCases      Json[]   @default([])
+  // Judge metadata for coding questions
+  functionName   String?
+  parameterTypes String[] @default([])
+  returnType     String?
   points         Int      @default(10)
   tags           String[] @default([])
   technology     String   @default("")

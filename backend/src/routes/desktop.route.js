@@ -127,6 +127,16 @@ router.post(
 
     const hydratedQuestions = await hydrateAssessmentQuestions(assessment.id);
 
+    // Reload the assessment with org and counts for a complete response
+    const fullAssessment = await prisma.assessment.findUnique({
+      where: { id: assessment.id },
+      include: {
+        settings: true,
+        organization: { select: { name: true, logo: true } },
+        _count: { select: { questions: true } },
+      },
+    });
+
     const options = getAuthCookieOptions();
     return res
       .status(200)
@@ -141,12 +151,16 @@ router.post(
             displayName: user.displayName || user.username,
           },
           assessment: {
-            id: assessment.id,
-            title: assessment.title,
-            description: assessment.description,
-            duration: assessment.duration,
-            passingScore: assessment.passingScore,
-            settings: assessment.settings,
+            id: fullAssessment.id,
+            title: fullAssessment.title,
+            description: fullAssessment.description,
+            duration: fullAssessment.duration,
+            passingScore: fullAssessment.passingScore,
+            totalQuestions: fullAssessment._count.questions,
+            accessType: fullAssessment.accessType,
+            requireDesktopApp: fullAssessment.settings?.requireDesktopApp ?? false,
+            organization: fullAssessment.organization,
+            settings: fullAssessment.settings,
           },
           questions: hydratedQuestions,
         },

@@ -15,7 +15,6 @@ function SubmittedContent() {
   const percent = max > 0 ? Math.round((score / max) * 100) : 0;
 
   useEffect(() => {
-    // Clear sensitive session data
     if (typeof window !== "undefined") {
       sessionStorage.removeItem("examToken");
     }
@@ -23,61 +22,80 @@ function SubmittedContent() {
   }, [reset]);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-black p-6">
-      <div className="w-full max-w-sm text-center">
-        {/* Result icon */}
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-white p-6">
+      {/* Ambient glow + grid texture */}
+      <div className="pointer-events-none fixed inset-0 enum-glow" />
+      <div className="pointer-events-none fixed inset-0 enum-grid-bg" />
+
+      <div className="relative z-10 w-full max-w-sm text-center animate-fade-slide-up">
+        {/* Result mark */}
         <div
-          className={`mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full text-4xl ${
+          className={`mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold ${
             passed
-              ? "bg-green-500/10 text-green-400"
-              : "bg-yellow-500/10 text-yellow-400"
+              ? "border border-green-200 bg-green-50 text-green-600"
+              : "border border-black/10 bg-gray-50 text-gray-500"
           }`}
         >
           {passed ? "✓" : "○"}
         </div>
 
-        <h1 className="text-3xl font-black text-white">
-          {passed ? "Passed!" : "Submitted"}
+        <h1 className="text-3xl font-black tracking-tight text-[#0a0a0a]">
+          {passed ? "Passed" : "Submitted"}
         </h1>
-        <p className="mt-2 text-sm text-gray-400">
+        <p className="mt-2 text-sm text-gray-500">
           Your exam has been submitted successfully.
         </p>
 
         {max > 0 && (
-          <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-5">
-            <div className="text-4xl font-black text-white">{percent}%</div>
-            <div className="mt-1 text-xs text-gray-500">
+          <div className="enum-card mt-8 p-6 animate-fade-slide-up animate-delay-200">
+            <div
+              className={`text-5xl font-black tracking-tight ${
+                passed ? "text-[#0a0a0a]" : "text-gray-700"
+              }`}
+            >
+              {percent}
+              <span className="text-2xl text-gray-300">%</span>
+            </div>
+            <div className="mt-1 text-xs text-gray-400" style={{ fontFamily: "var(--font-geist-mono), monospace" }}>
               {score} / {max} points
             </div>
 
             {/* Progress bar */}
-            <div className="mt-4 h-1.5 w-full rounded-full bg-white/10">
+            <div className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-black/8">
               <div
-                className={`h-full rounded-full transition-all ${
-                  passed ? "bg-green-400" : "bg-yellow-400"
+                className={`h-full rounded-full transition-all duration-700 ease-out ${
+                  passed ? "bg-green-500" : "bg-[#0a0a0a]"
                 }`}
                 style={{ width: `${percent}%` }}
               />
             </div>
+
+            {/* Pass/fail label */}
+            <div className="mt-3 text-xs text-gray-400">
+              {passed ? "Above passing threshold" : "Below passing threshold"}
+            </div>
           </div>
         )}
 
-        <div className="mt-8 space-y-3 text-sm text-gray-500">
+        <div className="mt-8 space-y-1.5 text-sm text-gray-400">
           <p>Results will be sent to your registered email.</p>
           <p>You may close this window.</p>
         </div>
 
         <button
           onClick={() => router.push("/login")}
-          className="mt-8 w-full rounded-lg border border-white/10 py-3 text-sm text-gray-400 transition-all hover:border-white/30 hover:text-white"
+          className="btn-ghost mt-6 w-full"
         >
           Return to Home
         </button>
       </div>
 
       {/* Footer */}
-      <div className="absolute bottom-6 text-xs text-gray-700">
-        ENUM Secure Desktop Client — v0.1.0
+      <div
+        className="relative z-10 mt-auto pt-8 text-xs text-gray-300"
+        style={{ fontFamily: "var(--font-geist-mono), monospace", letterSpacing: "0.06em" }}
+      >
+        ENUM Secure Desktop Client · v0.1.0
       </div>
     </div>
   );

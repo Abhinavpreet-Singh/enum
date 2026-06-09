@@ -31,10 +31,17 @@ export async function hydrateAssessmentQuestions(assessmentId) {
             difficulty: bq.difficulty,
             options: safeOptions,
             codeTemplate: bq.codeTemplate,
-            testCases: (bq.testCases || []).map((tc) => ({ input: tc.input })),
+            testCases: (bq.testCases || []).map((tc) => ({
+              input: tc.input,
+              expectedOutput: tc.expectedOutput ?? tc.output ?? "",
+            })),
             tags: bq.tags,
             technology: bq.technology,
             topic: bq.topic,
+            // Judge metadata — present only for coding questions
+            functionName: bq.functionName ?? null,
+            parameterTypes: bq.parameterTypes ?? [],
+            returnType: bq.returnType ?? null,
           };
         }
       }

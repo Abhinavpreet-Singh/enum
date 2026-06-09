@@ -20,11 +20,11 @@ export default function MCQQuestion({ question, answer, onAnswer }: Props) {
           onClick={() => onAnswer(idx)}
           className={`w-full rounded-lg border px-4 py-3 text-left text-sm transition-all ${
             selected === idx
-              ? "border-white bg-white/10 text-white"
-              : "border-white/10 bg-white/3 text-gray-300 hover:border-white/30 hover:bg-white/8"
+              ? "border-[#0a0a0a] bg-[#0a0a0a]/5 text-[#0a0a0a] shadow-sm"
+              : "border-black/10 bg-white text-gray-700 hover:border-black/30 hover:bg-gray-50"
           }`}
         >
-          <span className="mr-3 font-mono text-xs text-gray-500">
+          <span className="mr-3 font-mono text-xs text-gray-400">
             {String.fromCharCode(65 + idx)}.
           </span>
           {opt.text}

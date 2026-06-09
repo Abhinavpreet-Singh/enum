@@ -63,21 +63,26 @@ export default function SystemCheck({ settings, onComplete }: Props) {
   const blocking = items.filter((i) => i.status === "fail" && i.required);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {items.map((item) => (
         <CheckRow key={item.id} item={item} />
       ))}
 
       {done && (
-        <div className="mt-6">
+        <div className="mt-5">
           {blocking.length > 0 ? (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
-              <strong>Cannot proceed.</strong> {blocking.length} required check
-              {blocking.length > 1 ? "s" : ""} failed. Please resolve the issues above.
+            <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
+              <span className="mt-0.5 shrink-0">✕</span>
+              <div>
+                <span className="font-semibold">Cannot proceed.</span>{" "}
+                {blocking.length} required check{blocking.length > 1 ? "s" : ""} failed.
+                Please resolve the issues above.
+              </div>
             </div>
           ) : (
-            <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-400">
-              All required checks passed. You may proceed.
+            <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+              <span className="shrink-0">✓</span>
+              <span>All required checks passed. You may proceed.</span>
             </div>
           )}
         </div>
@@ -87,33 +92,34 @@ export default function SystemCheck({ settings, onComplete }: Props) {
 }
 
 function CheckRow({ item }: { item: SystemCheckItem }) {
-  const iconMap = {
-    pending: "○",
-    checking: "◌",
-    pass: "✓",
-    fail: "✗",
-    warn: "⚠",
+  const statusConfig = {
+    pending: { icon: "○", className: "text-gray-300" },
+    checking: { icon: "◌", className: "text-gray-400 animate-pulse" },
+    pass: { icon: "✓", className: "text-green-600" },
+    fail: { icon: "✕", className: "text-red-600" },
+    warn: { icon: "⚠", className: "text-amber-600" },
   } as const;
 
-  const colorMap = {
-    pending: "text-gray-500",
-    checking: "text-blue-400 animate-pulse",
-    pass: "text-green-400",
-    fail: "text-red-400",
-    warn: "text-yellow-400",
-  } as const;
+  const cfg = statusConfig[item.status];
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/3 px-4 py-2.5">
-      <span className={`font-mono text-sm ${colorMap[item.status]}`}>
-        {iconMap[item.status]}
+    <div className="flex items-center gap-3 rounded-lg border border-black/8 bg-white px-4 py-2.5 shadow-sm transition-colors">
+      <span
+        className={`w-4 shrink-0 text-center text-xs font-mono ${cfg.className}`}
+      >
+        {cfg.icon}
       </span>
-      <span className="flex-1 text-sm text-white">{item.label}</span>
+      <span className="flex-1 text-sm text-gray-700">{item.label}</span>
       {item.message && (
-        <span className="text-xs text-gray-500">{item.message}</span>
+        <span
+          className="text-xs text-gray-400"
+          style={{ fontFamily: "var(--font-geist-mono), monospace" }}
+        >
+          {item.message}
+        </span>
       )}
       {item.required && item.status === "fail" && (
-        <span className="rounded bg-red-500/20 px-1.5 py-0.5 text-xs text-red-400">
+        <span className="rounded-md border border-red-200 bg-red-50 px-1.5 py-0.5 text-xs text-red-600">
           Required
         </span>
       )}
@@ -139,25 +145,23 @@ async function runChecks(
     update(id, patch);
   };
 
-  // Internet
   if (ids.includes("internet")) {
     const ok = navigator.onLine;
     set("internet", ok ? { status: "pass", message: "Connected" } : { status: "fail", message: "No connection" });
   }
 
-  // Backend
   if (ids.includes("backend")) {
     const ok = await checkNetworkReachability(BACKEND_HEALTH);
-    set("backend", ok ? { status: "pass", message: "Reachable" } : { status: "warn", message: "Offline — exam will continue locally" });
+    set("backend", ok
+      ? { status: "pass", message: "Reachable" }
+      : { status: "warn", message: "Offline — exam will continue locally" });
   }
 
-  // OS
   if (ids.includes("os")) {
     const info = await getOSInfo();
     set("os", { status: "pass", message: `${info.platform} ${info.version} (${info.arch})` });
   }
 
-  // CPU / Hardware (via Tauri native command)
   if (ids.includes("cpu")) {
     if (isTauri()) {
       const sysInfo = await invokeCommand<{
@@ -176,44 +180,50 @@ async function runChecks(
         set("cpu", { status: "warn", message: "Unable to read hardware info" });
       }
     } else {
-      set("cpu", { status: "warn", message: "Running in browser (no native info)" });
+      set("cpu", { status: "warn", message: "Running in browser" });
     }
   }
 
-  // Camera
   if (ids.includes("camera")) {
     const ok = await checkCamera();
-    set("camera", ok ? { status: "pass", message: "Detected" } : { status: settings.requireWebcam ? "fail" : "warn", message: "Not detected" });
+    set("camera", ok
+      ? { status: "pass", message: "Detected" }
+      : { status: settings.requireWebcam ? "fail" : "warn", message: "Not detected" });
   }
 
-  // Microphone
   if (ids.includes("mic")) {
     const ok = await checkMicrophone();
-    set("mic", ok ? { status: "pass", message: "Detected" } : { status: settings.requireMicrophone ? "fail" : "warn", message: "Not detected" });
+    set("mic", ok
+      ? { status: "pass", message: "Detected" }
+      : { status: settings.requireMicrophone ? "fail" : "warn", message: "Not detected" });
   }
 
-  // Monitors
   if (ids.includes("monitors")) {
     const count = await getMonitorCount();
-    set("monitors", count > 1 ? { status: "fail", message: `${count} monitors detected — disconnect extra displays` } : { status: "pass", message: "Single display" });
+    set("monitors", count > 1
+      ? { status: "fail", message: `${count} monitors — disconnect extra displays` }
+      : { status: "pass", message: "Single display" });
   }
 
-  // VM
   if (ids.includes("vm")) {
     const isVM = isTauri() ? await invokeCommand<boolean>("detect_vm") : false;
-    set("vm", isVM ? { status: "fail", message: "VM environment detected" } : { status: "pass", message: "No VM detected" });
+    set("vm", isVM
+      ? { status: "fail", message: "VM environment detected" }
+      : { status: "pass", message: "No VM detected" });
   }
 
-  // RDP
   if (ids.includes("rdp")) {
     const isRDP = isTauri() ? await invokeCommand<boolean>("detect_remote_desktop") : false;
-    set("rdp", isRDP ? { status: "fail", message: "Remote desktop session detected" } : { status: "pass", message: "No remote session" });
+    set("rdp", isRDP
+      ? { status: "fail", message: "Remote desktop session detected" }
+      : { status: "pass", message: "No remote session" });
   }
 
-  // Desktop app
   if (ids.includes("desktop_app")) {
     const ok = isTauri();
-    set("desktop_app", ok ? { status: "pass", message: "Running in Tauri" } : { status: "fail", message: "Must use the ENUM Desktop Client" });
+    set("desktop_app", ok
+      ? { status: "pass", message: "Running in Tauri" }
+      : { status: "fail", message: "Must use the ENUM Desktop Client" });
   }
 
   setDone(true);

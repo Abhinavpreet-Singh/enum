@@ -19,7 +19,7 @@ export default function NumericalQuestion({ answer, onAnswer }: Props) {
         value={value}
         onChange={(e) => onAnswer(e.target.value)}
         placeholder="Your answer…"
-        className="w-full max-w-xs rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-white/30 focus:bg-white/10 transition-all font-mono"
+        className="w-full max-w-xs rounded-lg border border-black/12 bg-white px-4 py-3 text-sm text-[#0a0a0a] placeholder-gray-400 outline-none focus:border-[#0a0a0a] focus:ring-2 focus:ring-black/10 transition-all font-mono"
       />
     </div>
   );

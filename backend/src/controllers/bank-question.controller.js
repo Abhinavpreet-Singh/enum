@@ -10,7 +10,7 @@ export const createBankQuestion = asyncHandler(async (req, res) => {
   if (!bank) throw new ApiError(404, "Question bank not found.");
   if (bank.organizationId !== organizationId) throw new ApiError(403, "Access denied.");
 
-  const { type, title, description, difficulty, options, correctAnswer, codeTemplate, testCases, points, tags, technology, topic } = req.body;
+  const { type, title, description, difficulty, options, correctAnswer, codeTemplate, testCases, points, tags, technology, topic, functionName, parameterTypes, returnType } = req.body;
 
   if (!type?.trim()) throw new ApiError(400, "Question type is required.");
   if (!title?.trim()) throw new ApiError(400, "Question title is required.");
@@ -30,6 +30,9 @@ export const createBankQuestion = asyncHandler(async (req, res) => {
       tags: tags || [],
       technology: technology || "",
       topic: topic || "",
+      functionName: functionName || null,
+      parameterTypes: parameterTypes || [],
+      returnType: returnType || null,
     },
   });
 
@@ -68,7 +71,7 @@ export const updateBankQuestion = asyncHandler(async (req, res) => {
   const existing = await prisma.bankQuestion.findUnique({ where: { id: questionId } });
   if (!existing || existing.bankId !== bankId) throw new ApiError(404, "Question not found.");
 
-  const { type, title, description, difficulty, options, correctAnswer, codeTemplate, testCases, points, tags, technology, topic } = req.body;
+  const { type, title, description, difficulty, options, correctAnswer, codeTemplate, testCases, points, tags, technology, topic, functionName, parameterTypes, returnType } = req.body;
 
   const updateData = {};
   if (type !== undefined) updateData.type = type;
@@ -83,6 +86,9 @@ export const updateBankQuestion = asyncHandler(async (req, res) => {
   if (tags !== undefined) updateData.tags = tags;
   if (technology !== undefined) updateData.technology = technology;
   if (topic !== undefined) updateData.topic = topic;
+  if (functionName !== undefined) updateData.functionName = functionName;
+  if (parameterTypes !== undefined) updateData.parameterTypes = parameterTypes;
+  if (returnType !== undefined) updateData.returnType = returnType;
 
   const question = await prisma.bankQuestion.update({
     where: { id: questionId },

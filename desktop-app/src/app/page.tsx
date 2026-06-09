@@ -27,19 +27,14 @@ export default function SplashPage() {
 
   return (
     <div
-      className={`flex min-h-screen flex-col items-center justify-center bg-black select-none transition-opacity duration-500 ${
+      className={`relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-white select-none transition-opacity duration-500 ${
         phase === "exit" ? "opacity-0" : "opacity-100"
       }`}
     >
-      {/* Grid background */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)",
-          backgroundSize: "40px 40px",
-        }}
-      />
+      {/* Ambient glow */}
+      <div className="pointer-events-none absolute inset-0 enum-glow" />
+      {/* Grid texture — matches main site */}
+      <div className="pointer-events-none absolute inset-0 enum-grid-bg" />
 
       <div className="relative z-10 flex flex-col items-center">
         {/* ENUM logo */}
@@ -50,19 +45,17 @@ export default function SplashPage() {
               : "opacity-100 scale-100 translate-y-0"
           }`}
         >
-          <div className="flex items-baseline gap-0.5">
-            <span
-              className="text-7xl font-black text-white"
-              style={{
-                letterSpacing: "-0.06em",
-                transform: "scaleX(0.92)",
-                display: "inline-block",
-                fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
-              }}
-            >
-              enum
-            </span>
-          </div>
+          <span
+            className="text-7xl font-black text-[#0a0a0a]"
+            style={{
+              letterSpacing: "-0.06em",
+              transform: "scaleX(0.92)",
+              display: "inline-block",
+              fontFamily: "var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif",
+            }}
+          >
+            enum
+          </span>
         </div>
 
         {/* Tagline */}
@@ -73,7 +66,7 @@ export default function SplashPage() {
               : "opacity-0 translate-y-3"
           }`}
         >
-          <p className="text-xs font-medium tracking-[0.3em] uppercase text-gray-500">
+          <p className="text-xs font-medium tracking-[0.3em] uppercase text-gray-400">
             Secure Examination Client
           </p>
         </div>
@@ -84,9 +77,9 @@ export default function SplashPage() {
             phase === "loading" || phase === "exit" ? "opacity-100" : "opacity-0"
           }`}
         >
-          <div className="h-px w-full bg-white/10 overflow-hidden rounded-full">
+          <div className="h-px w-full overflow-hidden rounded-full bg-black/10">
             <div
-              className="h-full bg-white/60 rounded-full"
+              className="h-full rounded-full bg-[#0a0a0a]"
               style={{
                 animation:
                   phase === "loading" || phase === "exit"
@@ -98,20 +91,19 @@ export default function SplashPage() {
         </div>
       </div>
 
-      {/* Version badge */}
-      <div className="absolute bottom-6 flex items-center gap-3 text-xs text-gray-700">
-        <span>v0.1.0</span>
-        <span>·</span>
+      {/* Version + branding badge */}
+      <div className="absolute bottom-6 flex items-center gap-3 text-xs text-gray-400">
+        <span
+          style={{
+            fontFamily: "var(--font-geist-mono), monospace",
+            letterSpacing: "0.08em",
+          }}
+        >
+          v0.1.0
+        </span>
+        <span className="opacity-50">·</span>
         <span>enum.live</span>
       </div>
-
-      <style>{`
-        @keyframes loadbar {
-          0%   { width: 0%; opacity: 1; }
-          80%  { width: 100%; opacity: 1; }
-          100% { width: 100%; opacity: 0; }
-        }
-      `}</style>
     </div>
   );
 }

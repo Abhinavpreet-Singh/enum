@@ -18,6 +18,7 @@ import {
   GlobeLock,
   Archive,
   Settings2,
+  BarChart2,
 } from "lucide-react";
 
 const panelBorder = "border border-black/20 dark:border-white/25";
@@ -222,6 +223,18 @@ export default function TestsPage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <Link
+                    href={`/dashboard/tests/${test.id}/candidates`}
+                    className={`inline-flex items-center gap-1 px-3 py-1.5 font-mono text-[10px] tracking-wider ${panelBorder} text-gray-600 dark:text-gray-300 hover:border-black dark:hover:border-white transition-colors`}
+                  >
+                    <BarChart2 className="w-3 h-3" />
+                    Candidates
+                    {test._count.attempts > 0 && (
+                      <span className="ml-0.5 font-mono text-[8px] bg-black dark:bg-white text-white dark:text-black px-1">
+                        {test._count.attempts}
+                      </span>
+                    )}
+                  </Link>
                   <Link
                     href={`/dashboard/tests/${test.id}`}
                     className={`inline-flex items-center gap-1 px-3 py-1.5 font-mono text-[10px] tracking-wider ${panelBorder} text-gray-600 dark:text-gray-300 hover:border-black dark:hover:border-white transition-colors`}

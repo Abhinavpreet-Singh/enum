@@ -22,13 +22,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // ─── Step 1: Validate test code / link ──────────────────────────────────
   async function handleValidateCode() {
     setError("");
     const raw = testCode.trim();
     if (!raw) { setError("Please enter a test code or assessment link."); return; }
 
-    // Extract code from a URL like https://enum.live/test/abc123
     const code = raw.includes("/") ? raw.split("/").pop()! : raw;
 
     setLoading(true);
@@ -48,7 +46,6 @@ export default function LoginPage() {
     }
   }
 
-  // ─── Step 2: Candidate login ─────────────────────────────────────────────
   async function handleLogin() {
     setError("");
     if (!password) { setError("Password is required."); return; }
@@ -87,132 +84,182 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-black">
-      {/* Top bar */}
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-white">
+      {/* Ambient glow + grid texture */}
+      <div className="pointer-events-none fixed inset-0 enum-glow" />
+      <div className="pointer-events-none fixed inset-0 enum-grid-bg" />
+
+      {/* Top title bar */}
       <div
-        className="flex h-9 items-center px-4 border-b border-white/10 select-none"
+        className="relative z-10 flex h-9 shrink-0 items-center gap-2 px-4 border-b border-black/8 select-none"
         data-tauri-drag-region
       >
-        <span className="text-xs font-bold tracking-widest text-white/40 uppercase">
+        <span
+          className="text-xs font-black text-gray-400 uppercase"
+          style={{ letterSpacing: "0.2em" }}
+        >
           enum
         </span>
-        <span className="ml-auto text-xs text-white/30">Secure Exam Client</span>
+        <span className="ml-auto text-xs text-gray-400 tracking-wide">Secure Exam Client</span>
       </div>
 
-      <div className="flex flex-1 items-center justify-center p-6">
-        <div className="w-full max-w-md">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-black tracking-tight text-white">
-              {step === "link" ? "Join Assessment" : assessmentTitle}
-            </h1>
-            {step === "credentials" && (
-              <p className="mt-1 text-sm text-gray-400">{orgName}</p>
+      {/* Center content */}
+      <div className="relative z-10 flex flex-1 items-center justify-center p-6">
+        <div className="w-full max-w-sm animate-fade-slide-up">
+
+          {/* Logo mark */}
+          <div className="mb-8 text-center">
+            <div
+              className="inline-block text-4xl font-black text-[#0a0a0a] mb-3"
+              style={{ letterSpacing: "-0.05em", transform: "scaleX(0.92)", display: "inline-block" }}
+            >
+              enum
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold tracking-tight text-[#0a0a0a]">
+                {step === "link" ? "Join Assessment" : assessmentTitle}
+              </h1>
+              {step === "credentials" && orgName && (
+                <p className="mt-0.5 text-sm text-gray-500">{orgName}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Card */}
+          <div className="enum-card p-6 backdrop-blur-sm">
+            {/* Error banner */}
+            {error && (
+              <div className="mb-5 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+                <span className="mt-0.5 shrink-0 text-red-500">✕</span>
+                <span>{error}</span>
+              </div>
+            )}
+
+            {step === "link" ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500">
+                    Test Code or Assessment Link
+                  </label>
+                  <input
+                    type="text"
+                    value={testCode}
+                    onChange={(e) => setTestCode(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleValidateCode()}
+                    placeholder="abc12345 or https://enum.live/test/…"
+                    className="input-field"
+                    autoFocus
+                  />
+                </div>
+                <button
+                  onClick={handleValidateCode}
+                  disabled={loading}
+                  className="btn-primary"
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <LoadingSpinner />
+                      Validating…
+                    </span>
+                  ) : (
+                    "Continue →"
+                  )}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="candidate@example.com"
+                    className="input-field"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="flex items-center gap-3 text-xs text-gray-400">
+                  <div className="flex-1 border-t border-black/8" />
+                  <span>or</span>
+                  <div className="flex-1 border-t border-black/8" />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500">
+                    Roll Number
+                  </label>
+                  <input
+                    type="text"
+                    value={rollNumber}
+                    onChange={(e) => setRollNumber(e.target.value)}
+                    placeholder="e.g. 2021CS001"
+                    className="input-field"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                    placeholder="••••••••"
+                    className="input-field"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-1">
+                  <button
+                    onClick={() => { setStep("link"); setError(""); }}
+                    className="btn-ghost flex-1"
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    onClick={handleLogin}
+                    disabled={loading}
+                    className="btn-primary flex-1"
+                  >
+                    {loading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <LoadingSpinner />
+                        Authenticating…
+                      </span>
+                    ) : (
+                      "Start Exam →"
+                    )}
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 
-          {/* Error */}
-          {error && (
-            <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
-              {error}
-            </div>
-          )}
-
-          {step === "link" ? (
-            /* ── Step 1 ─ Enter test code ── */
-            <div className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-gray-400">
-                  Test Code or Assessment Link
-                </label>
-                <input
-                  type="text"
-                  value={testCode}
-                  onChange={(e) => setTestCode(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleValidateCode()}
-                  placeholder="abc12345 or https://enum.live/test/abc12345"
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-gray-600 outline-none ring-0 focus:border-white/30 focus:bg-white/10 transition-all"
-                  autoFocus
-                />
-              </div>
-              <button
-                onClick={handleValidateCode}
-                disabled={loading}
-                className="w-full rounded-lg bg-white py-3 text-sm font-semibold text-black transition-all hover:bg-gray-100 disabled:opacity-50"
-              >
-                {loading ? "Validating…" : "Continue"}
-              </button>
-            </div>
-          ) : (
-            /* ── Step 2 ─ Candidate credentials ── */
-            <div className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-gray-400">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="candidate@example.com"
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-white/30 focus:bg-white/10 transition-all"
-                  autoFocus
-                />
-              </div>
-              <div className="flex items-center gap-2 text-xs text-gray-600">
-                <div className="flex-1 border-t border-white/10" />
-                <span>or</span>
-                <div className="flex-1 border-t border-white/10" />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-gray-400">
-                  Roll Number
-                </label>
-                <input
-                  type="text"
-                  value={rollNumber}
-                  onChange={(e) => setRollNumber(e.target.value)}
-                  placeholder="e.g. 2021CS001"
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-white/30 focus:bg-white/10 transition-all"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-gray-400">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                  placeholder="••••••••"
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-white/30 focus:bg-white/10 transition-all"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => { setStep("link"); setError(""); }}
-                  className="flex-1 rounded-lg border border-white/10 py-3 text-sm text-gray-400 transition-all hover:border-white/30 hover:text-white"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handleLogin}
-                  disabled={loading}
-                  className="flex-1 rounded-lg bg-white py-3 text-sm font-semibold text-black transition-all hover:bg-gray-100 disabled:opacity-50"
-                >
-                  {loading ? "Authenticating…" : "Start Exam"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          <p className="mt-8 text-center text-xs text-gray-600">
-            ENUM Secure Desktop Client — All activity is monitored
+          <p className="mt-6 text-center text-xs text-gray-400" style={{ letterSpacing: "0.03em" }}>
+            All activity is monitored and recorded
           </p>
         </div>
       </div>
     </div>
+  );
+}
+
+function LoadingSpinner() {
+  return (
+    <svg
+      className="h-3.5 w-3.5 animate-spin"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.5}
+    >
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+    </svg>
   );
 }
