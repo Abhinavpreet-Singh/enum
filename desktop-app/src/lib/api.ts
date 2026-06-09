@@ -8,16 +8,22 @@ const BACKEND_URL =
 export const api = axios.create({
   baseURL: `${BACKEND_URL}/api/v1/desktop`,
   timeout: 15_000,
-  withCredentials: true,
+  // Exam auth uses Bearer token only — avoid web app cookies overriding it.
+  withCredentials: false,
 });
 
-// Attach stored JWT on every request
+function getExamToken(): string | null {
+  if (typeof window === "undefined") return null;
+  const token = sessionStorage.getItem("examToken");
+  if (!token || token === "undefined" || token === "null") return null;
+  return token;
+}
+
+// Attach stored exam JWT on every authenticated request
 api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = sessionStorage.getItem("examToken");
-    if (token && !config.headers.Authorization) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+  const token = getExamToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
@@ -55,6 +61,15 @@ export const desktopApi = {
         questions: import("@/types").ExamQuestion[];
       };
     }>("/login", body),
+
+  /** Refresh questions for the active exam session */
+  getQuestions: () =>
+    api.get<{
+      data: {
+        assessment: import("@/types").Assessment;
+        questions: import("@/types").ExamQuestion[];
+      };
+    }>("/questions"),
 
   /** Start or resume a candidate attempt */
   startAttempt: (assessmentId: string, rollNumber?: string) =>

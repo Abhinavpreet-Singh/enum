@@ -1,5 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
+import { getPublishWindow } from "../utils/assessmentAccess.js";
+import { sanitizeAssessmentSettings } from "../utils/assessmentSettings.js";
 import prisma from "../db/index.js";
 import crypto from "crypto";
 
@@ -7,7 +9,7 @@ const generateTestCode = () => crypto.randomBytes(4).toString("hex"); // 8-char 
 
 export const createAssessment = asyncHandler(async (req, res) => {
   const organizationId = req.organization.id;
-  const { title, description, duration, startDate, endDate, maxAttempts, passingScore, settings } = req.body;
+  const { title, description, duration, startDate, endDate, maxAttempts, passingScore, accessType, accessPassword, settings } = req.body;
 
   if (!title?.trim()) throw new ApiError(400, "Assessment title is required.");
 
@@ -27,9 +29,11 @@ export const createAssessment = asyncHandler(async (req, res) => {
       endDate: endDate ? new Date(endDate) : null,
       maxAttempts: maxAttempts || 1,
       passingScore: passingScore || 60,
+      accessType: accessType || "public",
+      accessPassword: accessPassword || null,
       testCode,
       settings: {
-        create: settings || {},
+        create: sanitizeAssessmentSettings(settings),
       },
     },
     include: { settings: true },
@@ -104,14 +108,15 @@ export const updateAssessment = asyncHandler(async (req, res) => {
   });
 
   // Update settings if provided
-  if (settings && assessment.settings) {
+  const settingsData = sanitizeAssessmentSettings(settings);
+  if (Object.keys(settingsData).length > 0 && assessment.settings) {
     await prisma.assessmentSetting.update({
       where: { id: assessment.settings.id },
-      data: settings,
+      data: settingsData,
     });
-  } else if (settings && !assessment.settings) {
+  } else if (Object.keys(settingsData).length > 0 && !assessment.settings) {
     await prisma.assessmentSetting.create({
-      data: { assessmentId: id, ...settings },
+      data: { assessmentId: id, ...settingsData },
     });
   }
 
@@ -143,9 +148,11 @@ export const publishAssessment = asyncHandler(async (req, res) => {
   if (!existing) throw new ApiError(404, "Assessment not found.");
   if (existing.organizationId !== organizationId) throw new ApiError(403, "Access denied.");
 
+  const { startDate, endDate } = getPublishWindow(existing.duration);
+
   const assessment = await prisma.assessment.update({
     where: { id },
-    data: { status: "published" },
+    data: { status: "published", startDate, endDate },
     include: { settings: true },
   });
 

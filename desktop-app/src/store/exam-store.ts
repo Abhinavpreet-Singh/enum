@@ -13,6 +13,7 @@ interface ExamActions {
   clearAuth: () => void;
   // Assessment setup
   setAssessment: (assessment: Assessment, questions: ExamQuestion[]) => void;
+  setQuestions: (questions: ExamQuestion[]) => void;
   setAttemptId: (id: string) => void;
   // Answer management
   saveAnswer: (answer: Answer) => void;
@@ -56,6 +57,8 @@ export const useExamStore = create<ExamState & ExamActions>((set) => ({
       questions,
       timeRemainingSeconds: assessment.duration * 60,
     }),
+
+  setQuestions: (questions) => set({ questions }),
 
   setAttemptId: (id) => set({ attemptId: id }),
 
