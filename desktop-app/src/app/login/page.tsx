@@ -63,7 +63,11 @@ export default function LoginPage() {
         testCode,
       });
 
-      // Persist token
+      if (!data.accessToken) {
+        setError("Login succeeded but no session token was returned. Please try again.");
+        return;
+      }
+
       if (typeof window !== "undefined") {
         sessionStorage.setItem("examToken", data.accessToken);
       }

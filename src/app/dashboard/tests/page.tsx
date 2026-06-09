@@ -17,6 +17,7 @@ import {
   Globe,
   GlobeLock,
   Archive,
+  Settings2,
 } from "lucide-react";
 
 const panelBorder = "border border-black/20 dark:border-white/25";
@@ -213,11 +214,21 @@ export default function TestsPage() {
                     <span className="inline-flex items-center gap-1">
                       <Send className="w-3 h-3" /> {test._count.invites} invites
                     </span>
-                    <span>{test._count.questions} questions</span>
+                    <span className={test._count.questions === 0 ? "text-amber-600 dark:text-amber-400" : ""}>
+                      {test._count.questions} question{test._count.questions === 1 ? "" : "s"}
+                      {test._count.questions === 0 ? " (add questions)" : ""}
+                    </span>
                     <span>Pass: {test.passingScore}%</span>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <Link
+                    href={`/dashboard/tests/${test.id}`}
+                    className={`inline-flex items-center gap-1 px-3 py-1.5 font-mono text-[10px] tracking-wider ${panelBorder} text-gray-600 dark:text-gray-300 hover:border-black dark:hover:border-white transition-colors`}
+                  >
+                    <Settings2 className="w-3 h-3" />
+                    Edit
+                  </Link>
                   {test.status === "draft" && (
                     <button
                       onClick={() => handlePublish(test.id)}

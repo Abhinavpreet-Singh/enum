@@ -1,11 +1,13 @@
 import { Router } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
-import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { verifyExamJWT } from "../middlewares/examAuth.middleware.js";
 import prisma from "../db/index.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { getAuthCookieOptions } from "../utils/cookieOptions.js";
+import { assertAssessmentAccessible } from "../utils/assessmentAccess.js";
+import { hydrateAssessmentQuestions } from "../utils/hydrateAssessmentQuestions.js";
 
 const router = Router();
 
@@ -35,15 +37,7 @@ router.get(
       },
     });
 
-    if (!assessment) throw new ApiError(404, "Assessment not found. Please check the test code.");
-    if (assessment.status !== "published")
-      throw new ApiError(403, "This assessment is not currently active.");
-
-    const now = new Date();
-    if (assessment.startDate && now < assessment.startDate)
-      throw new ApiError(403, "Assessment has not started yet.");
-    if (assessment.endDate && now > assessment.endDate)
-      throw new ApiError(403, "Assessment has ended.");
+    assertAssessmentAccessible(assessment);
 
     // Return safe public info (no correct answers)
     return res.status(200).json({
@@ -84,8 +78,7 @@ router.post(
       include: { settings: true },
     });
     if (!assessment) throw new ApiError(404, "Invalid test code.");
-    if (assessment.status !== "published")
-      throw new ApiError(403, "This assessment is not currently active.");
+    assertAssessmentAccessible(assessment);
 
     // 2) Find user by email or match invite by rollNumber
     let user = null;
@@ -132,55 +125,7 @@ router.post(
       data: { refreshToken: access },
     });
 
-    // 5) Fetch questions (without correct answers)
-    const questions = await prisma.assessmentQuestion.findMany({
-      where: { assessmentId: assessment.id },
-      orderBy: { order: "asc" },
-    });
-
-    // Hydrate bank questions
-    const hydratedQuestions = await Promise.all(
-      questions.map(async (aq) => {
-        if (aq.questionType === "bank" && aq.bankQuestionId) {
-          const bq = await prisma.bankQuestion.findUnique({
-            where: { id: aq.bankQuestionId },
-          });
-          if (bq) {
-            // Strip correct answers from options / correctAnswer
-            const safeOptions = Array.isArray(bq.options)
-              ? bq.options.map(({ text, isCorrect: _isCorrect, ...rest }) => ({
-                  text,
-                  ...rest,
-                }))
-              : bq.options;
-            return {
-              aqId: aq.id,
-              order: aq.order,
-              points: aq.points,
-              required: aq.required,
-              type: bq.type,
-              title: bq.title,
-              description: bq.description,
-              difficulty: bq.difficulty,
-              options: safeOptions,
-              codeTemplate: bq.codeTemplate,
-              testCases: bq.testCases.map((tc) => ({ input: tc.input })), // hide expected
-              tags: bq.tags,
-              technology: bq.technology,
-              topic: bq.topic,
-            };
-          }
-        }
-        return {
-          aqId: aq.id,
-          order: aq.order,
-          points: aq.points,
-          required: aq.required,
-          type: aq.questionType,
-          simulationId: aq.simulationId,
-        };
-      }),
-    );
+    const hydratedQuestions = await hydrateAssessmentQuestions(assessment.id);
 
     const options = getAuthCookieOptions();
     return res
@@ -211,13 +156,47 @@ router.post(
 
 // ─── Authenticated routes below ───────────────────────────────────────────────
 
+// GET /api/v1/desktop/questions — refresh questions for active exam session
+router.get(
+  "/questions",
+  verifyExamJWT,
+  asyncHandler(async (req, res) => {
+    const assessmentId = req.examAssessmentId;
+    if (!assessmentId) throw new ApiError(400, "No assessment in session.");
+
+    const assessment = await prisma.assessment.findUnique({
+      where: { id: assessmentId },
+      include: { settings: true },
+    });
+    if (!assessment) throw new ApiError(404, "Assessment not found.");
+    assertAssessmentAccessible(assessment);
+
+    const questions = await hydrateAssessmentQuestions(assessmentId);
+    return res.status(200).json({
+      message: "Questions fetched.",
+      data: {
+        assessment: {
+          id: assessment.id,
+          title: assessment.title,
+          description: assessment.description,
+          duration: assessment.duration,
+          passingScore: assessment.passingScore,
+          totalQuestions: questions.length,
+          settings: assessment.settings,
+        },
+        questions,
+      },
+    });
+  }),
+);
+
 // POST /api/v1/desktop/attempt/start
 // Creates or resumes a CandidateAttempt
 router.post(
   "/attempt/start",
-  verifyJWT,
+  verifyExamJWT,
   asyncHandler(async (req, res) => {
-    const userId = req.user?.id;
+    const userId = req.user.id;
     const { assessmentId, deviceInfo } = req.body;
 
     if (!assessmentId) throw new ApiError(400, "assessmentId is required.");
@@ -236,12 +215,11 @@ router.post(
       return res.status(200).json({ message: "Attempt resumed.", data: existing });
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
     const attempt = await prisma.candidateAttempt.create({
       data: {
         assessmentId,
         userId,
-        email: user.email,
+        email: req.user.email,
         rollNumber: req.body.rollNumber || null,
         status: "in_progress",
         answers: [],
@@ -256,7 +234,7 @@ router.post(
 // PUT /api/v1/desktop/attempt/:attemptId/heartbeat
 router.put(
   "/attempt/:attemptId/heartbeat",
-  verifyJWT,
+  verifyExamJWT,
   asyncHandler(async (req, res) => {
     const { attemptId } = req.params;
     const { timeRemaining, currentQuestionIndex, deviceInfo } = req.body;
@@ -283,7 +261,7 @@ router.put(
 // PUT /api/v1/desktop/attempt/:attemptId/autosave
 router.put(
   "/attempt/:attemptId/autosave",
-  verifyJWT,
+  verifyExamJWT,
   asyncHandler(async (req, res) => {
     const { attemptId } = req.params;
     const { answers, codeSubmissions } = req.body;
@@ -308,7 +286,7 @@ router.put(
 // POST /api/v1/desktop/attempt/:attemptId/violation
 router.post(
   "/attempt/:attemptId/violation",
-  verifyJWT,
+  verifyExamJWT,
   asyncHandler(async (req, res) => {
     const { attemptId } = req.params;
     const { type, description, severity, metadata } = req.body;
@@ -348,7 +326,7 @@ router.post(
 // POST /api/v1/desktop/attempt/:attemptId/submit
 router.post(
   "/attempt/:attemptId/submit",
-  verifyJWT,
+  verifyExamJWT,
   asyncHandler(async (req, res) => {
     const { attemptId } = req.params;
     const { answers, codeSubmissions, reason } = req.body;
@@ -438,7 +416,7 @@ router.post(
 // GET /api/v1/desktop/attempt/:attemptId
 router.get(
   "/attempt/:attemptId",
-  verifyJWT,
+  verifyExamJWT,
   asyncHandler(async (req, res) => {
     const { attemptId } = req.params;
     const attempt = await prisma.candidateAttempt.findUnique({

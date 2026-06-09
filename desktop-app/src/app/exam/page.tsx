@@ -40,10 +40,14 @@ export default function ExamPage() {
     setCurrentQuestion,
     incrementViolation,
     setExamStatus,
+    setQuestions,
+    setAssessment,
   } = useExamStore();
 
   const [submitting, setSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [loadingQuestions, setLoadingQuestions] = useState(true);
+  const [questionsError, setQuestionsError] = useState("");
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const settings = assessment?.settings;
@@ -54,6 +58,38 @@ export default function ExamPage() {
       router.replace("/login");
     }
   }, [assessment, attemptId, router]);
+
+  // ─── Load / refresh questions ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!assessment || !attemptId) return;
+
+    let cancelled = false;
+    setLoadingQuestions(true);
+    setQuestionsError("");
+
+    (async () => {
+      try {
+        if (questions.length > 0) return;
+        const { data } = await desktopApi.getQuestions();
+        if (cancelled) return;
+        if (data.data.questions.length > 0) {
+          setAssessment(data.data.assessment, data.data.questions);
+        } else {
+          setQuestions([]);
+        }
+      } catch {
+        if (!cancelled) {
+          setQuestionsError("Could not load exam questions. Please try again.");
+        }
+      } finally {
+        if (!cancelled) setLoadingQuestions(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [assessment, attemptId, questions.length, setAssessment, setQuestions]);
 
   // ─── Security engine ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -165,7 +201,47 @@ export default function ExamPage() {
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
-  if (!assessment || !questions.length) return null;
+  if (!assessment || !attemptId) return null;
+
+  if (loadingQuestions) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-black text-white">
+        <p className="text-sm text-gray-400">Loading exam questions…</p>
+      </div>
+    );
+  }
+
+  if (questionsError) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-black px-6 text-center text-white">
+        <p className="text-sm text-red-400">{questionsError}</p>
+        <button
+          onClick={() => router.replace("/login")}
+          className="rounded-lg border border-white/10 px-4 py-2 text-sm text-gray-300 hover:border-white/30"
+        >
+          Back to login
+        </button>
+      </div>
+    );
+  }
+
+  if (!questions.length) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-black px-6 text-center text-white">
+        <h1 className="text-xl font-bold">{assessment.title}</h1>
+        <p className="max-w-md text-sm text-gray-400">
+          This assessment has no questions yet. Ask your test administrator to add
+          questions from the dashboard, then log in again.
+        </p>
+        <button
+          onClick={() => router.replace("/login")}
+          className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-100"
+        >
+          Back to login
+        </button>
+      </div>
+    );
+  }
 
   const currentQ = questions[currentQuestionIndex];
   const currentAnswer = answers.find((a) => a.aqId === currentQ?.aqId);

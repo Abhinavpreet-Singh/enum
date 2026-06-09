@@ -3,9 +3,12 @@ import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";
 
-const getAccessTokenFromRequest = (req) =>
-  req?.cookies?.accessToken ||
-  req.header("Authorization")?.replace("Bearer ", "");
+const getAccessTokenFromRequest = (req) => {
+  const bearer = req.header("Authorization")?.replace(/^Bearer\s+/i, "").trim();
+  if (bearer) return bearer;
+  // Desktop exam client sets examToken; web app uses accessToken.
+  return req?.cookies?.examToken || req?.cookies?.accessToken || "";
+};
 
 const verifyAccessToken = (token) => {
   const secrets = [process.env.ACCESS_TOKEN_SECRET, process.env.JWT_SECRET].filter(
@@ -57,7 +60,7 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
   }
 
   const id = decodedToken?._id || decodedToken?.userId || decodedToken?.id;
-  if (!id) {
+  if (!id || !/^[a-f\d]{24}$/i.test(String(id))) {
     throw new ApiError(401, "Invalid access token");
   }
 
@@ -81,6 +84,14 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
   req.accountType = "user";
   next();
 });
+
+// ── Candidate / user gate (desktop exam routes) ─────────────────────────────
+export const requireUser = (req, _res, next) => {
+  if (!req.user?.id) {
+    throw new ApiError(401, "Candidate authentication required.");
+  }
+  next();
+};
 
 // ── Role gate ────────────────────────────────────────────────────────────────
 // Usage: requireRole("organization")

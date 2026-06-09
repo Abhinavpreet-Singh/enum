@@ -11,6 +11,11 @@ import {
   duplicateAssessment,
   archiveAssessment,
 } from "../controllers/assessment.controller.js";
+import {
+  listAssessmentQuestions,
+  addAssessmentQuestions,
+  removeAssessmentQuestion,
+} from "../controllers/assessment-question.controller.js";
 
 const router = Router();
 
@@ -25,5 +30,8 @@ router.put("/:id/publish", ...organizationGuard, publishAssessment);
 router.put("/:id/unpublish", ...organizationGuard, unpublishAssessment);
 router.post("/:id/duplicate", ...organizationGuard, duplicateAssessment);
 router.put("/:id/archive", ...organizationGuard, archiveAssessment);
+router.get("/:id/questions", ...organizationGuard, listAssessmentQuestions);
+router.post("/:id/questions", ...organizationGuard, addAssessmentQuestions);
+router.delete("/:id/questions/:questionId", ...organizationGuard, removeAssessmentQuestion);
 
 export default router;
