@@ -115,7 +115,12 @@ function AdminDashboardInner() {
 
 // ─── Overview tab ─────────────────────────────────────────────────────────────
 function OverviewTab() {
-  const [stats, setStats] = useState<Record<string, number> & { recentUsers?: unknown[]; recentCompanies?: unknown[] } | null>(null);
+  // const [stats, setStats] = useState<Record<string, number> & { recentUsers?: unknown[]; recentCompanies?: unknown[] } | null>(null);
+  const [stats, setStats] = useState<{
+    [key: string]: any;
+    recentUsers?: unknown[];
+    recentCompanies?: unknown[];
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const handleOverviewApproval = async (id: string, status: string) => {
