@@ -118,7 +118,7 @@ model Organization {
   location       String   @default("")
   description    String   @default("")
   logo           String   @default("")
-  approvalStatus String   @default("approved") // "pending" | "approved" | "rejected"
+  approvalStatus String   @default("pending") // "pending" | "approved" | "rejected"
   contactName    String   @default("")
   contactEmail   String   @default("")
   createdAt      DateTime @default(now())

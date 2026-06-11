@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { verifyJWT, requireRole } from "../middlewares/auth.middleware.js";
+import { verifyJWT, requireRole, requireApproved } from "../middlewares/auth.middleware.js";
 import {
   getDashboardMetrics,
   getRecentActivity,
@@ -10,7 +10,7 @@ import {
 
 const router = Router();
 
-const guard = [verifyJWT, requireRole("organization")];
+const guard = [verifyJWT, requireRole("organization"), requireApproved];
 
 router.get("/metrics", ...guard, getDashboardMetrics);
 router.get("/recent-activity", ...guard, getRecentActivity);

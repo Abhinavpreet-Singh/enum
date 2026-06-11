@@ -25,6 +25,7 @@ export default function AuthForm({
   const [registerStep, setRegisterStep] = useState<RegisterStep>("form");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>("");
+  const [success, setSuccess] = useState<string>("");
   const [otpValue, setOtpValue] = useState("");
   const [otpSentTo, setOtpSentTo] = useState("");
 
@@ -60,12 +61,14 @@ export default function AuthForm({
     setOtpValue("");
     setOtpSentTo("");
     setError("");
+    setSuccess("");
   };
 
   const switchAccountType = (type: AccountType) => {
     setAccountType(type);
     resetRegister();
     setError("");
+    setSuccess("");
   };
 
   const startOAuth = (provider: "google" | "github") => {
@@ -89,6 +92,7 @@ export default function AuthForm({
     e.preventDefault();
     setIsLoading(true);
     setError("");
+    setSuccess("");
 
     const email =
       accountType === "user" ? userForm.email
@@ -128,6 +132,7 @@ export default function AuthForm({
     e.preventDefault();
     setIsLoading(true);
     setError("");
+    setSuccess("");
 
     try {
       let response;
@@ -166,13 +171,15 @@ export default function AuthForm({
           },
           { withCredentials: true },
         );
-        localStorage.setItem("Name", response.data.data.name);
-        localStorage.setItem(
-          "id",
-          response.data.data.id ?? response.data.data._id,
+
+        setIsLoading(false);
+        setMode("login");
+        resetRegister();
+        setSuccess(
+          response.data.message ||
+            "Your organization has been registered and is pending admin approval. You can log in once an admin approves your account.",
         );
-        localStorage.setItem("accessToken", response.data.accessToken);
-        localStorage.setItem("accountType", "organization");
+        return;
       }
 
       router.push(returnTo);
@@ -208,6 +215,7 @@ export default function AuthForm({
     e.preventDefault();
     setIsLoading(true);
     setError("");
+    setSuccess("");
 
     try {
       const isEmail = loginForm.identifier.includes("@");
@@ -245,7 +253,15 @@ export default function AuthForm({
           err.response?.data?.error ||
           err.message;
         const lower = raw?.toLowerCase() || "";
-        if (lower.includes("password") || lower.includes("credential")) {
+        if (lower.includes("pending") || lower.includes("awaiting approval")) {
+          setError(
+            "Your organization account is pending admin approval. You'll be able to log in once an admin approves your registration.",
+          );
+        } else if (lower.includes("rejected")) {
+          setError(
+            "Your organization registration was rejected. Please contact support if you believe this is an error.",
+          );
+        } else if (lower.includes("password") || lower.includes("credential")) {
           setError("Invalid email/username or password. Please try again.");
         } else if (
           lower.includes("not found") ||
@@ -338,6 +354,7 @@ export default function AuthForm({
               onClick={() => {
                 setMode("login");
                 resetRegister();
+                setSuccess("");
               }}
               className={`flex-1 pb-2 font-mono text-xs tracking-wider transition-colors ${
                 mode === "login"
@@ -352,6 +369,7 @@ export default function AuthForm({
               onClick={() => {
                 setMode("register");
                 resetRegister();
+                setSuccess("");
               }}
               className={`flex-1 pb-2 font-mono text-xs tracking-wider transition-colors ${
                 mode === "register"
@@ -423,7 +441,16 @@ export default function AuthForm({
           {mode === "register" && accountType === "organization" && (
             <div className="mb-3 px-3 py-2 border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900">
               <p className="font-mono text-[10px] tracking-wider text-gray-500 dark:text-neutral-400">
-                ORGANIZATION ACCOUNT · Post tests & access hiring tools
+                ORGANIZATION ACCOUNT · Requires admin approval before dashboard access
+              </p>
+            </div>
+          )}
+
+          {/* Success */}
+          {success && (
+            <div className="mb-3 p-3 border border-green-300 dark:border-green-900 bg-green-50 dark:bg-green-950/30">
+              <p className="text-xs font-mono text-green-700 dark:text-green-400 leading-relaxed">
+                {success}
               </p>
             </div>
           )}

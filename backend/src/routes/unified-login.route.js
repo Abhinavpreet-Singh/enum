@@ -5,6 +5,7 @@ import { ApiError } from "../utils/apiError.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { getAuthCookieOptions } from "../utils/cookieOptions.js";
+import { assertOrganizationApproved } from "../utils/organizationApproval.js";
 
 const router = Router();
 
@@ -114,6 +115,7 @@ router.post(
     if (organization) {
       const ok = await bcrypt.compare(password, organization.password);
       if (!ok) throw new ApiError(401, "Invalid password.");
+      assertOrganizationApproved(organization);
       const { access, refresh } = await makeOrganizationTokens(organization);
       const safe = await prisma.organization.findUnique({
         where: { id: organization.id },

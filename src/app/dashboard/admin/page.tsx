@@ -17,18 +17,36 @@ const panelBorder = "border border-black/20 dark:border-white/25";
 const panelSurface = `${panelBorder} bg-white/80 dark:bg-black/75`;
 const labelCls = "block font-mono text-[10px] tracking-[0.2em] text-gray-500 dark:text-gray-400 uppercase mb-1.5";
 
+const getAdminRequestConfig = () => {
+  const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+  return {
+    withCredentials: true as const,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  };
+};
+
+const normalizeApprovalStatus = (status?: string | null) => {
+  const value = (status || "pending").trim().toLowerCase();
+  if (value === "approved" || value === "rejected" || value === "pending") return value;
+  return "pending";
+};
+
+const actionButtonCls =
+  "inline-flex items-center justify-center px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider border transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50";
+
 // ─── Status badge ─────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
+  const normalized = normalizeApprovalStatus(status);
   const colors: Record<string, string> = {
     approved: "text-emerald-600 dark:text-emerald-400 border-emerald-400/40 bg-emerald-50 dark:bg-emerald-950/20",
     pending:  "text-amber-600 dark:text-amber-400 border-amber-400/40 bg-amber-50 dark:bg-amber-950/20",
     rejected: "text-red-600 dark:text-red-400 border-red-400/40 bg-red-50 dark:bg-red-950/20",
   };
   const icons: Record<string, typeof CheckCircle> = { approved: CheckCircle, pending: Clock, rejected: XCircle };
-  const Icon = icons[status] ?? Clock;
+  const Icon = icons[normalized] ?? Clock;
   return (
-    <span className={`inline-flex items-center gap-1 border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${colors[status] ?? colors.pending}`}>
-      <Icon className="w-2.5 h-2.5" />{status}
+    <span className={`inline-flex items-center gap-1 border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${colors[normalized] ?? colors.pending}`}>
+      <Icon className="w-2.5 h-2.5" />{normalized}
     </span>
   );
 }
@@ -100,8 +118,32 @@ function OverviewTab() {
   const [stats, setStats] = useState<Record<string, number> & { recentUsers?: unknown[]; recentCompanies?: unknown[] } | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const handleOverviewApproval = async (id: string, status: string) => {
+    try {
+      await axios.patch(
+        `${proxy}/api/v1/admin/organizations/${id}/approval`,
+        { status },
+        getAdminRequestConfig(),
+      );
+      setStats((prev) => {
+        if (!prev) return prev;
+        const recentCompanies = ((prev.recentCompanies || []) as { id: string; name: string; email: string; approvalStatus: string; createdAt: string }[]).map((c) =>
+          c.id === id ? { ...c, approvalStatus: status } : c,
+        );
+        const pendingDelta = status === "approved" || status === "rejected" ? -1 : 0;
+        return {
+          ...prev,
+          recentCompanies,
+          pendingCompanies: Math.max(0, (prev.pendingCompanies || 0) + pendingDelta),
+        };
+      });
+    } catch {
+      // ignore — user can retry from Companies tab
+    }
+  };
+
   useEffect(() => {
-    axios.get(`${proxy}/api/v1/admin/stats`)
+    axios.get(`${proxy}/api/v1/admin/stats`, getAdminRequestConfig())
       .then(r => setStats(r.data.data))
       .catch(() => setStats(null))
       .finally(() => setLoading(false));
@@ -144,12 +186,32 @@ function OverviewTab() {
             <p className="font-mono text-[10px] uppercase tracking-widest text-gray-400">Recent Companies</p>
           </div>
           {((stats.recentCompanies || []) as { id: string; name: string; email: string; approvalStatus: string; createdAt: string }[]).map(c => (
-            <div key={c.id} className="flex items-center justify-between px-4 py-2.5 border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/1 dark:hover:bg-white/1">
-              <div>
+            <div key={c.id} className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/1 dark:hover:bg-white/1">
+              <div className="min-w-0">
                 <p className="font-mono text-xs font-semibold text-black dark:text-white">{c.name}</p>
-                <p className="font-mono text-[10px] text-gray-400">{c.email}</p>
+                <p className="font-mono text-[10px] text-gray-400 truncate">{c.email}</p>
               </div>
-              <StatusBadge status={c.approvalStatus} />
+              <div className="flex items-center gap-1.5 shrink-0">
+                <StatusBadge status={c.approvalStatus} />
+                {normalizeApprovalStatus(c.approvalStatus) === "pending" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void handleOverviewApproval(c.id, "approved")}
+                      className={`${actionButtonCls} border-emerald-500/50 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30`}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleOverviewApproval(c.id, "rejected")}
+                      className={`${actionButtonCls} border-red-500/50 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30`}
+                    >
+                      Reject
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -177,7 +239,7 @@ function UsersTab() {
     setLoading(true);
     const params: Record<string, string> = { page: String(page), limit: "15" };
     if (search) params.search = search;
-    axios.get(`${proxy}/api/v1/admin/users`, { params })
+    axios.get(`${proxy}/api/v1/admin/users`, { ...getAdminRequestConfig(), params })
       .then(r => { setUsers(r.data.data); setTotal(r.data.total); })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -192,12 +254,12 @@ function UsersTab() {
 
   const openDetail = async (u: typeof users[0]) => {
     setSelected(u);
-    const r = await axios.get(`${proxy}/api/v1/admin/users/${u.id}`);
+    const r = await axios.get(`${proxy}/api/v1/admin/users/${u.id}`, getAdminRequestConfig());
     setSelectedDetail(r.data.data);
   };
 
   const handleDelete = async (id: string) => {
-    await axios.delete(`${proxy}/api/v1/admin/users/${id}`);
+    await axios.delete(`${proxy}/api/v1/admin/users/${id}`, getAdminRequestConfig());
     setDelConfirm(null); setSelected(null); setSelectedDetail(null); fetch();
   };
 
@@ -361,48 +423,65 @@ function CompaniesTab() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<CompanyDetail | null>(null);
   const [delConfirm, setDelConfirm] = useState<string | null>(null);
-  const [approvalLoading, setApprovalLoading] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   const getOrganizations = (params?: Record<string, string>) => {
-    return axios.get(`${proxy}/api/v1/admin/organizations`, {
-      params,
-    }).catch(() => axios.get(`${proxy}/api/v1/admin/companies`, {
-      params,
-    }));
+    const config = { ...getAdminRequestConfig(), params };
+    return axios.get(`${proxy}/api/v1/admin/organizations`, config)
+      .catch(() => axios.get(`${proxy}/api/v1/admin/companies`, config));
   };
 
   const getOrganizationById = (id: string) => {
-    return axios.get(`${proxy}/api/v1/admin/organizations/${id}`, {
-      params: {},
-    }).catch(() => axios.get(`${proxy}/api/v1/admin/companies/${id}`, {
-      params: {},
-    }));
+    const config = getAdminRequestConfig();
+    return axios.get(`${proxy}/api/v1/admin/organizations/${id}`, config)
+      .catch(() => axios.get(`${proxy}/api/v1/admin/companies/${id}`, config));
   };
 
-  const patchOrganizationApproval = (id: string, status: string) => {
-    return axios.patch(`${proxy}/api/v1/admin/organizations/${id}/approval`, { status })
-      .catch(() => axios.patch(`${proxy}/api/v1/admin/companies/${id}/approval`, { status }));
+  const patchOrganizationApproval = async (id: string, status: string) => {
+    const config = getAdminRequestConfig();
+    try {
+      return await axios.patch(`${proxy}/api/v1/admin/organizations/${id}/approval`, { status }, config);
+    } catch (firstError) {
+      try {
+        return await axios.patch(`${proxy}/api/v1/admin/companies/${id}/approval`, { status }, config);
+      } catch {
+        throw firstError;
+      }
+    }
   };
 
   const deleteOrganizationById = (id: string) => {
-    return axios.delete(`${proxy}/api/v1/admin/organizations/${id}`)
-      .catch(() => axios.delete(`${proxy}/api/v1/admin/companies/${id}`));
+    const config = getAdminRequestConfig();
+    return axios.delete(`${proxy}/api/v1/admin/organizations/${id}`, config)
+      .catch(() => axios.delete(`${proxy}/api/v1/admin/companies/${id}`, config));
   };
 
-  const fetch = useCallback(() => {
-    setLoading(true);
+  const fetch = useCallback((options?: { silent?: boolean }) => {
+    if (!options?.silent) setLoading(true);
     setError("");
     const params: Record<string, string> = { page: String(page), limit: "15" };
     if (search) params.search = search;
     if (statusFilter !== "all") params.status = statusFilter;
     getOrganizations(params)
-      .then(r => { setCompanies(r.data.data); setTotal(r.data.total); })
+      .then((r) => {
+        setCompanies(
+          (r.data.data || []).map((company: { approvalStatus?: string }) => ({
+            ...company,
+            approvalStatus: normalizeApprovalStatus(company.approvalStatus),
+          })),
+        );
+        setTotal(r.data.total);
+      })
       .catch(() => {
-        setCompanies([]);
-        setTotal(0);
+        if (!options?.silent) {
+          setCompanies([]);
+          setTotal(0);
+        }
         setError("Failed to load companies. Please refresh or check admin login.");
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!options?.silent) setLoading(false);
+      });
   }, [page, search, statusFilter]);
 
   useEffect(() => {
@@ -419,12 +498,25 @@ function CompaniesTab() {
   };
 
   const handleApproval = async (id: string, status: string) => {
-    setApprovalLoading(true);
+    setApprovingId(id);
     setError("");
-    await patchOrganizationApproval(id, status);
-    setApprovalLoading(false);
-    if (selected) setSelected({ ...selected, approvalStatus: status });
-    fetch();
+    try {
+      await patchOrganizationApproval(id, status);
+      setCompanies((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, approvalStatus: status } : c)),
+      );
+      if (selected?.id === id) {
+        setSelected({ ...selected, approvalStatus: status });
+      }
+      fetch({ silent: true });
+    } catch (err) {
+      const message = axios.isAxiosError(err)
+        ? err.response?.data?.message || "Failed to update approval status."
+        : "Failed to update approval status.";
+      setError(message);
+    } finally {
+      setApprovingId(null);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -434,9 +526,55 @@ function CompaniesTab() {
   };
 
   const totalPages = Math.ceil(total / 15);
+  const pendingCompanies = companies.filter(
+    (c) => normalizeApprovalStatus(c.approvalStatus) === "pending",
+  );
 
   return (
     <div className="space-y-4">
+      {pendingCompanies.length > 0 && (
+        <div className={`${panelSurface} p-4 space-y-3`}>
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+            <p className="font-mono text-xs font-semibold text-black dark:text-white">
+              Pending organization approvals ({pendingCompanies.length})
+            </p>
+          </div>
+          <div className="space-y-2">
+            {pendingCompanies.map((company) => (
+              <div
+                key={`pending-${company.id}`}
+                className="flex flex-wrap items-center justify-between gap-3 border border-amber-400/30 bg-amber-50/60 dark:bg-amber-950/20 px-3 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="font-mono text-xs font-semibold text-black dark:text-white">{company.name}</p>
+                  <p className="font-mono text-[10px] text-gray-500 truncate">{company.email}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    disabled={approvingId === company.id}
+                    onClick={() => void handleApproval(company.id, "approved")}
+                    className={`${actionButtonCls} border-emerald-500/50 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50`}
+                  >
+                    <CheckCircle className="w-3.5 h-3.5 mr-1" />
+                    {approvingId === company.id ? "Saving..." : "Approve"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={approvingId === company.id}
+                    onClick={() => void handleApproval(company.id, "rejected")}
+                    className={`${actionButtonCls} border-red-500/50 text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50`}
+                  >
+                    <XCircle className="w-3.5 h-3.5 mr-1" />
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex items-center gap-3 flex-wrap">
         <div className={`flex items-center gap-2 px-3 py-1.5 ${panelBorder} flex-1 max-w-xs`}>
           <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
@@ -451,7 +589,7 @@ function CompaniesTab() {
         <span className="font-mono text-[10px] text-gray-400 ml-auto">{total} total</span>
       </div>
 
-      <div className={`${panelSurface} overflow-hidden`}>
+      <div className={`${panelSurface}`}>
         {error && (
           <div className="px-4 py-2 border-b border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/20">
             <p className="font-mono text-[10px] text-red-700 dark:text-red-400">{error}</p>
@@ -462,33 +600,78 @@ function CompaniesTab() {
         ) : companies.length === 0 ? (
           <div className="p-12 text-center"><p className="font-mono text-xs text-gray-400">No companies found.</p></div>
         ) : (
-          <table className="w-full text-left">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[960px] text-left">
             <thead>
               <tr className="border-b border-black/10 dark:border-white/10">
-                {["Company", "Email", "Industry", "Status", "Assessments", "Joined", ""].map(h => (
+                {["Company", "Email", "Industry", "Status", "Assessments", "Joined", "Actions"].map(h => (
                   <th key={h} className="px-4 py-2.5 font-mono text-[9px] uppercase tracking-widest text-gray-400">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {companies.map(c => (
+              {companies.map(c => {
+                const status = normalizeApprovalStatus(c.approvalStatus);
+                const isApproving = approvingId === c.id;
+                return (
                 <tr key={c.id} className="border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/1.5 dark:hover:bg-white/1.5 transition-colors">
                   <td className="px-4 py-3 font-mono text-xs font-semibold text-black dark:text-white">{c.name}</td>
                   <td className="px-4 py-3 font-mono text-xs text-gray-500">{c.email}</td>
                   <td className="px-4 py-3 font-mono text-[10px] text-gray-400">{c.industry || "—"}</td>
-                  <td className="px-4 py-3"><StatusBadge status={c.approvalStatus} /></td>
+                  <td className="px-4 py-3"><StatusBadge status={status} /></td>
                   <td className="px-4 py-3 font-mono text-[10px] text-gray-400">{c._count.assessments}</td>
                   <td className="px-4 py-3 font-mono text-[10px] text-gray-400">{new Date(c.createdAt).toLocaleDateString()}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => openDetail(c)} className="p-1 text-gray-400 hover:text-black dark:hover:text-white transition-colors"><Eye className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => setDelConfirm(c.id)} className="p-1 text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <td className="relative px-4 py-3 z-10">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {status === "pending" && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={isApproving}
+                            onClick={(e) => { e.stopPropagation(); void handleApproval(c.id, "approved"); }}
+                            className={`${actionButtonCls} border-emerald-500/50 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30`}
+                          >
+                            {isApproving ? "Saving..." : "Approve"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isApproving}
+                            onClick={(e) => { e.stopPropagation(); void handleApproval(c.id, "rejected"); }}
+                            className={`${actionButtonCls} border-red-500/50 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30`}
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      {status === "rejected" && (
+                        <button
+                          type="button"
+                          disabled={isApproving}
+                          onClick={(e) => { e.stopPropagation(); void handleApproval(c.id, "approved"); }}
+                          className={`${actionButtonCls} border-emerald-500/50 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30`}
+                        >
+                          {isApproving ? "Saving..." : "Approve"}
+                        </button>
+                      )}
+                      {status === "approved" && (
+                        <button
+                          type="button"
+                          disabled={isApproving}
+                          onClick={(e) => { e.stopPropagation(); void handleApproval(c.id, "rejected"); }}
+                          className={`${actionButtonCls} border-red-500/50 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30`}
+                        >
+                          Reject
+                        </button>
+                      )}
+                      <button type="button" onClick={() => void openDetail(c)} className="p-1.5 text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer" title="View details"><Eye className="w-3.5 h-3.5" /></button>
+                      <button type="button" onClick={() => setDelConfirm(c.id)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors cursor-pointer" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -502,8 +685,14 @@ function CompaniesTab() {
 
       {/* Company detail drawer */}
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/40 dark:bg-black/60">
-          <div className="w-full max-w-lg h-full bg-white dark:bg-black border-l border-black/20 dark:border-white/25 flex flex-col shadow-2xl overflow-hidden">
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-end bg-black/40 dark:bg-black/60"
+          onClick={() => setSelected(null)}
+        >
+          <div
+            className="w-full max-w-lg h-full bg-white dark:bg-black border-l border-black/20 dark:border-white/25 flex flex-col shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between px-6 py-4 border-b border-black/10 dark:border-white/10 shrink-0">
               <div>
                 <h2 className="font-mono text-xs font-bold text-black dark:text-white uppercase">Company Detail</h2>
@@ -517,15 +706,41 @@ function CompaniesTab() {
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
               {/* Approval actions */}
               <div>
-                <label className={labelCls}>Approval Status</label>
-                <div className="flex gap-2 mt-1">
-                  {["approved", "pending", "rejected"].map(s => (
-                    <button key={s} disabled={approvalLoading || selected.approvalStatus === s}
-                      onClick={() => handleApproval(String(selected.id), s)}
-                      className={`flex-1 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider border transition-colors disabled:opacity-40 ${selected.approvalStatus === s ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white" : "border-gray-300 dark:border-neutral-700 text-gray-500 hover:border-black dark:hover:border-white"}`}>
-                      {s}
-                    </button>
-                  ))}
+                <label className={labelCls}>Approval</label>
+                <div className={`${panelSurface} p-4 space-y-3`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-mono text-[10px] text-gray-400 uppercase tracking-wider">Current status</span>
+                    <StatusBadge status={selected.approvalStatus} />
+                  </div>
+                  <div className="flex gap-2">
+                    {normalizeApprovalStatus(selected.approvalStatus) !== "approved" && (
+                      <button
+                        type="button"
+                        disabled={approvingId === selected.id}
+                        onClick={() => void handleApproval(String(selected.id), "approved")}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase tracking-wider border border-emerald-400/40 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors disabled:opacity-40 cursor-pointer"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        {approvingId === selected.id ? "Saving..." : "Approve organization"}
+                      </button>
+                    )}
+                    {normalizeApprovalStatus(selected.approvalStatus) !== "rejected" && (
+                      <button
+                        type="button"
+                        disabled={approvingId === selected.id}
+                        onClick={() => void handleApproval(String(selected.id), "rejected")}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase tracking-wider border border-red-400/40 text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors disabled:opacity-40 cursor-pointer"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        Reject organization
+                      </button>
+                    )}
+                  </div>
+                  {normalizeApprovalStatus(selected.approvalStatus) === "pending" && (
+                    <p className="font-mono text-[10px] text-amber-600 dark:text-amber-400 leading-relaxed">
+                      This organization registered and is waiting for your approval before they can access their dashboard.
+                    </p>
+                  )}
                 </div>
               </div>
               <DetailSection title="Company Info">

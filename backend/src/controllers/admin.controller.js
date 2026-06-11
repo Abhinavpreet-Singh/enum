@@ -44,11 +44,18 @@ export const getStats = asyncHandler(async (req, res) => {
       totalUsers, totalOrganizations,
       totalAssessments, totalAttempts, totalQuestionBanks,
       pendingOrganizations,
-      recentUsers: normalizedRecentUsers, recentOrganizations,
+      recentUsers: normalizedRecentUsers,
+      recentOrganizations: recentOrganizations.map((org) => ({
+        ...org,
+        approvalStatus: org.approvalStatus || "pending",
+      })),
       // Backward-compatible keys still used by older frontend builds.
       totalCompanies: totalOrganizations,
       pendingCompanies: pendingOrganizations,
-      recentCompanies: recentOrganizations,
+      recentCompanies: recentOrganizations.map((org) => ({
+        ...org,
+        approvalStatus: org.approvalStatus || "pending",
+      })),
     },
   });
 });
@@ -202,6 +209,7 @@ export const getAllOrganizations = asyncHandler(async (req, res) => {
   const normalizedOrganizations = organizations.map((org) => ({
     ...org,
     logoUrl: org.logo || "",
+    approvalStatus: org.approvalStatus || "pending",
   }));
 
   return res.status(200).json({ message: "Organizations fetched.", data: normalizedOrganizations, total, page: parseInt(page), limit: parseInt(limit) });
@@ -236,6 +244,7 @@ export const getOrganizationById = asyncHandler(async (req, res) => {
     data: {
       ...organization,
       logoUrl: organization.logo || "",
+      approvalStatus: organization.approvalStatus || "pending",
     },
   });
 });

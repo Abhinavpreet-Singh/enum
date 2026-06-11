@@ -5,6 +5,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { sendOtpEmail } from "../utils/resendEmail.js";
 import { getAuthCookieOptions } from "../utils/cookieOptions.js";
+import { assertOrganizationApproved } from "../utils/organizationApproval.js";
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
 
@@ -129,6 +130,7 @@ const registerOrganization = asyncHandler(async (req, res) => {
       size,
       location,
       description,
+      approvalStatus: "pending",
     },
     omit: { password: true, refreshToken: true },
   });
@@ -137,17 +139,12 @@ const registerOrganization = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Something went wrong while registering organization.");
   }
 
-  const { accessToken } = await generateOrganizationTokens(createdOrganization.id);
-  const options = getAuthCookieOptions();
-
-  return res
-    .status(201)
-    .cookie("accessToken", accessToken, options)
-    .json({
-      message: "Organization registered successfully.",
-      data: createdOrganization,
-      accessToken,
-    });
+  return res.status(201).json({
+    message:
+      "Organization registered successfully. Your account is pending admin approval.",
+    data: createdOrganization,
+    approvalStatus: "pending",
+  });
 });
 
 // ─── Login ────────────────────────────────────────────────────────────────────
@@ -172,6 +169,8 @@ const loginOrganization = asyncHandler(async (req, res) => {
   if (!isPasswordValid) {
     throw new ApiError(401, "Invalid password.");
   }
+
+  assertOrganizationApproved(organization);
 
   const { accessToken, refreshToken } = await generateOrganizationTokens(organization.id);
 
