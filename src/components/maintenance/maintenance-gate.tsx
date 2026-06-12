@@ -24,6 +24,25 @@ function isAdminSession() {
   return localStorage.getItem("accountType") === "admin";
 }
 
+const productionHosts = (() => {
+  try {
+    const hostname = new URL(
+      process.env.NEXT_PUBLIC_APP_URL || "https://enum.live",
+    ).hostname;
+    return hostname.startsWith("www.")
+      ? [hostname]
+      : [hostname, `www.${hostname}`];
+  } catch {
+    return ["enum.live", "www.enum.live"];
+  }
+})();
+
+/** Maintenance blocks only apply on the live production site, not local dev. */
+function isProductionSite() {
+  if (typeof window === "undefined") return false;
+  return productionHosts.includes(window.location.hostname);
+}
+
 function MaintenanceScreen({ message }: { message: string }) {
   return (
     <div className="flex min-h-[60vh] w-full items-center justify-center p-6">
@@ -51,6 +70,8 @@ export default function MaintenanceGate({ children }: { children: React.ReactNod
   const [match, setMatch] = useState<MaintenanceEntry | null>(null);
 
   useEffect(() => {
+    if (!isProductionSite()) return;
+
     let cancelled = false;
 
     const load = async () => {
@@ -73,7 +94,7 @@ export default function MaintenanceGate({ children }: { children: React.ReactNod
   }, []);
 
   useEffect(() => {
-    if (!pages || !pathname) {
+    if (!isProductionSite() || !pages || !pathname) {
       setMatch(null);
       return;
     }
@@ -88,7 +109,7 @@ export default function MaintenanceGate({ children }: { children: React.ReactNod
     setMatch(hit);
   }, [pages, pathname]);
 
-  if (match) {
+  if (isProductionSite() && match) {
     return <MaintenanceScreen message={match.message} />;
   }
 

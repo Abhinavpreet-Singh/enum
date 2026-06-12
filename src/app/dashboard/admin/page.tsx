@@ -10,6 +10,7 @@ import {
   Users, Building2, FileText, BarChart3,
   ShieldCheck, Trash2, CheckCircle, XCircle, Clock,
   Search, AlertTriangle, X, Eye, Construction, Plus, Power,
+  Layers, Activity, Code, Target, AlertTriangle as IncidentIcon,
 } from "lucide-react";
 import { normalizePagePath } from "@/lib/normalize-page-path";
 
@@ -76,9 +77,11 @@ function AdminDashboardInner() {
   const setTab = (t: string) => router.push(`/dashboard/admin?tab=${t}`);
 
   const TABS = [
-    { id: "overview",   label: "Overview",   icon: BarChart3 },
-    { id: "users",      label: "Users",      icon: Users },
-    { id: "companies",  label: "Companies",  icon: Building2 },
+    { id: "overview",    label: "Overview",    icon: BarChart3 },
+    { id: "users",       label: "Users",       icon: Users },
+    { id: "companies",   label: "Companies",   icon: Building2 },
+    { id: "content",     label: "Content",     icon: Layers },
+    { id: "activity",    label: "Activity",    icon: Activity },
     { id: "maintenance", label: "Maintenance", icon: Construction },
   ];
 
@@ -91,7 +94,7 @@ function AdminDashboardInner() {
           </span>
         }
         title="Admin Dashboard"
-        description="Full platform visibility — users and companies."
+        description="Platform control center — users, companies, content, and system health."
       />
 
       {/* Tab nav */}
@@ -108,9 +111,11 @@ function AdminDashboardInner() {
         ))}
       </div>
 
-      {tab === "overview"  && <OverviewTab />}
-      {tab === "users"     && <UsersTab />}
-      {tab === "companies" && <CompaniesTab />}
+      {tab === "overview"    && <OverviewTab />}
+      {tab === "users"       && <UsersTab />}
+      {tab === "companies"   && <CompaniesTab />}
+      {tab === "content"     && <ContentTab />}
+      {tab === "activity"    && <ActivityTab />}
       {tab === "maintenance" && <MaintenanceTab />}
     </DashboardPageShell>
   );
@@ -169,6 +174,11 @@ function OverviewTab() {
         <StatCard label="Attempts"         value={stats.totalAttempts}   icon={BarChart3} />
         <StatCard label="Question Banks"   value={stats.totalQuestionBanks} icon={FileText} />
         <StatCard label="Pending Companies" value={stats.pendingCompanies} icon={Clock} accent="bg-amber-50 dark:bg-amber-950/20" />
+        <StatCard label="Simulations"      value={stats.totalSimulations ?? 0} icon={Code} />
+        <StatCard label="Incidents"        value={stats.totalIncidents ?? 0} icon={IncidentIcon} />
+        <StatCard label="DSA Questions"    value={stats.totalDsaQuestions ?? 0} icon={Target} />
+        <StatCard label="Incident Sessions" value={stats.totalIncidentSessions ?? 0} icon={Activity} />
+        <StatCard label="Maintenance Live" value={stats.activeMaintenancePages ?? 0} icon={Construction} accent="bg-amber-50 dark:bg-amber-950/20" />
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
@@ -835,6 +845,331 @@ function ConfirmDelete({ onCancel, onConfirm, label }: { onCancel: () => void; o
   );
 }
 
+// ─── Content tab ──────────────────────────────────────────────────────────────
+type ContentCounts = {
+  simulations: number;
+  incidents: number;
+  dsaQuestions: number;
+  linuxQuestions: number;
+  systemDesign: number;
+  publishedAssessments: number;
+  draftAssessments: number;
+  archivedAssessments: number;
+  incidentSessions: number;
+  simulationProgress: number;
+  submissions: number;
+  violations: number;
+};
+
+function ContentTab() {
+  const [data, setData] = useState<{
+    counts: ContentCounts;
+    recentSimulations: { id: string; title: string; category: string; difficulty: string; updatedAt: string }[];
+    recentIncidents: { id: string; title: string; difficulty: string; category: string; updatedAt: string }[];
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    axios
+      .get(`${proxy}/api/v1/admin/content-stats`, getAdminRequestConfig())
+      .then((r) => setData(r.data.data))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className={`${panelSurface} p-5 h-20 animate-pulse`} />
+        ))}
+      </div>
+    );
+  }
+
+  if (!data) {
+    return <p className="font-mono text-xs text-gray-400">Failed to load content stats.</p>;
+  }
+
+  const { counts } = data;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-gray-400">
+          Learning content
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard label="Browser Simulations" value={counts.simulations} icon={Code} />
+          <StatCard label="Incident Scenarios" value={counts.incidents} icon={IncidentIcon} />
+          <StatCard label="DSA Questions" value={counts.dsaQuestions} icon={Target} />
+          <StatCard label="Linux Challenges" value={counts.linuxQuestions} icon={Code} />
+          <StatCard label="System Design" value={counts.systemDesign} icon={Layers} />
+          <StatCard label="Code Submissions" value={counts.submissions} icon={FileText} />
+          <StatCard label="Sim Progress Rows" value={counts.simulationProgress} icon={BarChart3} />
+          <StatCard label="Incident Sessions" value={counts.incidentSessions} icon={Activity} />
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-gray-400">
+          Hiring assessments
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard label="Published Tests" value={counts.publishedAssessments} icon={CheckCircle} accent="bg-emerald-50 dark:bg-emerald-950/20" />
+          <StatCard label="Draft Tests" value={counts.draftAssessments} icon={Clock} />
+          <StatCard label="Archived Tests" value={counts.archivedAssessments} icon={FileText} />
+          <StatCard label="Proctor Violations" value={counts.violations} icon={AlertTriangle} accent="bg-red-50 dark:bg-red-950/20" />
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className={`${panelSurface} overflow-hidden`}>
+          <div className="px-4 py-3 border-b border-black/5 dark:border-white/5">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-gray-400">
+              Recently updated simulations
+            </p>
+          </div>
+          {data.recentSimulations.length === 0 ? (
+            <p className="px-4 py-6 font-mono text-xs text-gray-400">No simulations yet.</p>
+          ) : (
+            data.recentSimulations.map((sim) => (
+              <div
+                key={sim.id}
+                className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-black/5 dark:border-white/5 last:border-b-0"
+              >
+                <div className="min-w-0">
+                  <p className="font-mono text-xs font-semibold text-black dark:text-white truncate">
+                    {sim.title}
+                  </p>
+                  <p className="font-mono text-[10px] text-gray-400">
+                    {sim.category} · {sim.difficulty}
+                  </p>
+                </div>
+                <span className="font-mono text-[9px] text-gray-400 shrink-0">
+                  {new Date(sim.updatedAt).toLocaleDateString()}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className={`${panelSurface} overflow-hidden`}>
+          <div className="px-4 py-3 border-b border-black/5 dark:border-white/5">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-gray-400">
+              Recently updated incidents
+            </p>
+          </div>
+          {data.recentIncidents.length === 0 ? (
+            <p className="px-4 py-6 font-mono text-xs text-gray-400">No incidents yet.</p>
+          ) : (
+            data.recentIncidents.map((inc) => (
+              <div
+                key={inc.id}
+                className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-black/5 dark:border-white/5 last:border-b-0"
+              >
+                <div className="min-w-0">
+                  <p className="font-mono text-xs font-semibold text-black dark:text-white truncate">
+                    {inc.title}
+                  </p>
+                  <p className="font-mono text-[10px] text-gray-400">
+                    {inc.category} · {inc.difficulty}
+                  </p>
+                </div>
+                <span className="font-mono text-[9px] text-gray-400 shrink-0">
+                  {new Date(inc.updatedAt).toLocaleDateString()}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Activity tab ─────────────────────────────────────────────────────────────
+function ActivityTab() {
+  const [attempts, setAttempts] = useState<{
+    id: string; email: string; username: string | null; title: string;
+    status: string; score: number; maxScore: number; suspicionLevel: string;
+    startedAt: string; submittedAt: string | null;
+  }[]>([]);
+  const [sessions, setSessions] = useState<{
+    id: string; username: string; email: string; title: string;
+    difficulty: string; totalScore: number; isCompleted: boolean;
+    isActive: boolean; createdAt: string;
+  }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totals, setTotals] = useState({ attempts: 0, sessions: 0 });
+
+  const fetchActivity = useCallback(() => {
+    setLoading(true);
+    axios
+      .get(`${proxy}/api/v1/admin/activity`, {
+        ...getAdminRequestConfig(),
+        params: { page: String(page), limit: "15" },
+      })
+      .then((r) => {
+        setAttempts(r.data.data.attempts ?? []);
+        setSessions(r.data.data.incidentSessions ?? []);
+        setTotals({
+          attempts: r.data.data.totalAttempts ?? 0,
+          sessions: r.data.data.totalSessions ?? 0,
+        });
+      })
+      .catch(() => {
+        setAttempts([]);
+        setSessions([]);
+      })
+      .finally(() => setLoading(false));
+  }, [page]);
+
+  useEffect(() => {
+    fetchActivity();
+  }, [fetchActivity]);
+
+  const totalPages = Math.max(1, Math.ceil(Math.max(totals.attempts, totals.sessions) / 15));
+
+  return (
+    <div className="space-y-6">
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className={`${panelSurface} p-4`}>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-gray-400">Assessment attempts</p>
+          <p className="font-mono text-2xl font-bold text-black dark:text-white">{totals.attempts}</p>
+        </div>
+        <div className={`${panelSurface} p-4`}>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-gray-400">Incident sessions</p>
+          <p className="font-mono text-2xl font-bold text-black dark:text-white">{totals.sessions}</p>
+        </div>
+      </div>
+
+      <div className={`${panelSurface} overflow-hidden`}>
+        <div className="px-4 py-3 border-b border-black/5 dark:border-white/5">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-gray-400">
+            Recent assessment attempts
+          </p>
+        </div>
+        {loading ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-12 border-b border-black/5 dark:border-white/5 animate-pulse" />
+          ))
+        ) : attempts.length === 0 ? (
+          <p className="px-4 py-6 font-mono text-xs text-gray-400">No attempts yet.</p>
+        ) : (
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-black/10 dark:border-white/10">
+                {["Candidate", "Assessment", "Status", "Score", "Started", "Flags"].map((h) => (
+                  <th key={h} className="px-4 py-2.5 font-mono text-[9px] uppercase tracking-widest text-gray-400">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {attempts.map((a) => (
+                <tr key={a.id} className="border-b border-black/5 dark:border-white/5 last:border-b-0">
+                  <td className="px-4 py-3">
+                    <p className="font-mono text-xs text-black dark:text-white">{a.username || a.email}</p>
+                    {a.username && <p className="font-mono text-[10px] text-gray-400">{a.email}</p>}
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs text-gray-500">{a.title}</td>
+                  <td className="px-4 py-3">
+                    <span className="font-mono text-[9px] uppercase border border-black/10 dark:border-white/10 px-2 py-0.5 text-gray-500">
+                      {a.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs font-bold text-black dark:text-white">
+                    {a.score}{a.maxScore ? ` / ${a.maxScore}` : ""}
+                  </td>
+                  <td className="px-4 py-3 font-mono text-[10px] text-gray-400">
+                    {new Date(a.startedAt).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3">
+                    {a.suspicionLevel !== "low" && (
+                      <span className="font-mono text-[9px] uppercase text-amber-600 dark:text-amber-400">
+                        {a.suspicionLevel}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className={`${panelSurface} overflow-hidden`}>
+        <div className="px-4 py-3 border-b border-black/5 dark:border-white/5">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-gray-400">
+            Recent incident sessions
+          </p>
+        </div>
+        {loading ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-12 border-b border-black/5 dark:border-white/5 animate-pulse" />
+          ))
+        ) : sessions.length === 0 ? (
+          <p className="px-4 py-6 font-mono text-xs text-gray-400">No incident sessions yet.</p>
+        ) : (
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-black/10 dark:border-white/10">
+                {["User", "Incident", "Score", "Status", "Started"].map((h) => (
+                  <th key={h} className="px-4 py-2.5 font-mono text-[9px] uppercase tracking-widest text-gray-400">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sessions.map((s) => (
+                <tr key={s.id} className="border-b border-black/5 dark:border-white/5 last:border-b-0">
+                  <td className="px-4 py-3">
+                    <p className="font-mono text-xs text-black dark:text-white">{s.username}</p>
+                    <p className="font-mono text-[10px] text-gray-400">{s.email}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="font-mono text-xs text-gray-500">{s.title}</p>
+                    <p className="font-mono text-[10px] text-gray-400">{s.difficulty}</p>
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs font-bold text-black dark:text-white">{s.totalScore}</td>
+                  <td className="px-4 py-3">
+                    <span className="font-mono text-[9px] uppercase border border-black/10 dark:border-white/10 px-2 py-0.5 text-gray-500">
+                      {s.isActive ? "active" : s.isCompleted ? "completed" : "in progress"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 font-mono text-[10px] text-gray-400">
+                    {new Date(s.createdAt).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center gap-2 justify-end">
+          <button
+            disabled={page === 1}
+            onClick={() => setPage((p) => p - 1)}
+            className={`px-3 py-1 font-mono text-[10px] ${panelBorder} text-gray-500 hover:border-black dark:hover:border-white transition-colors disabled:opacity-40`}
+          >
+            ← Prev
+          </button>
+          <span className="font-mono text-[10px] text-gray-400">{page} / {totalPages}</span>
+          <button
+            disabled={page === totalPages}
+            onClick={() => setPage((p) => p + 1)}
+            className={`px-3 py-1 font-mono text-[10px] ${panelBorder} text-gray-500 hover:border-black dark:hover:border-white transition-colors disabled:opacity-40`}
+          >
+            Next →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Maintenance tab ────────────────────────────────────────────────────────
 interface MaintenancePageRow {
   id: string;
@@ -934,8 +1269,10 @@ function MaintenanceTab() {
           Mark page under maintenance
         </h2>
         <p className="mb-5 font-mono text-xs text-gray-500">
-          Paste a full URL or path. Users visiting that page will see an under-maintenance message.
-          Admins can still access the page normally.
+          Paste a full URL or path. Users visiting that page on{" "}
+          <span className="text-amber-600 dark:text-amber-400">enum.live</span> will see an
+          under-maintenance message. Localhost is never blocked. Admins can still access the page
+          normally on production.
         </p>
 
         <div className="grid gap-4 lg:grid-cols-2">

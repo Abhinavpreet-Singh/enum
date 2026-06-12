@@ -234,6 +234,12 @@ export default function AuthForm({
 
       const detectedType: AccountType = response.data.accountType ?? "user";
       localStorage.setItem("accountType", detectedType);
+      if (detectedType === "admin") {
+        const adminEmail =
+          response.data.data?.email ||
+          (isEmail ? loginForm.identifier : "");
+        if (adminEmail) localStorage.setItem("adminEmail", adminEmail);
+      }
       localStorage.setItem(
         "Name",
         detectedType === "organization"
@@ -244,7 +250,13 @@ export default function AuthForm({
         response.data.data.id ?? response.data.data._id,
       );
       localStorage.setItem("accessToken", response.data.accessToken);
-      router.push(returnTo);
+      const destination =
+        detectedType === "admin"
+          ? "/dashboard/admin"
+          : returnTo === "/dashboard/admin"
+            ? "/dashboard"
+            : returnTo;
+      router.push(destination);
     } catch (err) {
       setIsLoading(false);
       if (axios.isAxiosError(err)) {

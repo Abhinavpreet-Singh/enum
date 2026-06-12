@@ -16,6 +16,9 @@ export const getStats = asyncHandler(async (req, res) => {
     totalUsers, totalOrganizations,
     totalAssessments, totalAttempts, totalQuestionBanks,
     pendingOrganizations,
+    totalSimulations, totalIncidents, totalDsaQuestions,
+    totalLinuxQuestions, totalSystemDesign, totalIncidentSessions,
+    activeMaintenancePages,
     recentUsers, recentOrganizations,
   ] = await Promise.all([
     prisma.user.count(),
@@ -24,6 +27,13 @@ export const getStats = asyncHandler(async (req, res) => {
     prisma.candidateAttempt.count(),
     prisma.questionBank.count(),
     prisma.organization.count({ where: { approvalStatus: "pending" } }),
+    prisma.simulation.count(),
+    prisma.incidentSimulation.count(),
+    prisma.question.count(),
+    prisma.linuxQuestion.count(),
+    prisma.systemDesignSimulation.count(),
+    prisma.incidentSession.count(),
+    prisma.maintenancePage.count({ where: { enabled: true } }),
     prisma.user.findMany({ orderBy: { id: "desc" }, take: 5, select: { id: true, username: true, email: true, displayName: true, role: true, avatar: true } }),
     prisma.organization.findMany({ orderBy: { createdAt: "desc" }, take: 5, select: { id: true, name: true, email: true, createdAt: true, approvalStatus: true } }),
   ]);
@@ -44,6 +54,9 @@ export const getStats = asyncHandler(async (req, res) => {
       totalUsers, totalOrganizations,
       totalAssessments, totalAttempts, totalQuestionBanks,
       pendingOrganizations,
+      totalSimulations, totalIncidents, totalDsaQuestions,
+      totalLinuxQuestions, totalSystemDesign, totalIncidentSessions,
+      activeMaintenancePages,
       recentUsers: normalizedRecentUsers,
       recentOrganizations: recentOrganizations.map((org) => ({
         ...org,
@@ -263,6 +276,138 @@ export const updateOrganizationApproval = asyncHandler(async (req, res) => {
     select: { id: true, name: true, approvalStatus: true },
   });
   return res.status(200).json({ message: `Organization ${status}.`, data: updated });
+});
+
+export const getContentStats = asyncHandler(async (req, res) => {
+  const [
+    simulations, incidents, dsaQuestions, linuxQuestions, systemDesign,
+    publishedAssessments, draftAssessments, archivedAssessments,
+    incidentSessions, simulationProgress, submissions, violations,
+    recentSimulations, recentIncidents,
+  ] = await Promise.all([
+    prisma.simulation.count(),
+    prisma.incidentSimulation.count(),
+    prisma.question.count(),
+    prisma.linuxQuestion.count(),
+    prisma.systemDesignSimulation.count(),
+    prisma.assessment.count({ where: { status: "published" } }),
+    prisma.assessment.count({ where: { status: "draft" } }),
+    prisma.assessment.count({ where: { status: "archived" } }),
+    prisma.incidentSession.count(),
+    prisma.userSimulationProgress.count(),
+    prisma.submission.count(),
+    prisma.violation.count(),
+    prisma.simulation.findMany({
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+      select: { id: true, title: true, category: true, difficulty: true, updatedAt: true },
+    }),
+    prisma.incidentSimulation.findMany({
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+      select: { id: true, title: true, difficulty: true, category: true, updatedAt: true },
+    }),
+  ]);
+
+  return res.status(200).json({
+    message: "Content stats fetched.",
+    data: {
+      counts: {
+        simulations,
+        incidents,
+        dsaQuestions,
+        linuxQuestions,
+        systemDesign,
+        publishedAssessments,
+        draftAssessments,
+        archivedAssessments,
+        incidentSessions,
+        simulationProgress,
+        submissions,
+        violations,
+      },
+      recentSimulations,
+      recentIncidents,
+    },
+  });
+});
+
+export const getRecentActivity = asyncHandler(async (req, res) => {
+  const { page = "1", limit = "15" } = req.query;
+  const take = Math.min(parseInt(limit) || 15, 50);
+  const skip = (parseInt(page) - 1) * take;
+
+  const [attempts, totalAttempts, incidentSessions, totalSessions] = await Promise.all([
+    prisma.candidateAttempt.findMany({
+      orderBy: { startedAt: "desc" },
+      skip,
+      take,
+      select: {
+        id: true,
+        email: true,
+        status: true,
+        totalScore: true,
+        maxScore: true,
+        startedAt: true,
+        submittedAt: true,
+        suspicionLevel: true,
+        assessment: { select: { title: true, testCode: true } },
+        user: { select: { username: true, displayName: true } },
+      },
+    }),
+    prisma.candidateAttempt.count(),
+    prisma.incidentSession.findMany({
+      orderBy: { createdAt: "desc" },
+      skip,
+      take,
+      select: {
+        id: true,
+        totalScore: true,
+        isCompleted: true,
+        isActive: true,
+        createdAt: true,
+        user: { select: { username: true, displayName: true, email: true } },
+        incident: { select: { title: true, difficulty: true } },
+      },
+    }),
+    prisma.incidentSession.count(),
+  ]);
+
+  return res.status(200).json({
+    message: "Recent activity fetched.",
+    data: {
+      attempts: attempts.map((a) => ({
+        id: a.id,
+        type: "assessment",
+        email: a.email,
+        username: a.user?.displayName || a.user?.username || null,
+        title: a.assessment?.title || "Unknown assessment",
+        testCode: a.assessment?.testCode || "",
+        status: a.status,
+        score: a.totalScore,
+        maxScore: a.maxScore,
+        suspicionLevel: a.suspicionLevel,
+        startedAt: a.startedAt,
+        submittedAt: a.submittedAt,
+      })),
+      incidentSessions: incidentSessions.map((s) => ({
+        id: s.id,
+        type: "incident",
+        username: s.user?.displayName || s.user?.username || "Unknown",
+        email: s.user?.email || "",
+        title: s.incident?.title || "Unknown incident",
+        difficulty: s.incident?.difficulty || "",
+        totalScore: s.totalScore,
+        isCompleted: s.isCompleted,
+        isActive: s.isActive,
+        createdAt: s.createdAt,
+      })),
+      totalAttempts,
+      totalSessions,
+      page: parseInt(page),
+      limit: take,
+    },
+  });
 });
 
 export const deleteOrganization = asyncHandler(async (req, res) => {

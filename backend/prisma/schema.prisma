@@ -672,7 +672,7 @@ model IncidentSession {
   incident IncidentSimulation   @relation(fields: [incidentId], references: [id], onDelete: Cascade)
   state    IncidentSessionState?
 
-  @@index([userId, incidentId])
+  @@unique([userId, incidentId])
   @@map("incidentsessions")
 }
 

@@ -13,11 +13,13 @@ interface TokenPayload {
 function detect(): AccountType {
   if (typeof window === "undefined") return "student";
   const stored = localStorage.getItem("accountType");
-  if (stored === "organization") return stored;
+  if (stored === "admin") return "admin";
+  if (stored === "organization") return "organization";
   try {
     const token = localStorage.getItem("accessToken");
     if (token) {
       const decoded = jwtDecode<TokenPayload>(token);
+      if (decoded.accountType === "admin") return "admin";
       if (decoded.accountType === "organization") return "organization";
       if (decoded.accountRole === "admin") return "admin";
     }

@@ -252,10 +252,9 @@ const startIncidentSession = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Incident simulation not found");
   }
 
-  const existingSession = await prisma.incidentSession.findUnique({
-    where: {
-      userId_incidentId: { userId, incidentId: id },
-    },
+  const existingSession = await prisma.incidentSession.findFirst({
+    where: { userId, incidentId: id },
+    orderBy: { updatedAt: "desc" },
   });
 
   const initialStateData = {

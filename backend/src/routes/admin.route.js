@@ -6,6 +6,7 @@ import {
   getStats,
   getAllUsers, getUserById, deleteUser,
   getAllOrganizations, getOrganizationById, updateOrganizationApproval, deleteOrganization,
+  getContentStats, getRecentActivity,
 } from "../controllers/admin.controller.js";
 import {
   getAllMaintenancePages,
@@ -29,6 +30,8 @@ router.use((_req, res, next) => {
 
 // Stats
 router.get("/stats", getStats);
+router.get("/content-stats", getContentStats);
+router.get("/activity", getRecentActivity);
 router.get("/getAdminPrev", getAdminPrev);
 
 // Users

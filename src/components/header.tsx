@@ -25,27 +25,6 @@ function ThemeButton() {
   );
 }
 
-const DESKTOP_APP_DOWNLOAD =
-  process.env.NEXT_PUBLIC_DESKTOP_APP_URL ||
-  "https://github.com/Abhinavpreet-Singh/enum/releases/latest";
-
-function DownloadButton({
-  className = "",
-}: {
-  className?: string;
-}) {
-  return (
-    <a
-      href={DESKTOP_APP_DOWNLOAD}
-      target="_blank"
-      rel="noreferrer"
-      className={`rounded-full border border-black/90 bg-white px-5 py-2 font-mono text-xs tracking-[0.18em] text-black transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm hover:bg-gray-50 dark:border-white/90 dark:bg-black dark:text-white dark:hover:bg-gray-900 cursor-pointer ${className}`}
-    >
-      DOWNLOAD
-    </a>
-  );
-}
-
 function ProfileTrigger({
   isProfileMenuOpen,
   setIsProfileMenuOpen,
@@ -241,7 +220,6 @@ export default function Header() {
 
             {!isAuthenticated ? (
               <div className="hidden items-center gap-3 md:flex md:gap-4">
-                <DownloadButton />
                 <Link
                   href="/login"
                   className="hidden rounded-full border border-black/90 bg-black px-5 py-2 font-mono text-xs tracking-[0.18em] text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm hover:bg-gray-900 dark:border-white/90 dark:bg-white dark:text-black dark:hover:bg-gray-100 sm:inline cursor-pointer"
@@ -251,7 +229,6 @@ export default function Header() {
               </div>
             ) : (
               <div className="relative hidden items-center gap-3 md:flex">
-                <DownloadButton />
                 <ProfileTrigger
                   isProfileMenuOpen={isProfileMenuOpen}
                   setIsProfileMenuOpen={setIsProfileMenuOpen}
@@ -349,7 +326,6 @@ export default function Header() {
             </nav>
 
             <div className="grid gap-3">
-              <DownloadButton className="w-full rounded-2xl border-gray-200 bg-white text-gray-700 dark:border-gray-800 dark:bg-black dark:text-gray-300" />
               {isAuthenticated ? (
                 <div className="rounded-2xl border border-gray-200 bg-white p-2 dark:border-gray-800 dark:bg-black">
                   <Link

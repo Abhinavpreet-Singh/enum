@@ -2,8 +2,9 @@
 
 import Sidebar from "@/components/dashboard/sidebar";
 import ProtectedRoute from "@/components/auth/protected-route";
+import AdminDashboardGuard from "@/components/auth/admin-dashboard-guard";
 import MaintenanceGate from "@/components/maintenance/maintenance-gate";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { usePathname } from "next/navigation";
 
 export default function DashboardLayout({
@@ -31,7 +32,9 @@ export default function DashboardLayout({
   return (
     <ProtectedRoute>
       <div className="relative h-dvh overflow-hidden bg-white text-black dark:bg-black dark:text-white">
-        <Sidebar pinned={pinned} onTogglePin={() => setPinned((p) => !p)} />
+        <Suspense fallback={null}>
+          <Sidebar pinned={pinned} onTogglePin={() => setPinned((p) => !p)} />
+        </Suspense>
         <main
           style={{
             marginLeft: pinned ? 220 : 72,
@@ -43,7 +46,9 @@ export default function DashboardLayout({
               : "pr-6 sm:pr-8 lg:pr-12 overflow-y-auto overflow-x-hidden pb-20 lg:pb-0"
           }`}
         >
-          <MaintenanceGate>{children}</MaintenanceGate>
+          <MaintenanceGate>
+            <AdminDashboardGuard>{children}</AdminDashboardGuard>
+          </MaintenanceGate>
         </main>
       </div>
     </ProtectedRoute>

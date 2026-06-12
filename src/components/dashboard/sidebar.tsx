@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
@@ -13,6 +13,7 @@ import {
   Trophy,
   LogOut,
   Shield,
+  Building2,
   HandshakeIcon,
   Sun,
   Moon,
@@ -24,6 +25,9 @@ import {
   BarChart3,
   Award,
   Settings,
+  Layers,
+  Activity,
+  Construction,
 } from "lucide-react";
 import { useTheme } from "@/providers/theme-provider";
 import useAccountType from "@/hooks/useAccountType";
@@ -48,7 +52,17 @@ const ORGANIZATION_NAV = [
   { icon: Settings, label: "Settings", href: "/dashboard/settings", matchExact: false },
 ];
 
+const ADMIN_NAV = [
+  { icon: BarChart3, label: "Overview", href: "/dashboard/admin?tab=overview", tab: "overview" },
+  { icon: Users, label: "Users", href: "/dashboard/admin?tab=users", tab: "users" },
+  { icon: Building2, label: "Companies", href: "/dashboard/admin?tab=companies", tab: "companies" },
+  { icon: Layers, label: "Content", href: "/dashboard/admin?tab=content", tab: "content" },
+  { icon: Activity, label: "Activity", href: "/dashboard/admin?tab=activity", tab: "activity" },
+  { icon: Construction, label: "Maintenance", href: "/dashboard/admin?tab=maintenance", tab: "maintenance" },
+];
+
 function getNavForRole(role: string) {
+  if (role === "admin") return ADMIN_NAV;
   if (role === "organization") return ORGANIZATION_NAV;
   return STUDENT_NAV;
 }
@@ -64,7 +78,9 @@ interface SidebarProps {
 
 export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const accountType = useAccountType();
+  const isAdmin = accountType === "admin";
   const [navItems, setNavItems] = useState(() => getNavForRole(accountType));
 
   // Update nav when role changes
@@ -116,6 +132,12 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
 
   // Hydrate display name + avatar from backend on every dashboard mount
   useEffect(() => {
+    if (isAdmin) {
+      const adminEmail = localStorage.getItem("adminEmail") || "Platform Admin";
+      setUserName(adminEmail);
+      return;
+    }
+
     const token = localStorage.getItem("accessToken");
     if (!token) return;
 
@@ -143,58 +165,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
         }
       })
       .catch(() => {});
-  }, [accountType]);
-
-  useEffect(() => {
-    const addAdminNav = () => {
-      setNavItems((prev) => {
-        if (prev.some((item) => item.href === "/dashboard/admin")) {
-          return prev;
-        }
-
-        return [
-          ...prev,
-          {
-            icon: Shield,
-            label: "Admin",
-            href: "/dashboard/admin",
-            matchExact: false,
-          },
-        ];
-      });
-    };
-
-    // Organization accounts should never see admin nav.
-    if (accountType === "organization") return;
-
-    // Admin account is explicit in token/localStorage, so no extra API calls needed.
-    if (accountType === "admin") {
-      addAdminNav();
-      return;
-    }
-
-    const adminPrev = async () => {
-      try {
-        const userId = localStorage.getItem("id");
-        if (!userId || userId === "undefined" || userId === "null") return;
-
-        const [adminRes, userRes] = await Promise.all([
-          axios.get(`${proxy}/api/v1/admin/getAdminPrev`),
-          axios.get(`${proxy}/api/v1/users/getUserById/${userId}`),
-        ]);
-
-        const adminEmail = String(adminRes?.data?.data?.email);
-        const userEmail = userRes?.data?.data?.email;
-
-        if (adminEmail === userEmail) {
-          addAdminNav();
-        }
-      } catch (error) {
-        console.log(error);
-      }
-    };
-    adminPrev();
-  }, [accountType]);
+  }, [accountType, isAdmin]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -217,8 +188,14 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
     }
   };
 
+  const activeTab = searchParams.get("tab") || "overview";
+
   const isActiveRoute = (item: (typeof navItems)[0]) => {
-    if (item.matchExact) return pathname === item.href;
+    if (isAdmin && "tab" in item) {
+      return pathname === "/dashboard/admin" && activeTab === item.tab;
+    }
+    if ("matchExact" in item && item.matchExact) return pathname === item.href;
+    if ("matchExact" in item) return pathname.startsWith(item.href);
     return pathname.startsWith(item.href);
   };
 
@@ -319,49 +296,70 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
           {/* Separator */}
           <div className="mx-4 border-t border-gray-100 dark:border-gray-900" />
 
-          {/* User Profile */}
-          <Link
-            href="/dashboard/profile"
-            className="block px-4 py-3 hover:bg-gray-50 dark:hover:bg-transparent rounded-lg transition-all duration-200 border border-transparent hover:border-gray-200 dark:hover:border-white"
-            title="View Profile"
-            onClick={() => {
-              if (!pinned) setHovered(false);
-            }}
-          >
-            <div className="flex items-center gap-3">
-              {/* Avatar — image or dark-gradient initials fallback */}
-              <div className="w-9 h-9 rounded-full shrink-0 overflow-hidden bg-linear-to-br from-gray-700 to-gray-900 flex items-center justify-center">
-                {sidebarAvatar ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={sidebarAvatar}
-                    alt="avatar"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-white text-xs font-bold tracking-wide select-none">
-                    {(userName || "G")
-                      .split(" ")
-                      .slice(0, 2)
-                      .map((w) => w[0]?.toUpperCase())
-                      .join("")}
-                  </span>
-                )}
-              </div>
-              <div
-                className={`min-w-0 transition-opacity duration-300 ${
-                  expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
-                }`}
-              >
-                <p className="font-semibold text-gray-900 dark:text-white text-sm truncate whitespace-nowrap">
-                  Profile
-                </p>
-                <p className="font-mono text-[10px] text-gray-400 dark:text-gray-500 truncate whitespace-nowrap">
-                  {userName || "Guest"}
-                </p>
+          {/* User profile / admin identity */}
+          {isAdmin ? (
+            <div className="px-4 py-3 rounded-lg border border-amber-400/30 bg-amber-50/50 dark:bg-amber-950/10">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center border border-amber-400/40 bg-amber-100 dark:bg-amber-950/30">
+                  <Shield className="w-4 h-4 text-amber-700 dark:text-amber-400" />
+                </div>
+                <div
+                  className={`min-w-0 transition-opacity duration-300 ${
+                    expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
+                  }`}
+                >
+                  <p className="font-semibold text-gray-900 dark:text-white text-sm truncate whitespace-nowrap">
+                    Admin
+                  </p>
+                  <p className="font-mono text-[10px] text-amber-700 dark:text-amber-400 truncate whitespace-nowrap">
+                    {userName || "Platform Admin"}
+                  </p>
+                </div>
               </div>
             </div>
-          </Link>
+          ) : (
+            <Link
+              href="/dashboard/profile"
+              className="block px-4 py-3 hover:bg-gray-50 dark:hover:bg-transparent rounded-lg transition-all duration-200 border border-transparent hover:border-gray-200 dark:hover:border-white"
+              title="View Profile"
+              onClick={() => {
+                if (!pinned) setHovered(false);
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full shrink-0 overflow-hidden bg-linear-to-br from-gray-700 to-gray-900 flex items-center justify-center">
+                  {sidebarAvatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={sidebarAvatar}
+                      alt="avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-white text-xs font-bold tracking-wide select-none">
+                      {(userName || "G")
+                        .split(" ")
+                        .slice(0, 2)
+                        .map((w) => w[0]?.toUpperCase())
+                        .join("")}
+                    </span>
+                  )}
+                </div>
+                <div
+                  className={`min-w-0 transition-opacity duration-300 ${
+                    expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
+                  }`}
+                >
+                  <p className="font-semibold text-gray-900 dark:text-white text-sm truncate whitespace-nowrap">
+                    Profile
+                  </p>
+                  <p className="font-mono text-[10px] text-gray-400 dark:text-gray-500 truncate whitespace-nowrap">
+                    {userName || "Guest"}
+                  </p>
+                </div>
+              </div>
+            </Link>
+          )}
 
           {/* Bottom Actions */}
           <div className="px-3 pb-4 space-y-0.5">
