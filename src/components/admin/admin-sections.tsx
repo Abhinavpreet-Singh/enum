@@ -8,6 +8,7 @@ import {
   Trash2, CheckCircle, XCircle, Clock,
   Search, AlertTriangle, X, Eye, Construction, Plus, Power,
   Layers, Activity, Code, Target, AlertTriangle as IncidentIcon,
+  Ban, RotateCcw, Zap, History,
 } from "lucide-react";
 import { normalizePagePath } from "@/lib/normalize-page-path";
 
@@ -183,21 +184,28 @@ export function OverviewTab() {
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────
+type UserRow = {
+  id: string; username: string; email: string; fullName: string;
+  accountRole: string; isVerified: boolean; createdAt: string;
+  _count: { candidateAttempts: number; incidentSessions: number };
+};
+type XpAward = { id: string; awardKey: string; xpAmount: number; createdAt: string };
+type ActivityLog = { id: string; activityType: string; resourceTitle: string; outcome: string; xpEarned: number; score: number | null; createdAt: string };
+
 export function UsersTab() {
-  const [users, setUsers] = useState<{
-    id: string; username: string; email: string; fullName: string;
-    accountRole: string; isVerified: boolean; createdAt: string;
-    _count: { candidateAttempts: number; incidentSessions: number };
-  }[]>([]);
+  const [users, setUsers] = useState<UserRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<typeof users[0] | null>(null);
+  const [selected, setSelected] = useState<UserRow | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<Record<string, unknown> | null>(null);
   const [delConfirm, setDelConfirm] = useState<string | null>(null);
+  const [suspendConfirm, setSuspendConfirm] = useState<string | null>(null);
+  const [drawerTab, setDrawerTab] = useState<"profile" | "activity" | "xp">("profile");
+  const [userActivity, setUserActivity] = useState<{ logs: ActivityLog[]; xpAwards: XpAward[] } | null>(null);
 
-  const fetch = useCallback(() => {
+  const fetchList = useCallback(() => {
     setLoading(true);
     const params: Record<string, string> = { page: String(page), limit: "15" };
     if (search) params.search = search;
@@ -207,25 +215,40 @@ export function UsersTab() {
       .finally(() => setLoading(false));
   }, [page, search]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetch();
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [fetch]);
+  useEffect(() => { const t = setTimeout(fetchList, 0); return () => clearTimeout(t); }, [fetchList]);
 
-  const openDetail = async (u: typeof users[0]) => {
-    setSelected(u);
+  const openDetail = async (u: UserRow) => {
+    setSelected(u); setDrawerTab("profile"); setUserActivity(null);
     const r = await axios.get(`${proxy}/api/v1/admin/users/${u.id}`, getAdminRequestConfig());
     setSelectedDetail(r.data.data);
   };
 
+  const loadActivity = async (id: string) => {
+    if (userActivity) return;
+    try {
+      const r = await axios.get(`${proxy}/api/v1/admin/users/${id}/activity`, getAdminRequestConfig());
+      setUserActivity(r.data.data);
+    } catch { setUserActivity({ logs: [], xpAwards: [] }); }
+  };
+
   const handleDelete = async (id: string) => {
     await axios.delete(`${proxy}/api/v1/admin/users/${id}`, getAdminRequestConfig());
-    setDelConfirm(null); setSelected(null); setSelectedDetail(null); fetch();
+    setDelConfirm(null); setSelected(null); setSelectedDetail(null); fetchList();
+  };
+
+  const handleSuspend = async (id: string) => {
+    const u = users.find((u) => u.id === id);
+    const isSuspended = u?.accountRole?.startsWith("__suspended__");
+    await axios.patch(`${proxy}/api/v1/admin/users/${id}/suspend`, {
+      suspended: !isSuspended,
+      reason: isSuspended ? "" : "Admin action",
+    }, getAdminRequestConfig());
+    setSuspendConfirm(null); setSelected(null); setSelectedDetail(null); fetchList();
   };
 
   const totalPages = Math.ceil(total / 15);
+
+  const isSuspended = (u: UserRow) => u.accountRole?.startsWith("__suspended__");
 
   return (
     <div className="space-y-4">
@@ -253,16 +276,22 @@ export function UsersTab() {
             </thead>
             <tbody>
               {users.map(u => (
-                <tr key={u.id} className="border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/1.5 dark:hover:bg-white/1.5 transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs font-semibold text-black dark:text-white">{u.username}</td>
+                <tr key={u.id} className={`border-b border-black/5 dark:border-white/5 last:border-b-0 hover:bg-black/1.5 dark:hover:bg-white/1.5 transition-colors ${isSuspended(u) ? "opacity-50" : ""}`}>
+                  <td className="px-4 py-3">
+                    <p className="font-mono text-xs font-semibold text-black dark:text-white">{u.username}</p>
+                    {isSuspended(u) && <span className="font-mono text-[8px] uppercase text-red-500 tracking-wider">suspended</span>}
+                  </td>
                   <td className="px-4 py-3 font-mono text-xs text-gray-500">{u.email}</td>
-                  <td className="px-4 py-3"><span className="font-mono text-[9px] uppercase border border-black/10 dark:border-white/10 px-2 py-0.5 text-gray-500">{u.accountRole}</span></td>
+                  <td className="px-4 py-3"><span className="font-mono text-[9px] uppercase border border-black/10 dark:border-white/10 px-2 py-0.5 text-gray-500">{isSuspended(u) ? "suspended" : u.accountRole}</span></td>
                   <td className="px-4 py-3">{u.isVerified ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> : <XCircle className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600" />}</td>
                   <td className="px-4 py-3 font-mono text-[10px] text-gray-400">{u._count.candidateAttempts}</td>
                   <td className="px-4 py-3 font-mono text-[10px] text-gray-400">{new Date(u.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
                       <button onClick={() => openDetail(u)} className="p-1 text-gray-400 hover:text-black dark:hover:text-white transition-colors" title="View"><Eye className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => setSuspendConfirm(u.id)} className={`p-1 transition-colors ${isSuspended(u) ? "text-amber-500 hover:text-emerald-500" : "text-gray-400 hover:text-amber-500"}`} title={isSuspended(u) ? "Unsuspend" : "Suspend"}>
+                        {isSuspended(u) ? <RotateCcw className="w-3.5 h-3.5" /> : <Ban className="w-3.5 h-3.5" />}
+                      </button>
                       <button onClick={() => setDelConfirm(u.id)} className="p-1 text-gray-400 hover:text-red-500 transition-colors" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </td>
@@ -273,7 +302,6 @@ export function UsersTab() {
         )}
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center gap-2 justify-end">
           <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className={`px-3 py-1 font-mono text-[10px] ${panelBorder} text-gray-500 hover:border-black dark:hover:border-white transition-colors disabled:opacity-40`}>← Prev</button>
@@ -292,55 +320,136 @@ export function UsersTab() {
                 <p className="font-mono text-[10px] text-gray-400 mt-0.5">@{selected.username}</p>
               </div>
               <div className="flex items-center gap-2">
+                <button onClick={() => setSuspendConfirm(selected.id)} className={`p-1.5 transition-colors ${isSuspended(selected) ? "text-amber-500" : "text-gray-400 hover:text-amber-500"}`} title={isSuspended(selected) ? "Unsuspend" : "Suspend"}>
+                  {isSuspended(selected) ? <RotateCcw className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                </button>
                 <button onClick={() => setDelConfirm(selected.id)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                <button onClick={() => { setSelected(null); setSelectedDetail(null); }} className="p-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"><X className="w-4 h-4 text-gray-400" /></button>
+                <button onClick={() => { setSelected(null); setSelectedDetail(null); setUserActivity(null); }} className="p-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"><X className="w-4 h-4 text-gray-400" /></button>
               </div>
             </div>
+
+            {/* Drawer sub-tabs */}
+            <div className="flex border-b border-black/10 dark:border-white/10 shrink-0">
+              {(["profile", "activity", "xp"] as const).map((t) => (
+                <button key={t} onClick={() => {
+                  setDrawerTab(t);
+                  if (t !== "profile") loadActivity(selected.id);
+                }}
+                className={`flex items-center gap-1.5 px-4 py-2 font-mono text-[10px] uppercase tracking-wider border-b-2 transition-colors -mb-px ${drawerTab === t ? "border-black dark:border-white text-black dark:text-white" : "border-transparent text-gray-400 hover:text-black dark:hover:text-white"}`}>
+                  {t === "activity" && <History className="w-3 h-3" />}
+                  {t === "xp" && <Zap className="w-3 h-3" />}
+                  {t}
+                </button>
+              ))}
+            </div>
+
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-              {!selectedDetail ? (
-                <div className="animate-pulse space-y-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-8 bg-black/5 dark:bg-white/5" />)}</div>
-              ) : (
-                <>
-                  <DetailSection title="Account">
-                    <DetailRow label="User ID"   value={String(selectedDetail.id)} mono />
-                    <DetailRow label="Username"  value={String(selectedDetail.username)} />
-                    <DetailRow label="Email"     value={String(selectedDetail.email)} />
-                    <DetailRow label="Full Name" value={String(selectedDetail.fullName || "—")} />
-                    <DetailRow label="Role"      value={String(selectedDetail.accountRole)} />
-                    <DetailRow label="Verified"  value={selectedDetail.isVerified ? "Yes" : "No"} />
-                    <DetailRow label="GitHub"    value={selectedDetail.githubId ? "Connected" : "—"} />
-                    <DetailRow label="Google"    value={selectedDetail.googleId ? "Connected" : "—"} />
-                    <DetailRow label="Joined"    value={new Date(String(selectedDetail.createdAt)).toLocaleString()} />
-                  </DetailSection>
-                  {selectedDetail.bio && (
-                    <DetailSection title="Bio">
-                      <p className="font-mono text-xs text-gray-600 dark:text-gray-400">{String(selectedDetail.bio)}</p>
+              {drawerTab === "profile" && (
+                !selectedDetail ? (
+                  <div className="animate-pulse space-y-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-8 bg-black/5 dark:bg-white/5" />)}</div>
+                ) : (
+                  <>
+                    <DetailSection title="Account">
+                      <DetailRow label="User ID"   value={String(selectedDetail.id)} mono />
+                      <DetailRow label="Username"  value={String(selectedDetail.username)} />
+                      <DetailRow label="Email"     value={String(selectedDetail.email)} />
+                      <DetailRow label="Full Name" value={String(selectedDetail.fullName || "—")} />
+                      <DetailRow label="Role"      value={isSuspended(selected) ? "Suspended" : String(selectedDetail.accountRole)} />
+                      <DetailRow label="Verified"  value={selectedDetail.isVerified ? "Yes" : "No"} />
+                      <DetailRow label="GitHub"    value={selectedDetail.githubId ? "Connected" : "—"} />
+                      <DetailRow label="Google"    value={selectedDetail.googleId ? "Connected" : "—"} />
+                      <DetailRow label="Joined"    value={new Date(String(selectedDetail.createdAt)).toLocaleString()} />
                     </DetailSection>
-                  )}
-                  <DetailSection title="Activity">
-                    <DetailRow label="Assessment Attempts" value={String((selectedDetail._count as { candidateAttempts: number }).candidateAttempts)} />
-                    <DetailRow label="Incident Sessions"   value={String((selectedDetail._count as { incidentSessions: number }).incidentSessions)} />
+                    {selectedDetail.bio && (
+                      <DetailSection title="Bio">
+                        <p className="font-mono text-xs text-gray-600 dark:text-gray-400">{String(selectedDetail.bio)}</p>
+                      </DetailSection>
+                    )}
+                    <DetailSection title="Activity">
+                      <DetailRow label="Assessment Attempts" value={String((selectedDetail._count as { candidateAttempts: number }).candidateAttempts)} />
+                      <DetailRow label="Incident Sessions"   value={String((selectedDetail._count as { incidentSessions: number }).incidentSessions)} />
+                    </DetailSection>
+                    {((selectedDetail.candidateAttempts as unknown[]) || []).length > 0 && (
+                      <DetailSection title="Recent Attempts">
+                        {(selectedDetail.candidateAttempts as { id: string; score: number; status: string; createdAt: string }[]).slice(0, 5).map(a => (
+                          <div key={a.id} className="flex justify-between items-center py-1 border-b border-black/5 dark:border-white/5 last:border-b-0">
+                            <span className="font-mono text-[10px] text-gray-500">{new Date(a.createdAt).toLocaleDateString()}</span>
+                            <span className="font-mono text-[10px] text-gray-400">{a.status}</span>
+                            <span className="font-mono text-[10px] font-bold text-black dark:text-white">{a.score ?? "—"} pts</span>
+                          </div>
+                        ))}
+                      </DetailSection>
+                    )}
+                  </>
+                )
+              )}
+
+              {drawerTab === "activity" && (
+                !userActivity ? (
+                  <div className="animate-pulse space-y-3">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-10 bg-black/5 dark:bg-white/5" />)}</div>
+                ) : userActivity.logs.length === 0 ? (
+                  <p className="font-mono text-xs text-gray-400">No activity logged for this user.</p>
+                ) : (
+                  <DetailSection title={`Activity Log (${userActivity.logs.length})`}>
+                    {userActivity.logs.map((log) => (
+                      <div key={log.id} className="flex items-start justify-between gap-2 px-3 py-2 border-b border-black/5 dark:border-white/5 last:border-b-0">
+                        <div className="min-w-0">
+                          <p className="font-mono text-[10px] text-black dark:text-white font-semibold truncate">{log.resourceTitle || log.activityType}</p>
+                          <p className="font-mono text-[9px] text-gray-400 capitalize">{log.activityType} · {log.outcome}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-mono text-[10px] font-bold text-black dark:text-white">+{log.xpEarned} XP</p>
+                          <p className="font-mono text-[9px] text-gray-400">{new Date(log.createdAt).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    ))}
                   </DetailSection>
-                  {((selectedDetail.candidateAttempts as unknown[]) || []).length > 0 && (
-                    <DetailSection title="Recent Attempts">
-                      {(selectedDetail.candidateAttempts as { id: string; score: number; status: string; createdAt: string }[]).slice(0, 5).map(a => (
-                        <div key={a.id} className="flex justify-between items-center py-1 border-b border-black/5 dark:border-white/5 last:border-b-0">
-                          <span className="font-mono text-[10px] text-gray-500">{new Date(a.createdAt).toLocaleDateString()}</span>
-                          <span className="font-mono text-[10px] text-gray-400">{a.status}</span>
-                          <span className="font-mono text-[10px] font-bold text-black dark:text-white">{a.score ?? "—"} pts</span>
+                )
+              )}
+
+              {drawerTab === "xp" && (
+                !userActivity ? (
+                  <div className="animate-pulse space-y-3">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-10 bg-black/5 dark:bg-white/5" />)}</div>
+                ) : userActivity.xpAwards.length === 0 ? (
+                  <p className="font-mono text-xs text-gray-400">No XP awards recorded.</p>
+                ) : (
+                  <>
+                    <div className={`${panelSurface} px-4 py-3 flex items-center gap-3`}>
+                      <Zap className="w-4 h-4 text-amber-500" />
+                      <div>
+                        <p className="font-mono text-[10px] uppercase tracking-widest text-gray-400">Total XP</p>
+                        <p className="font-mono text-xl font-bold text-black dark:text-white">
+                          {userActivity.xpAwards.reduce((sum, a) => sum + a.xpAmount, 0).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <DetailSection title={`XP Ledger (${userActivity.xpAwards.length} awards)`}>
+                      {userActivity.xpAwards.map((award) => (
+                        <div key={award.id} className="flex items-center justify-between gap-2 px-3 py-2 border-b border-black/5 dark:border-white/5 last:border-b-0">
+                          <div className="min-w-0">
+                            <p className="font-mono text-[10px] text-black dark:text-white truncate">{award.awardKey}</p>
+                            <p className="font-mono text-[9px] text-gray-400">{new Date(award.createdAt).toLocaleDateString()}</p>
+                          </div>
+                          <span className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400 shrink-0">+{award.xpAmount}</span>
                         </div>
                       ))}
                     </DetailSection>
-                  )}
-                </>
+                  </>
+                )
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete confirm */}
       {delConfirm && <ConfirmDelete onCancel={() => setDelConfirm(null)} onConfirm={() => handleDelete(delConfirm)} label="Delete this user and all their data?" />}
+      {suspendConfirm && (
+        <ConfirmDelete
+          onCancel={() => setSuspendConfirm(null)}
+          onConfirm={() => handleSuspend(suspendConfirm)}
+          label={isSuspended(users.find((u) => u.id === suspendConfirm)!) ? "Unsuspend this user?" : "Suspend this user? They will not be able to log in."}
+        />
+      )}
     </div>
   );
 }

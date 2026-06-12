@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { proxy } from "@/app/proxy.js";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 
 type AuthMode = "login" | "register";
 type RegisterStep = "form" | "otp";
@@ -20,6 +21,8 @@ export default function AuthForm({
   initialReturnTo = "/dashboard",
 }: AuthFormProps) {
   const router = useRouter();
+  const { isEnabled: isSettingEnabled } = usePlatformSettings();
+  const signupEnabled = isSettingEnabled("signup_enabled");
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [accountType, setAccountType] = useState<AccountType>("user");
   const [registerStep, setRegisterStep] = useState<RegisterStep>("form");
@@ -56,6 +59,15 @@ export default function AuthForm({
 
   const returnTo = initialReturnTo || "/dashboard";
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error") === "signup_disabled") {
+      setError(
+        "New student signups and social logins are currently disabled by the platform admin.",
+      );
+    }
+  }, []);
+
   const resetRegister = () => {
     setRegisterStep("form");
     setOtpValue("");
@@ -72,6 +84,12 @@ export default function AuthForm({
   };
 
   const startOAuth = (provider: "google" | "github") => {
+    if (!signupEnabled) {
+      setError(
+        "New student signups and social logins are currently disabled by the platform admin.",
+      );
+      return;
+    }
     setError("");
     setIsLoading(true);
     const successRedirect = `${window.location.origin}/oauth-success?returnTo=${encodeURIComponent(returnTo)}`;
@@ -416,8 +434,9 @@ export default function AuthForm({
             </div>
           )}
 
-          {/* OAuth – only shown for user register or on login tab */}
-          {(mode === "login" || (mode === "register" && (accountType === "user"))) && (
+          {/* OAuth – only shown when student signups are enabled */}
+          {signupEnabled &&
+            (mode === "login" || (mode === "register" && accountType === "user")) && (
             <div className="mb-3">
               <div className="space-y-2">
                 <button

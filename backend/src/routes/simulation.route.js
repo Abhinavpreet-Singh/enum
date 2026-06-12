@@ -9,11 +9,14 @@ import {
   getSimulationFileContents,
 } from "../controllers/simulation.controller.js";
 import { optionalAuth } from "../middlewares/auth.middleware.js";
+import { featureGate } from "../middlewares/feature-gate.middleware.js";
 
 const router = express.Router();
 
+const simGate = featureGate("simulations_enabled");
+
 // Public routes
-router.get("/getSimulations", optionalAuth, getSimulations);
+router.get("/getSimulations", simGate, optionalAuth, getSimulations);
 router.get("/getSimulation/:id", getSimulationById);
 router.get("/getSimulationFiles/:id", getSimulationFileContents);
 

@@ -4,6 +4,7 @@ import Sidebar from "@/components/dashboard/sidebar";
 import ProtectedRoute from "@/components/auth/protected-route";
 import AdminDashboardGuard from "@/components/auth/admin-dashboard-guard";
 import MaintenanceGate from "@/components/maintenance/maintenance-gate";
+import { AnnouncementsBanner } from "@/components/common/announcements-banner";
 import { Suspense, useState } from "react";
 import { usePathname } from "next/navigation";
 
@@ -47,7 +48,10 @@ export default function DashboardLayout({
           }`}
         >
           <MaintenanceGate>
-            <AdminDashboardGuard>{children}</AdminDashboardGuard>
+            <AdminDashboardGuard>
+              {!isFullscreenWorkspace && <AnnouncementsBanner />}
+              {children}
+            </AdminDashboardGuard>
           </MaintenanceGate>
         </main>
       </div>

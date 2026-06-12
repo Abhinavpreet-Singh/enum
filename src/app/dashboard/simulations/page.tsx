@@ -25,6 +25,7 @@ import {
   DashboardPageHeader,
   DashboardPageShell,
 } from "@/components/dashboard/dashboard-page-shell";
+import { FeatureGate } from "@/components/common/feature-gate";
 import type { LinuxQuestion } from "@/components/linux/QuestionPanel";
 
 interface SimulationItem {
@@ -291,6 +292,7 @@ export default function SimulationsPage() {
   };
 
   return (
+    <FeatureGate settingKey="simulations_enabled" featureName="Production Simulations">
     <DashboardPageShell maxWidth="full" className="space-y-6">
       <DashboardPageHeader
         breadcrumb="Dashboard / Simulations"
@@ -584,5 +586,6 @@ export default function SimulationsPage() {
         </div>
       )}
     </DashboardPageShell>
+    </FeatureGate>
   );
 }

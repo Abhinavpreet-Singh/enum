@@ -28,6 +28,9 @@ import {
   Layers,
   Activity,
   Construction,
+  ShieldAlert,
+  LineChart,
+  ClipboardList,
 } from "lucide-react";
 import { useTheme } from "@/providers/theme-provider";
 import useAccountType from "@/hooks/useAccountType";
@@ -53,12 +56,16 @@ const ORGANIZATION_NAV = [
 ];
 
 const ADMIN_NAV = [
-  { icon: BarChart3, label: "Overview", href: "/dashboard/admin/overview/", matchExact: true },
-  { icon: Users, label: "Users", href: "/dashboard/admin/users/", matchExact: false },
-  { icon: Building2, label: "Companies", href: "/dashboard/admin/companies/", matchExact: false },
-  { icon: Layers, label: "Content", href: "/dashboard/admin/content/", matchExact: false },
-  { icon: Activity, label: "Activity", href: "/dashboard/admin/activity/", matchExact: false },
-  { icon: Construction, label: "Maintenance", href: "/dashboard/admin/maintenance/", matchExact: false },
+  { icon: BarChart3,     label: "Overview",    href: "/dashboard/admin/overview/",    matchExact: true },
+  { icon: Users,         label: "Users",       href: "/dashboard/admin/users/",       matchExact: false },
+  { icon: Building2,     label: "Companies",   href: "/dashboard/admin/companies/",   matchExact: false },
+  { icon: Layers,        label: "Content",     href: "/dashboard/admin/content/",     matchExact: false },
+  { icon: Activity,      label: "Activity",    href: "/dashboard/admin/activity/",    matchExact: false },
+  { icon: ShieldAlert,   label: "Violations",  href: "/dashboard/admin/violations/",  matchExact: false },
+  { icon: LineChart,     label: "Analytics",   href: "/dashboard/admin/analytics/",   matchExact: false },
+  { icon: ClipboardList, label: "Settings",    href: "/dashboard/admin/settings/",    matchExact: false },
+  { icon: History,       label: "Audit Log",   href: "/dashboard/admin/audit/",       matchExact: false },
+  { icon: Construction,  label: "Maintenance", href: "/dashboard/admin/maintenance/", matchExact: false },
 ];
 
 function getNavForRole(role: string) {

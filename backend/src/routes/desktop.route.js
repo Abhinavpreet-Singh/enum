@@ -229,6 +229,16 @@ router.post(
       return res.status(200).json({ message: "Attempt resumed.", data: existing });
     }
 
+    // Enforce max_attempts_per_assessment platform setting
+    const maxSetting = await prisma.platformSetting.findUnique({ where: { key: "max_attempts_per_assessment" } });
+    const maxAttempts = maxSetting ? parseInt(maxSetting.value, 10) : 5;
+    if (!isNaN(maxAttempts) && maxAttempts > 0) {
+      const priorCount = await prisma.candidateAttempt.count({ where: { assessmentId, userId } });
+      if (priorCount >= maxAttempts) {
+        throw new ApiError(403, `You have reached the maximum allowed attempts (${maxAttempts}) for this assessment.`);
+      }
+    }
+
     const attempt = await prisma.candidateAttempt.create({
       data: {
         assessmentId,
