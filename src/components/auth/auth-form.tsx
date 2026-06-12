@@ -252,8 +252,8 @@ export default function AuthForm({
       localStorage.setItem("accessToken", response.data.accessToken);
       const destination =
         detectedType === "admin"
-          ? "/dashboard/admin"
-          : returnTo === "/dashboard/admin"
+          ? "/dashboard/admin/overview"
+          : returnTo.startsWith("/dashboard/admin")
             ? "/dashboard"
             : returnTo;
       router.push(destination);

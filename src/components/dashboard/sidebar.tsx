@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
@@ -53,12 +53,12 @@ const ORGANIZATION_NAV = [
 ];
 
 const ADMIN_NAV = [
-  { icon: BarChart3, label: "Overview", href: "/dashboard/admin?tab=overview", tab: "overview" },
-  { icon: Users, label: "Users", href: "/dashboard/admin?tab=users", tab: "users" },
-  { icon: Building2, label: "Companies", href: "/dashboard/admin?tab=companies", tab: "companies" },
-  { icon: Layers, label: "Content", href: "/dashboard/admin?tab=content", tab: "content" },
-  { icon: Activity, label: "Activity", href: "/dashboard/admin?tab=activity", tab: "activity" },
-  { icon: Construction, label: "Maintenance", href: "/dashboard/admin?tab=maintenance", tab: "maintenance" },
+  { icon: BarChart3, label: "Overview", href: "/dashboard/admin/overview/", matchExact: true },
+  { icon: Users, label: "Users", href: "/dashboard/admin/users/", matchExact: false },
+  { icon: Building2, label: "Companies", href: "/dashboard/admin/companies/", matchExact: false },
+  { icon: Layers, label: "Content", href: "/dashboard/admin/content/", matchExact: false },
+  { icon: Activity, label: "Activity", href: "/dashboard/admin/activity/", matchExact: false },
+  { icon: Construction, label: "Maintenance", href: "/dashboard/admin/maintenance/", matchExact: false },
 ];
 
 function getNavForRole(role: string) {
@@ -78,7 +78,6 @@ interface SidebarProps {
 
 export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const accountType = useAccountType();
   const isAdmin = accountType === "admin";
   const [navItems, setNavItems] = useState(() => getNavForRole(accountType));
@@ -188,15 +187,14 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
     }
   };
 
-  const activeTab = searchParams.get("tab") || "overview";
+  const normalizePath = (path: string) =>
+    path.endsWith("/") ? path : `${path}/`;
 
   const isActiveRoute = (item: (typeof navItems)[0]) => {
-    if (isAdmin && "tab" in item) {
-      return pathname === "/dashboard/admin" && activeTab === item.tab;
-    }
-    if ("matchExact" in item && item.matchExact) return pathname === item.href;
-    if ("matchExact" in item) return pathname.startsWith(item.href);
-    return pathname.startsWith(item.href);
+    const current = normalizePath(pathname);
+    const target = normalizePath(item.href);
+    if ("matchExact" in item && item.matchExact) return current === target;
+    return current.startsWith(target);
   };
 
   return (
@@ -432,7 +430,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
         <div className="flex justify-around items-center px-2 py-3">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isActive = isActiveRoute(item);
             return (
               <Link
                 key={item.href}
