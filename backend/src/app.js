@@ -83,6 +83,7 @@ import organizationDashboardRouter from "./routes/organization-dashboard.route.j
 import assessmentInviteRouter from "./routes/assessment-invite.route.js";
 import desktopRouter from "./routes/desktop.route.js";
 import maintenanceRouter from "./routes/maintenance.route.js";
+import { getPublicSettings, getPublicAnnouncements } from "./middlewares/feature-gate.middleware.js";
 
 app.use("/api/auth", authRouter)
 app.use("/auth", authRouter)
@@ -111,6 +112,10 @@ app.use("/api/v1/question-banks", bankQuestionRouter);
 app.use("/api/v1/organization-dashboard", organizationDashboardRouter);
 app.use("/api/v1/desktop", desktopRouter);
 app.use("/api/v1/maintenance", maintenanceRouter);
+
+// Public platform-settings + announcements (no auth required)
+app.get("/api/v1/platform/settings", getPublicSettings);
+app.get("/api/v1/platform/announcements", getPublicAnnouncements);
 
 
 // ── Global error handler ─────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ import {
   DashboardPageHeader,
   DashboardPageShell,
 } from "@/components/dashboard/dashboard-page-shell";
+import { FeatureGate } from "@/components/common/feature-gate";
 
 interface LeaderboardEntry {
   _id: string;
@@ -138,6 +139,7 @@ export default function LeaderboardPage() {
   }
 
   return (
+    <FeatureGate settingKey="leaderboard_public" featureName="Leaderboard">
     <DashboardPageShell className="space-y-6">
       <DashboardPageHeader
         breadcrumb="Dashboard / Leaderboard"
@@ -352,5 +354,6 @@ export default function LeaderboardPage() {
           </div>
         )}
     </DashboardPageShell>
+    </FeatureGate>
   );
 }

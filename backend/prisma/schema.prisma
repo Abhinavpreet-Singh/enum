@@ -672,7 +672,7 @@ model IncidentSession {
   incident IncidentSimulation   @relation(fields: [incidentId], references: [id], onDelete: Cascade)
   state    IncidentSessionState?
 
-  @@unique([userId, incidentId])
+  @@index([userId, incidentId])
   @@map("incidentsessions")
 }
 
@@ -704,4 +704,49 @@ model MaintenancePage {
 
   @@index([enabled])
   @@map("maintenancepages")
+}
+
+// ─── Platform settings (feature flags, config) ───────────────────────────────
+
+model PlatformSetting {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  key       String   @unique
+  value     String   /// JSON-encoded value
+  label     String   @default("")
+  group     String   @default("general") /// "general" | "features" | "limits"
+  updatedAt DateTime @updatedAt
+
+  @@map("platformsettings")
+}
+
+// ─── Announcements ───────────────────────────────────────────────────────────
+
+model Announcement {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  title     String
+  body      String
+  type      String   @default("info") /// "info" | "warning" | "critical"
+  audience  String   @default("all") /// "all" | "students" | "organizations"
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+  @@map("announcements")
+}
+
+// ─── Audit log ───────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  action     String   /// e.g. "user.delete", "org.approve", "setting.update"
+  targetType String   @default("") /// "user" | "organization" | "setting" | "maintenance"
+  targetId   String   @default("")
+  targetName String   @default("") /// human-readable name of the target
+  detail     String   @default("") /// extra context
+  adminEmail String   @default("")
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("auditlogs")
 }

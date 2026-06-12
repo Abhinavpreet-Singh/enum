@@ -15,6 +15,7 @@ import {
 } from "../controllers/user.controller.js";
 import { getMyActivity } from "../controllers/activity.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { featureGate } from "../middlewares/feature-gate.middleware.js";
 
 const router = Router();
 const upload = multer({
@@ -27,7 +28,7 @@ const upload = multer({
 });
 
 router.route("/send-otp").post(sendOtp);
-router.route("/register").post(registerUser);
+router.route("/register").post(featureGate("signup_enabled"), registerUser);
 router.route("/login").post(loginUser);
 router.route("/getUserById/:id").get(getUserById);
 router.route("/logout").post(verifyJWT, logoutUser);
@@ -36,7 +37,7 @@ router.route("/profile").get(verifyJWT, getProfile);
 router.route("/profile").put(verifyJWT, updateProfile);
 router.route("/avatar").post(verifyJWT, upload.single("avatar"), uploadAvatar);
 router.route("/award-browser-xp").patch(verifyJWT, awardBrowserXp);
-router.route("/leaderboard").get(getLeaderboard);
+router.route("/leaderboard").get(featureGate("leaderboard_public"), getLeaderboard);
 router.route("/activity").get(verifyJWT, getMyActivity);
 
 export default router;

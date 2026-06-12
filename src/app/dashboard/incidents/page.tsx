@@ -14,6 +14,7 @@ import {
   DashboardPageHeader,
   DashboardPageShell,
 } from "@/components/dashboard/dashboard-page-shell";
+import { FeatureGate } from "@/components/common/feature-gate";
 
 interface IncidentListItem extends IncidentSimulation {
   status?: {
@@ -84,6 +85,7 @@ export default function IncidentsPage() {
     }`;
 
   return (
+    <FeatureGate settingKey="incidents_enabled" featureName="Incident Simulations">
     <DashboardPageShell>
       <DashboardPageHeader
         breadcrumb="Dashboard / Incidents"
@@ -247,5 +249,6 @@ export default function IncidentsPage() {
         </div>
       )}
     </DashboardPageShell>
+    </FeatureGate>
   );
 }

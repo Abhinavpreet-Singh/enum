@@ -54,6 +54,7 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
       throw new ApiError(401, "Invalid admin token");
     }
     req.accountType = "admin";
+    req.adminEmail = decodedToken.email;
     req.admin = { email: decodedToken.email, name: decodedToken.name || "Admin" };
     req.user = null; req.organization = null;
     return next();

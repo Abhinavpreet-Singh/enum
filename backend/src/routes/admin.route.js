@@ -9,6 +9,14 @@ import {
   getContentStats, getRecentActivity,
 } from "../controllers/admin.controller.js";
 import {
+  getViolations,
+  getAnalytics,
+  getUserActivity, suspendUser,
+  getSettings, updateSetting,
+  getAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
+  getAuditLogs,
+} from "../controllers/admin-advanced.controller.js";
+import {
   getAllMaintenancePages,
   createMaintenancePage,
   updateMaintenancePage,
@@ -38,6 +46,27 @@ router.get("/getAdminPrev", getAdminPrev);
 router.get("/users", getAllUsers);
 router.get("/users/:id", getUserById);
 router.delete("/users/:id", deleteUser);
+router.get("/users/:id/activity", getUserActivity);
+router.patch("/users/:id/suspend", suspendUser);
+
+// Violations / proctoring
+router.get("/violations", getViolations);
+
+// Analytics
+router.get("/analytics", getAnalytics);
+
+// Settings
+router.get("/settings", getSettings);
+router.patch("/settings/:key", updateSetting);
+
+// Announcements
+router.get("/announcements", getAnnouncements);
+router.post("/announcements", createAnnouncement);
+router.patch("/announcements/:id", updateAnnouncement);
+router.delete("/announcements/:id", deleteAnnouncement);
+
+// Audit log
+router.get("/audit", getAuditLogs);
 
 // Organizations
 router.get("/organizations", getAllOrganizations);

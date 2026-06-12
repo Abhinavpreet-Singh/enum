@@ -5,6 +5,7 @@ import "../auth/passport.js";
 import { requireEnv, env } from "../config/env.js";
 import { generateToken } from "../utils/generateToken.js";
 import { getAuthCookieOptions } from "../utils/cookieOptions.js";
+import { oauthSignupGate } from "../middlewares/feature-gate.middleware.js";
 
 const router = Router();
 
@@ -132,6 +133,7 @@ const ensureGithubConfigured = (_req, res, next) => {
 
 router.get(
   "/google",
+  oauthSignupGate,
   ensureGoogleConfigured,
   (req, res, next) => {
     console.log("[AUTH] Google login route hit", {
@@ -146,7 +148,7 @@ router.get(
   }),
 );
 
-router.get("/google/callback", (req, res, next) => {
+router.get("/google/callback", oauthSignupGate, (req, res, next) => {
   console.log("[AUTH] Google callback route hit", {
     path: req.path,
     fullUrl: req.originalUrl,
@@ -186,6 +188,7 @@ router.get("/google/callback", (req, res, next) => {
 
 router.get(
   "/github",
+  oauthSignupGate,
   ensureGithubConfigured,
   passport.authenticate("github", {
     session: false,
@@ -193,7 +196,7 @@ router.get(
   }),
 );
 
-router.get("/github/callback", (req, res, next) => {
+router.get("/github/callback", oauthSignupGate, (req, res, next) => {
   if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
     return res
       .status(500)

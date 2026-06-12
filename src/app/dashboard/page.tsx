@@ -13,7 +13,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (accountType === "admin") {
-      router.replace("/dashboard/admin");
+      router.replace("/dashboard/admin/overview");
     }
   }, [accountType, router]);
 

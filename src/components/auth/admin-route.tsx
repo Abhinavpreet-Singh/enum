@@ -20,7 +20,7 @@ export default function AdminRoute({ children }: AdminRouteProps) {
       setIsAuthorized(true);
     } else {
       // Redirect to login if not admin
-      router.push("/login?returnTo=/dashboard/admin");
+      router.push("/login?returnTo=/dashboard/admin/overview");
     }
     setLoading(false);
   }, [router]);
