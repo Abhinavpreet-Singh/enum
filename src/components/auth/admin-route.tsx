@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchAccountSession } from "@/lib/account-session";
 
 interface AdminRouteProps {
   children: React.ReactNode;
@@ -13,16 +14,24 @@ export default function AdminRoute({ children }: AdminRouteProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in as admin
-    const accountType = localStorage.getItem("accountType");
-    
-    if (accountType === "admin") {
-      setIsAuthorized(true);
-    } else {
-      // Redirect to login if not admin
-      router.push("/login?returnTo=/dashboard/admin/overview");
-    }
-    setLoading(false);
+    let cancelled = false;
+
+    fetchAccountSession()
+      .then((session) => {
+        if (cancelled) return;
+        if (session.accountType === "admin") {
+          setIsAuthorized(true);
+        } else {
+          router.push("/login?returnTo=/dashboard/admin/overview");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   if (loading) {

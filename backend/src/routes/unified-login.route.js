@@ -6,6 +6,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { getAuthCookieOptions } from "../utils/cookieOptions.js";
 import { assertOrganizationApproved } from "../utils/organizationApproval.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
@@ -14,7 +15,7 @@ const signToken = (payload, secret, expiry) =>
 
 const makeUserTokens = async (user) => {
   const access = signToken(
-    { _id: user.id, email: user.email, username: user.username },
+    { _id: user.id, email: user.email, username: user.username, accountType: "user" },
     process.env.ACCESS_TOKEN_SECRET,
     process.env.ACCESS_TOKEN_EXPIRY,
   );
@@ -41,6 +42,41 @@ const makeOrganizationTokens = async (organization) => {
   await prisma.organization.update({ where: { id: organization.id }, data: { refreshToken: refresh } });
   return { access, refresh };
 };
+
+// ─── Session (authoritative account type from verified JWT) ───────────────────
+router.get(
+  "/session",
+  verifyJWT,
+  asyncHandler(async (req, res) => {
+    if (req.accountType === "admin") {
+      return res.status(200).json({
+        message: "Session fetched.",
+        data: {
+          accountType: "admin",
+          admin: req.admin,
+        },
+      });
+    }
+
+    if (req.accountType === "organization") {
+      return res.status(200).json({
+        message: "Session fetched.",
+        data: {
+          accountType: "organization",
+          organization: req.organization,
+        },
+      });
+    }
+
+    return res.status(200).json({
+      message: "Session fetched.",
+      data: {
+        accountType: "user",
+        user: req.user,
+      },
+    });
+  }),
+);
 
 // ─── Unified login ────────────────────────────────────────────────────────────
 router.post(

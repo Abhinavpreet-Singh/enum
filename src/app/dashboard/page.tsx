@@ -5,17 +5,30 @@ import { useRouter } from "next/navigation";
 import DashboardContent from "@/components/dashboard/dashboard-content";
 import OrganizationDashboardContent from "@/components/dashboard/organization/organization-dashboard-content";
 import { DashboardPageShell } from "@/components/dashboard/dashboard-page-shell";
-import useAccountType from "@/hooks/useAccountType";
+import { useAccountSession } from "@/hooks/useAccountType";
 
 export default function DashboardPage() {
-  const accountType = useAccountType();
+  const { accountType, verified, isLoading } = useAccountSession();
   const router = useRouter();
 
   useEffect(() => {
+    if (!verified || isLoading) return;
     if (accountType === "admin") {
       router.replace("/dashboard/admin/overview");
     }
-  }, [accountType, router]);
+  }, [accountType, verified, isLoading, router]);
+
+  if (isLoading || !verified) {
+    return (
+      <DashboardPageShell maxWidth="full">
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <p className="font-mono text-xs tracking-wider text-gray-400">
+            Loading dashboard…
+          </p>
+        </div>
+      </DashboardPageShell>
+    );
+  }
 
   if (accountType === "admin") {
     return (

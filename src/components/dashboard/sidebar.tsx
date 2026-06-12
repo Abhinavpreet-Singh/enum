@@ -33,7 +33,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { useTheme } from "@/providers/theme-provider";
-import useAccountType from "@/hooks/useAccountType";
+import useAccountType, { useAccountSession } from "@/hooks/useAccountType";
 
 const STUDENT_NAV = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard", matchExact: true },
@@ -86,7 +86,8 @@ interface SidebarProps {
 export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
   const pathname = usePathname();
   const accountType = useAccountType();
-  const isAdmin = accountType === "admin";
+  const { accountType: resolvedType, verified } = useAccountSession();
+  const isAdmin = verified && accountType === "admin";
   const [navItems, setNavItems] = useState(() => getNavForRole(accountType));
 
   // Update nav when role changes
@@ -148,9 +149,10 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
     if (!token) return;
 
     // Organization accounts use a different profile endpoint
-    const profileUrl = accountType === "organization"
-      ? `${proxy}/api/v1/organization-dashboard/profile`
-      : `${proxy}/api/v1/users/profile`;
+    const profileUrl =
+      verified && resolvedType === "organization"
+        ? `${proxy}/api/v1/organization-dashboard/profile`
+        : `${proxy}/api/v1/users/profile`;
 
     axios
       .get(profileUrl, {
@@ -171,7 +173,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
         }
       })
       .catch(() => {});
-  }, [accountType, isAdmin]);
+  }, [accountType, resolvedType, verified, isAdmin]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);

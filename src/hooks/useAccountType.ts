@@ -1,40 +1,73 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { jwtDecode } from "jwt-decode";
+import {
+  type AccountType,
+  type AccountSession,
+  decodeAccountTypeFromStorage,
+  fetchAccountSession,
+  purgeSpoofedAccountType,
+  ACCOUNT_SESSION_UPDATED,
+} from "@/lib/account-session";
 
-export type AccountType = "student" | "organization" | "admin";
+export type { AccountType };
 
-interface TokenPayload {
-  accountType?: string;
-  accountRole?: string;
-}
+export type AccountSessionState = AccountSession & {
+  isLoading: boolean;
+};
 
-function detect(): AccountType {
-  if (typeof window === "undefined") return "student";
-  const stored = localStorage.getItem("accountType");
-  if (stored === "admin") return "admin";
-  if (stored === "organization") return "organization";
-  try {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      const decoded = jwtDecode<TokenPayload>(token);
-      if (decoded.accountType === "admin") return "admin";
-      if (decoded.accountType === "organization") return "organization";
-      if (decoded.accountRole === "admin") return "admin";
-    }
-  } catch {}
-  return "student";
-}
-
-export default function useAccountType(): AccountType {
-  const [accountType, setAccountType] = useState<AccountType>(detect);
+export function useAccountSession(): AccountSessionState {
+  const [session, setSession] = useState<AccountSessionState>({
+    accountType: decodeAccountTypeFromStorage(),
+    verified: false,
+    isLoading: true,
+  });
 
   useEffect(() => {
-    const sync = () => setAccountType(detect());
-    window.addEventListener("storage", sync);
-    return () => window.removeEventListener("storage", sync);
+    let cancelled = false;
+
+    const refresh = async () => {
+      purgeSpoofedAccountType();
+      const next = await fetchAccountSession();
+      if (!cancelled) {
+        setSession({ ...next, isLoading: false });
+      }
+    };
+
+    refresh();
+
+    const onUpdate = () => {
+      refresh();
+    };
+
+    window.addEventListener(ACCOUNT_SESSION_UPDATED, onUpdate);
+    window.addEventListener("storage", onUpdate);
+
+    // DevTools edits in the same tab do not fire "storage" — strip spoofed key periodically.
+    const interval = window.setInterval(() => {
+      if (localStorage.getItem("accountType") !== null) {
+        purgeSpoofedAccountType();
+        refresh();
+      }
+    }, 1000);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(ACCOUNT_SESSION_UPDATED, onUpdate);
+      window.removeEventListener("storage", onUpdate);
+      window.clearInterval(interval);
+    };
   }, []);
 
+  return session;
+}
+
+/** Account type for nav/guards — uses JWT while loading, backend session once verified. */
+export default function useAccountType(): AccountType {
+  const { accountType, verified, isLoading } = useAccountSession();
+
+  if (isLoading || !verified) {
+    return decodeAccountTypeFromStorage();
+  }
   return accountType;
 }
