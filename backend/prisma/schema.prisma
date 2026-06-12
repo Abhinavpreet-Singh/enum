@@ -691,3 +691,17 @@ model IncidentSessionState {
 
   @@map("incidentsessionstates")
 }
+
+// ─── Page maintenance (admin-controlled downtime per route) ───────────────────
+
+model MaintenancePage {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  path      String   @unique /// Normalized pathname, e.g. /dashboard/leaderboard
+  message   String   @default("This page is currently under maintenance. Please check back later.")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enabled])
+  @@map("maintenancepages")
+}

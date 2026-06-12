@@ -2,6 +2,7 @@
 
 import Sidebar from "@/components/dashboard/sidebar";
 import ProtectedRoute from "@/components/auth/protected-route";
+import MaintenanceGate from "@/components/maintenance/maintenance-gate";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 
@@ -42,7 +43,7 @@ export default function DashboardLayout({
               : "pr-6 sm:pr-8 lg:pr-12 overflow-y-auto overflow-x-hidden pb-20 lg:pb-0"
           }`}
         >
-          {children}
+          <MaintenanceGate>{children}</MaintenanceGate>
         </main>
       </div>
     </ProtectedRoute>

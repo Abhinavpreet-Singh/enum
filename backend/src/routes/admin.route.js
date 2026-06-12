@@ -7,6 +7,12 @@ import {
   getAllUsers, getUserById, deleteUser,
   getAllOrganizations, getOrganizationById, updateOrganizationApproval, deleteOrganization,
 } from "../controllers/admin.controller.js";
+import {
+  getAllMaintenancePages,
+  createMaintenancePage,
+  updateMaintenancePage,
+  deleteMaintenancePage,
+} from "../controllers/maintenance.controller.js";
 
 const router = Router();
 
@@ -35,6 +41,12 @@ router.get("/organizations", getAllOrganizations);
 router.get("/organizations/:id", getOrganizationById);
 router.patch("/organizations/:id/approval", updateOrganizationApproval);
 router.delete("/organizations/:id", deleteOrganization);
+
+// Page maintenance
+router.get("/maintenance-pages", getAllMaintenancePages);
+router.post("/maintenance-pages", createMaintenancePage);
+router.patch("/maintenance-pages/:id", updateMaintenancePage);
+router.delete("/maintenance-pages/:id", deleteMaintenancePage);
 
 // Legacy aliases used by older frontend builds
 router.get("/companies", getAllOrganizations);

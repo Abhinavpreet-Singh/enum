@@ -9,8 +9,9 @@ import { DashboardPageShell, DashboardPageHeader } from "@/components/dashboard/
 import {
   Users, Building2, FileText, BarChart3,
   ShieldCheck, Trash2, CheckCircle, XCircle, Clock,
-  Search, AlertTriangle, X, Eye,
+  Search, AlertTriangle, X, Eye, Construction, Plus, Power,
 } from "lucide-react";
+import { normalizePagePath } from "@/lib/normalize-page-path";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const panelBorder = "border border-black/20 dark:border-white/25";
@@ -78,6 +79,7 @@ function AdminDashboardInner() {
     { id: "overview",   label: "Overview",   icon: BarChart3 },
     { id: "users",      label: "Users",      icon: Users },
     { id: "companies",  label: "Companies",  icon: Building2 },
+    { id: "maintenance", label: "Maintenance", icon: Construction },
   ];
 
   return (
@@ -109,6 +111,7 @@ function AdminDashboardInner() {
       {tab === "overview"  && <OverviewTab />}
       {tab === "users"     && <UsersTab />}
       {tab === "companies" && <CompaniesTab />}
+      {tab === "maintenance" && <MaintenanceTab />}
     </DashboardPageShell>
   );
 }
@@ -828,6 +831,218 @@ function ConfirmDelete({ onCancel, onConfirm, label }: { onCancel: () => void; o
           <button onClick={onConfirm} className="px-4 py-2 font-mono text-xs bg-red-600 text-white hover:bg-red-700 transition-colors">Delete</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Maintenance tab ────────────────────────────────────────────────────────
+interface MaintenancePageRow {
+  id: string;
+  path: string;
+  message: string;
+  enabled: boolean;
+  createdAt: string;
+}
+
+function MaintenanceTab() {
+  const [pages, setPages] = useState<MaintenancePageRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [urlInput, setUrlInput] = useState("");
+  const [messageInput, setMessageInput] = useState(
+    "This page is currently under maintenance. Please check back later.",
+  );
+  const [submitting, setSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<MaintenancePageRow | null>(null);
+
+  const loadPages = useCallback(() => {
+    setLoading(true);
+    setError("");
+    axios
+      .get(`${proxy}/api/v1/admin/maintenance-pages`, getAdminRequestConfig())
+      .then((r) => setPages(r.data?.data?.pages ?? []))
+      .catch(() => setError("Failed to load maintenance pages."))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { loadPages(); }, [loadPages]);
+
+  const handleAdd = async () => {
+    const path = normalizePagePath(urlInput);
+    if (!path || path === "/") {
+      setError("Enter a valid page URL or path (e.g. https://enum.live/dashboard/leaderboard).");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    try {
+      await axios.post(
+        `${proxy}/api/v1/admin/maintenance-pages`,
+        { path, message: messageInput },
+        getAdminRequestConfig(),
+      );
+      setUrlInput("");
+      loadPages();
+    } catch (err: unknown) {
+      let msg = "Failed to add page.";
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 404) {
+          msg = "Maintenance API not found. Restart the backend server (npm run dev in backend/).";
+        } else {
+          msg = err.response?.data?.message || msg;
+        }
+      }
+      setError(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleToggle = async (page: MaintenancePageRow) => {
+    try {
+      await axios.patch(
+        `${proxy}/api/v1/admin/maintenance-pages/${page.id}`,
+        { enabled: !page.enabled },
+        getAdminRequestConfig(),
+      );
+      loadPages();
+    } catch {
+      setError("Failed to update page status.");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await axios.delete(
+        `${proxy}/api/v1/admin/maintenance-pages/${deleteTarget.id}`,
+        getAdminRequestConfig(),
+      );
+      setDeleteTarget(null);
+      loadPages();
+    } catch {
+      setError("Failed to remove page.");
+    }
+  };
+
+  const previewPath = urlInput.trim() ? normalizePagePath(urlInput) : "";
+
+  return (
+    <div className="space-y-6">
+      <div className={`${panelSurface} p-6`}>
+        <h2 className="mb-1 font-mono text-sm font-bold text-black dark:text-white">
+          Mark page under maintenance
+        </h2>
+        <p className="mb-5 font-mono text-xs text-gray-500">
+          Paste a full URL or path. Users visiting that page will see an under-maintenance message.
+          Admins can still access the page normally.
+        </p>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div>
+            <label className={labelCls}>Page URL or path</label>
+            <input
+              type="text"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              placeholder="https://enum.live/dashboard/leaderboard"
+              className="w-full border border-black/20 bg-white px-3 py-2 font-mono text-xs text-black outline-none focus:border-black dark:border-white/25 dark:bg-black dark:text-white dark:focus:border-white"
+            />
+            {previewPath && (
+              <p className="mt-1.5 font-mono text-[10px] text-gray-400">
+                Will apply to: <span className="text-amber-600 dark:text-amber-400">{previewPath}</span>
+              </p>
+            )}
+          </div>
+          <div>
+            <label className={labelCls}>Maintenance message</label>
+            <textarea
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              rows={3}
+              className="w-full resize-none border border-black/20 bg-white px-3 py-2 font-mono text-xs text-black outline-none focus:border-black dark:border-white/25 dark:bg-black dark:text-white dark:focus:border-white"
+            />
+          </div>
+        </div>
+
+        {error && (
+          <p className="mt-4 font-mono text-xs text-red-500">{error}</p>
+        )}
+
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={submitting || !urlInput.trim()}
+          className={`${actionButtonCls} mt-5 border-black bg-black text-white hover:bg-black/80 dark:border-white dark:bg-white dark:text-black dark:hover:bg-white/90`}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          {submitting ? "Adding…" : "Put page under maintenance"}
+        </button>
+      </div>
+
+      <div className={`${panelSurface} overflow-hidden`}>
+        <div className="border-b border-black/10 px-5 py-4 dark:border-white/10">
+          <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-black dark:text-white">
+            Active maintenance pages
+          </h3>
+        </div>
+
+        {loading ? (
+          <div className="p-8 text-center font-mono text-xs text-gray-400">Loading…</div>
+        ) : pages.length === 0 ? (
+          <div className="p-8 text-center font-mono text-xs text-gray-400">
+            No pages marked for maintenance yet.
+          </div>
+        ) : (
+          <div className="divide-y divide-black/10 dark:divide-white/10">
+            {pages.map((page) => (
+              <div key={page.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-mono text-sm font-medium text-black dark:text-white">
+                    {page.path}
+                  </p>
+                  <p className="mt-1 font-mono text-[11px] text-gray-500">{page.message}</p>
+                  <span
+                    className={`mt-2 inline-flex items-center gap-1 border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${
+                      page.enabled
+                        ? "border-amber-400/40 bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400"
+                        : "border-gray-300/40 bg-gray-50 text-gray-500 dark:bg-gray-900/20 dark:text-gray-400"
+                    }`}
+                  >
+                    <Construction className="h-2.5 w-2.5" />
+                    {page.enabled ? "live" : "disabled"}
+                  </span>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleToggle(page)}
+                    className={`${actionButtonCls} border-black/20 text-gray-600 hover:border-black hover:text-black dark:border-white/25 dark:text-gray-400 dark:hover:border-white dark:hover:text-white`}
+                  >
+                    <Power className="mr-1 h-3 w-3" />
+                    {page.enabled ? "Disable" : "Enable"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget(page)}
+                    className={`${actionButtonCls} border-red-400/40 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/20`}
+                  >
+                    <Trash2 className="mr-1 h-3 w-3" /> Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {deleteTarget && (
+        <ConfirmDelete
+          label={`Remove ${deleteTarget.path} from maintenance?`}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={handleDelete}
+        />
+      )}
     </div>
   );
 }
