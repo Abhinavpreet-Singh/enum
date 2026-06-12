@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { proxy } from "@/app/proxy.js";
+import { notifyAccountSessionUpdated } from "@/lib/account-session";
 
 const normalizeToken = (value: string | null) => {
   if (!value) return "";
@@ -122,6 +123,7 @@ export default function OAuthSuccessPage() {
 
         if (token) {
           localStorage.setItem("accessToken", token);
+          notifyAccountSessionUpdated();
         }
 
         // Hydrate basic user info so dashboard/sidebar doesn't show Guest.

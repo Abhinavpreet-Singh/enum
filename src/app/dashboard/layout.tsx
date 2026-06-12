@@ -3,10 +3,12 @@
 import Sidebar from "@/components/dashboard/sidebar";
 import ProtectedRoute from "@/components/auth/protected-route";
 import AdminDashboardGuard from "@/components/auth/admin-dashboard-guard";
+import OrganizationDashboardGuard from "@/components/auth/organization-dashboard-guard";
 import MaintenanceGate from "@/components/maintenance/maintenance-gate";
 import { AnnouncementsBanner } from "@/components/common/announcements-banner";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { purgeSpoofedAccountType } from "@/lib/account-session";
 
 export default function DashboardLayout({
   children,
@@ -30,6 +32,10 @@ export default function DashboardLayout({
   const isFullscreenWorkspace =
     isCollabRoom || isIncidentWorkspace || isLinuxArena || isBrowserSandbox;
 
+  useEffect(() => {
+    purgeSpoofedAccountType();
+  }, []);
+
   return (
     <ProtectedRoute>
       <div className="relative h-dvh overflow-hidden bg-white text-black dark:bg-black dark:text-white">
@@ -49,8 +55,10 @@ export default function DashboardLayout({
         >
           <MaintenanceGate>
             <AdminDashboardGuard>
-              {!isFullscreenWorkspace && <AnnouncementsBanner />}
-              {children}
+              <OrganizationDashboardGuard>
+                {!isFullscreenWorkspace && <AnnouncementsBanner />}
+                {children}
+              </OrganizationDashboardGuard>
             </AdminDashboardGuard>
           </MaintenanceGate>
         </main>

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import { proxy } from "@/app/proxy.js";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { notifyAccountSessionUpdated } from "@/lib/account-session";
 
 type AuthMode = "login" | "register";
 type RegisterStep = "form" | "otp";
@@ -172,7 +173,7 @@ export default function AuthForm({
           response.data.data.id ?? response.data.data._id,
         );
         localStorage.setItem("accessToken", response.data.accessToken);
-        localStorage.setItem("accountType", "user");
+        notifyAccountSessionUpdated();
       } else if (accountType === "organization") {
         response = await axios.post(
           `${proxy}/api/v1/companies/register`,
@@ -251,7 +252,6 @@ export default function AuthForm({
       );
 
       const detectedType: AccountType = response.data.accountType ?? "user";
-      localStorage.setItem("accountType", detectedType);
       if (detectedType === "admin") {
         const adminEmail =
           response.data.data?.email ||
@@ -268,6 +268,7 @@ export default function AuthForm({
         response.data.data.id ?? response.data.data._id,
       );
       localStorage.setItem("accessToken", response.data.accessToken);
+      notifyAccountSessionUpdated();
       const destination =
         detectedType === "admin"
           ? "/dashboard/admin/overview"

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
 import { Construction } from "lucide-react";
+import { decodeAccountTypeFromToken } from "@/lib/account-session";
 
 interface MaintenanceEntry {
   path: string;
@@ -21,7 +22,8 @@ function normalizePath(pathname: string) {
 
 function isAdminSession() {
   if (typeof window === "undefined") return false;
-  return localStorage.getItem("accountType") === "admin";
+  const token = localStorage.getItem("accessToken");
+  return decodeAccountTypeFromToken(token) === "admin";
 }
 
 const productionHosts = (() => {
