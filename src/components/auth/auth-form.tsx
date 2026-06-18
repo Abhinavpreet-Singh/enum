@@ -322,10 +322,10 @@ export default function AuthForm({
   // ── Shared input class ──────────────────────────────────────────────────────
 
   const inputCls =
-    "w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-black dark:text-white font-mono text-sm focus:outline-none focus:border-black dark:focus:border-white transition-colors";
+    "w-full px-3 py-1.5 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-black dark:text-white font-mono text-[13px] focus:outline-none focus:border-black dark:focus:border-white transition-colors";
 
   const labelCls =
-    "block font-mono text-xs tracking-wider text-gray-700 dark:text-neutral-400 mb-1";
+    "block font-mono text-[11px] tracking-wider text-gray-700 dark:text-neutral-400 mb-1";
 
   const isOrgRegisterForm =
     mode === "register" &&
@@ -334,11 +334,14 @@ export default function AuthForm({
 
   const orgInputCls = inputCls;
   const orgLabelCls = labelCls;
+  const showOAuth =
+    signupEnabled &&
+    (mode === "login" || (mode === "register" && accountType === "user"));
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="relative min-h-screen w-full flex items-center justify-center px-4 py-8 bg-gray-50 dark:bg-black overflow-hidden">
+    <div className="relative min-h-screen w-full flex items-center justify-center px-4 py-4 bg-gray-50 dark:bg-black overflow-hidden">
       {/* Grid Background – light */}
       <div className="absolute inset-0 opacity-[0.07]">
         <div
@@ -368,12 +371,12 @@ export default function AuthForm({
         />
       </div>
 
-      <div className="relative z-10 w-full max-w-xl">
+      <div className="relative z-10 w-full max-w-lg">
         {/* Logo */}
-        <div className="text-center mb-4">
+        <div className="text-center mb-3">
           <Link href="/" className="inline-block">
             <h1
-              className="font-bold text-[40px] leading-none text-black dark:text-white flex justify-center"
+              className="font-bold text-[36px] leading-none text-black dark:text-white flex justify-center"
               style={{ letterSpacing: "-0.08em", transform: "scaleX(0.9)" }}
             >
               <span>E</span>
@@ -385,9 +388,9 @@ export default function AuthForm({
         </div>
 
         {/* Auth Card */}
-        <div className="bg-white dark:bg-neutral-950 border border-gray-300 dark:border-white p-6">
+        <div className="max-h-[calc(100vh-6.5rem)] bg-white dark:bg-neutral-950 border border-gray-300 dark:border-white p-5 sm:p-6 overflow-y-auto">
           {/* LOGIN / REGISTER tab toggle */}
-          <div className="flex border-b border-gray-200 dark:border-neutral-800 mb-4">
+          <div className="flex border-b border-gray-200 dark:border-neutral-800 mb-3 shrink-0">
             <button
               id="auth-login-tab"
               onClick={() => {
@@ -395,7 +398,7 @@ export default function AuthForm({
                 resetRegister();
                 setSuccess("");
               }}
-              className={`flex-1 pb-2 font-mono text-xs tracking-wider transition-colors ${
+              className={`flex-1 pb-2 font-mono text-[11px] tracking-wider transition-colors ${
                 mode === "login"
                   ? "text-black dark:text-white border-b-2 border-black dark:border-white"
                   : "text-gray-400 dark:text-neutral-600"
@@ -410,7 +413,7 @@ export default function AuthForm({
                 resetRegister();
                 setSuccess("");
               }}
-              className={`flex-1 pb-2 font-mono text-xs tracking-wider transition-colors ${
+              className={`flex-1 pb-2 font-mono text-[11px] tracking-wider transition-colors ${
                 mode === "register"
                   ? "text-black dark:text-white border-b-2 border-black dark:border-white"
                   : "text-gray-400 dark:text-neutral-600"
@@ -422,14 +425,14 @@ export default function AuthForm({
 
           {/* Account-type selector – register only */}
           {mode === "register" && (
-            <div className="flex gap-0 mb-3">
+            <div className="flex gap-0 mb-3 shrink-0">
               {(["user", "organization"] as const).map((type, i) => (
                 <button
                   key={type}
                   id={`auth-type-${type}`}
                   type="button"
                   onClick={() => switchAccountType(type)}
-                  className={`flex-1 py-1.5 font-mono text-[11px] tracking-wider border transition-colors ${
+                  className={`flex-1 py-1.5 font-mono text-[10px] tracking-wider border transition-colors ${
                     i > 0 ? "border-l-0" : ""
                   } ${
                     accountType === type
@@ -443,43 +446,9 @@ export default function AuthForm({
             </div>
           )}
 
-          {/* OAuth – only shown when student signups are enabled */}
-          {signupEnabled &&
-            (mode === "login" || (mode === "register" && accountType === "user")) && (
-            <div className="mb-3">
-              <div className="space-y-2">
-                <button
-                  id="auth-google-btn"
-                  type="button"
-                  onClick={() => startOAuth("google")}
-                  disabled={isLoading}
-                  className="w-full border border-gray-300 dark:border-white px-3 py-2 font-mono text-xs tracking-wider text-black dark:text-white hover:bg-gray-50 dark:hover:bg-neutral-900 transition-colors disabled:opacity-60"
-                >
-                  CONTINUE WITH GOOGLE
-                </button>
-                <button
-                  id="auth-github-btn"
-                  type="button"
-                  onClick={() => startOAuth("github")}
-                  disabled={isLoading}
-                  className="w-full border border-gray-300 dark:border-white px-3 py-2 font-mono text-xs tracking-wider text-black dark:text-white hover:bg-gray-50 dark:hover:bg-neutral-900 transition-colors disabled:opacity-60"
-                >
-                  CONTINUE WITH GITHUB
-                </button>
-              </div>
-              <div className="flex items-center gap-3 mt-3">
-                <div className="flex-1 h-px bg-gray-200 dark:bg-neutral-800" />
-                <span className="font-mono text-[10px] tracking-wider text-gray-400 dark:text-neutral-600">
-                  OR
-                </span>
-                <div className="flex-1 h-px bg-gray-200 dark:bg-neutral-800" />
-              </div>
-            </div>
-          )}
-
           {/* Account type banner */}
           {mode === "register" && accountType === "organization" && (
-            <div className="mb-3 px-3 py-2 border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900">
+            <div className="mb-3 px-3 py-1.5 border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 shrink-0">
               <p className="font-mono text-[10px] tracking-wider text-gray-500 dark:text-neutral-400">
                 ORGANIZATION ACCOUNT · Requires admin approval before dashboard access
               </p>
@@ -488,7 +457,7 @@ export default function AuthForm({
 
           {/* Success */}
           {success && (
-            <div className="mb-3 p-3 border border-green-300 dark:border-green-900 bg-green-50 dark:bg-green-950/30">
+            <div className="mb-3 p-2 border border-green-300 dark:border-green-900 bg-green-50 dark:bg-green-950/30 shrink-0">
               <p className="text-xs font-mono text-green-700 dark:text-green-400 leading-relaxed">
                 {success}
               </p>
@@ -497,7 +466,7 @@ export default function AuthForm({
 
           {/* Error */}
           {error && (
-            <div className="mb-3 p-3 border border-red-300 dark:border-red-900 bg-red-50 dark:bg-red-950/30">
+            <div className="mb-3 p-2 border border-red-300 dark:border-red-900 bg-red-50 dark:bg-red-950/30 shrink-0">
               <p className="text-xs font-mono text-red-700 dark:text-red-400 leading-relaxed">
                 {error}
               </p>
@@ -506,7 +475,10 @@ export default function AuthForm({
 
           {/* OTP Step */}
           {mode === "register" && registerStep === "otp" ? (
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form
+              onSubmit={handleSubmit}
+              className={`space-y-3 ${mode === "login" ? "py-3 sm:py-4" : ""}`}
+            >
               <div className="mb-2">
                 <p className="text-xs font-mono text-gray-500 dark:text-neutral-400 leading-relaxed">
                   A 6-digit code was sent to{" "}
@@ -573,7 +545,7 @@ export default function AuthForm({
 
               {/* ── organization REGISTER FIELDS ── */}
               {isOrgRegisterForm && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <label htmlFor="organization-name" className={orgLabelCls}>
                       ORGANIZATION NAME
@@ -603,7 +575,7 @@ export default function AuthForm({
                         setorganizationForm({ ...organizationForm, website: e.target.value })
                       }
                       className={orgInputCls}
-                      placeholder="https://yourorganization.com"
+                      placeholder="https://site.com"
                     />
                   </div>
 
@@ -674,7 +646,7 @@ export default function AuthForm({
                         })
                       }
                       className={`${orgInputCls} resize-none`}
-                      rows={2}
+                      rows={1}
                       placeholder="Brief description of your organization…"
                     />
                   </div>
@@ -758,7 +730,7 @@ export default function AuthForm({
                     <div className="mt-1 text-right">
                       <Link
                         href="/forgot-password"
-                        className="text-[11px] font-mono tracking-wider text-gray-500 dark:text-neutral-500 hover:text-black dark:hover:text-white underline"
+                        className="text-[10px] font-mono tracking-wider text-gray-500 dark:text-neutral-500 hover:text-black dark:hover:text-white underline"
                       >
                         Forgot password?
                       </Link>
@@ -822,12 +794,46 @@ export default function AuthForm({
                     ? "LOGIN"
                     : "SEND OTP"}
               </button>
+
+              {showOAuth && (
+                <div className="pt-1">
+                  <div className="flex items-center gap-3 mb-1.5">
+                    <div className="flex-1 h-px bg-gray-200 dark:bg-neutral-800" />
+                    <span className="font-mono text-[10px] tracking-wider text-gray-400 dark:text-neutral-600">
+                      OR CONTINUE WITH
+                    </span>
+                    <div className="flex-1 h-px bg-gray-200 dark:bg-neutral-800" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      id="auth-google-btn"
+                      type="button"
+                      onClick={() => startOAuth("google")}
+                      disabled={isLoading}
+                      className="w-full border border-gray-300 dark:border-white px-3 py-1.5 font-mono text-[11px] tracking-wider text-black dark:text-white hover:bg-gray-50 dark:hover:bg-neutral-900 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                    >
+                      <GoogleIcon />
+                      GOOGLE
+                    </button>
+                    <button
+                      id="auth-github-btn"
+                      type="button"
+                      onClick={() => startOAuth("github")}
+                      disabled={isLoading}
+                      className="w-full border border-gray-300 dark:border-white px-3 py-1.5 font-mono text-[11px] tracking-wider text-black dark:text-white hover:bg-gray-50 dark:hover:bg-neutral-900 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                    >
+                      <GithubIcon />
+                      GITHUB
+                    </button>
+                  </div>
+                </div>
+              )}
             </form>
           )}
 
           {/* Footer */}
           {mode === "login" ? (
-            <p className="text-center mt-3 text-xs text-gray-600 dark:text-neutral-400">
+            <p className="text-center mt-3 text-xs text-gray-600 dark:text-neutral-400 shrink-0">
               Don&apos;t have an account?{" "}
               <button
                 onClick={() => {
@@ -840,7 +846,7 @@ export default function AuthForm({
               </button>
             </p>
           ) : (
-            <p className="text-center mt-3 text-xs text-gray-600 dark:text-neutral-400">
+            <p className="text-center mt-3 text-xs text-gray-600 dark:text-neutral-400 shrink-0">
               Already have an account?{" "}
               <button
                 onClick={() => {
@@ -866,6 +872,42 @@ export default function AuthForm({
         </div>
       </div>
     </div>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06L5.84 9.9C6.71 7.31 9.14 5.38 12 5.38z"
+      />
+    </svg>
+  );
+}
+
+function GithubIcon() {
+  return (
+    <svg
+      className="h-4 w-4 text-black dark:text-white"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M12 2C6.48 2 2 6.58 2 12.24c0 4.52 2.87 8.35 6.84 9.7.5.1.68-.22.68-.49 0-.24-.01-.88-.01-1.73-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.49-1.11-1.49-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.56 2.35 1.11 2.92.85.09-.66.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.32 9.32 0 0 1 12 6.93c.85 0 1.7.12 2.5.35 1.9-1.33 2.74-1.05 2.74-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.93-2.34 4.8-4.57 5.05.36.32.68.95.68 1.92 0 1.38-.01 2.49-.01 2.83 0 .27.18.59.69.49A10.04 10.04 0 0 0 22 12.24C22 6.58 17.52 2 12 2z" />
+    </svg>
   );
 }
 
