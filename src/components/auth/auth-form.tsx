@@ -475,10 +475,7 @@ export default function AuthForm({
 
           {/* OTP Step */}
           {mode === "register" && registerStep === "otp" ? (
-            <form
-              onSubmit={handleSubmit}
-              className={`space-y-3 ${mode === "login" ? "py-3 sm:py-4" : ""}`}
-            >
+            <form onSubmit={handleSubmit} className="space-y-3">
               <div className="mb-2">
                 <p className="text-xs font-mono text-gray-500 dark:text-neutral-400 leading-relaxed">
                   A 6-digit code was sent to{" "}
@@ -522,7 +519,10 @@ export default function AuthForm({
             </form>
           ) : (
             /* Login OR Register step-1 form */
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form
+              onSubmit={handleSubmit}
+              className={`space-y-3 ${mode === "login" ? "py-3 sm:py-4" : ""}`}
+            >
               {/* ── USER REGISTER FIELDS ── */}
               {mode === "register" && accountType === "user" && (
                 <div>
