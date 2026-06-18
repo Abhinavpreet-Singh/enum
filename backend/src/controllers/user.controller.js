@@ -300,12 +300,12 @@ const userForgetPassword = asyncHandler(async (req, res) => {
 });
 
 const getProfile = asyncHandler(async (req, res) => {
-  if (req.accountType === "admin") {
+  if (req.admin) {
     return res.status(200).json({
       message: "Profile fetched",
       data: {
         name: req.admin?.name || "Admin",
-        email: req.admin?.email || process.env.ADMIN_EMAIL,
+        email: req.admin?.email || "",
         accountType: "admin",
       },
     });

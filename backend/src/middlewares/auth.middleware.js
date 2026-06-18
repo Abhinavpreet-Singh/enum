@@ -31,6 +31,11 @@ const verifyAccessToken = (token) => {
   throw lastError;
 };
 
+const getUserAccountType = (user) => {
+  const role = String(user?.role || "Student").toLowerCase();
+  return role === "admin" ? "admin" : "student";
+};
+
 export const verifyJWT = asyncHandler(async (req, res, next) => {
   const token = getAccessTokenFromRequest(req);
 
@@ -47,18 +52,6 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
   }
 
   const accountType = decodedToken?.accountType || "user";
-
-  // ── Admin token (stateless — no DB lookup) ─────────────────────────────────
-  if (accountType === "admin") {
-    if (decodedToken?.email !== process.env.ADMIN_EMAIL) {
-      throw new ApiError(401, "Invalid admin token");
-    }
-    req.accountType = "admin";
-    req.adminEmail = decodedToken.email;
-    req.admin = { email: decodedToken.email, name: decodedToken.name || "Admin" };
-    req.user = null; req.organization = null;
-    return next();
-  }
 
   const id = decodedToken?._id || decodedToken?.userId || decodedToken?.id;
   if (!id || !/^[a-f\d]{24}$/i.test(String(id))) {
@@ -80,9 +73,19 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) throw new ApiError(401, "Invalid access token");
   const { password, refreshToken, ...safeUser } = user;
+  const userAccountType = getUserAccountType(user);
   req.user = safeUser;
   req.organization = null;
-  req.accountType = "user";
+  req.accountType = userAccountType;
+  req.adminEmail = userAccountType === "admin" ? safeUser.email : null;
+  req.admin =
+    userAccountType === "admin"
+      ? {
+          id: safeUser.id,
+          email: safeUser.email,
+          name: safeUser.displayName || safeUser.username || "Admin",
+        }
+      : null;
   next();
 });
 
@@ -153,7 +156,7 @@ export const optionalAuth = asyncHandler(async (req, _res, next) => {
 
     const { password, refreshToken, ...safeUser } = user;
     req.user = safeUser;
-    req.accountType = "user";
+    req.accountType = getUserAccountType(user);
     next();
   } catch (error) {
     req.user = null;

@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAccountSession } from "@/hooks/useAccountType";
-import { decodeAccountTypeFromStorage } from "@/lib/account-session";
 
 const ORG_PREFIXES = [
   "/dashboard/tests",
@@ -66,10 +65,7 @@ export default function OrganizationDashboardGuard({
     }
   }, [accountType, verified, isLoading, pathname, router]);
 
-  const jwtType = decodeAccountTypeFromStorage();
-  const skipOrgGate = jwtType === "admin" || accountType === "admin";
-
-  if (!skipOrgGate && (isLoading || !verified)) {
+  if (isLoading || !verified) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <p className="font-mono text-xs tracking-wider text-gray-400">

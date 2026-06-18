@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
 import { Construction } from "lucide-react";
-import { decodeAccountTypeFromToken } from "@/lib/account-session";
+import { useAccountSession } from "@/hooks/useAccountType";
 
 interface MaintenanceEntry {
   path: string;
@@ -18,12 +18,6 @@ function normalizePath(pathname: string) {
     return pathname.slice(0, -1);
   }
   return pathname;
-}
-
-function isAdminSession() {
-  if (typeof window === "undefined") return false;
-  const token = localStorage.getItem("accessToken");
-  return decodeAccountTypeFromToken(token) === "admin";
 }
 
 const productionHosts = (() => {
@@ -68,6 +62,7 @@ function MaintenanceScreen({ message }: { message: string }) {
 
 export default function MaintenanceGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { accountType, verified, isLoading } = useAccountSession();
   const [pages, setPages] = useState<MaintenanceEntry[] | null>(null);
   const [match, setMatch] = useState<MaintenanceEntry | null>(null);
 
@@ -101,7 +96,7 @@ export default function MaintenanceGate({ children }: { children: React.ReactNod
       return;
     }
 
-    if (isAdminSession()) {
+    if (isLoading || !verified || accountType === "admin") {
       setMatch(null);
       return;
     }
@@ -109,7 +104,7 @@ export default function MaintenanceGate({ children }: { children: React.ReactNod
     const current = normalizePath(pathname);
     const hit = pages.find((p) => normalizePath(p.path) === current) ?? null;
     setMatch(hit);
-  }, [pages, pathname]);
+  }, [accountType, isLoading, pages, pathname, verified]);
 
   if (isProductionSite() && match) {
     return <MaintenanceScreen message={match.message} />;
