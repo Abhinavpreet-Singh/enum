@@ -13,9 +13,21 @@ const router = Router();
 const signToken = (payload, secret, expiry) =>
   jwt.sign(payload, secret, { expiresIn: expiry });
 
+const getUserAccountType = (user) => {
+  const role = String(user?.role || "Student").toLowerCase();
+  return role === "admin" ? "admin" : "student";
+};
+
 const makeUserTokens = async (user) => {
+  const accountType = getUserAccountType(user);
   const access = signToken(
-    { _id: user.id, email: user.email, username: user.username, accountType: "user" },
+    {
+      _id: user.id,
+      email: user.email,
+      username: user.username,
+      accountType,
+      accountRole: user.role || "Student",
+    },
     process.env.ACCESS_TOKEN_SECRET,
     process.env.ACCESS_TOKEN_EXPIRY,
   );
@@ -54,6 +66,8 @@ router.get(
         data: {
           accountType: "admin",
           admin: req.admin,
+          user: req.user,
+          role: req.user?.role || "Admin",
         },
       });
     }
@@ -71,8 +85,9 @@ router.get(
     return res.status(200).json({
       message: "Session fetched.",
       data: {
-        accountType: "user",
+        accountType: "student",
         user: req.user,
+        role: req.user?.role || "Student",
       },
     });
   }),
@@ -89,24 +104,6 @@ router.post(
 
     const options = getAuthCookieOptions();
 
-    // ── Admin credentials (env-based, no DB) ───────────────────────────────
-    if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
-      const access = signToken(
-        { accountType: "admin", email: process.env.ADMIN_EMAIL, name: "Admin" },
-        process.env.ACCESS_TOKEN_SECRET,
-        process.env.ACCESS_TOKEN_EXPIRY,
-      );
-      return res
-        .status(200)
-        .cookie("accessToken", access, options)
-        .json({
-          message: "Admin logged in.",
-          data: { name: "Admin", email: process.env.ADMIN_EMAIL },
-          accessToken: access,
-          accountType: "admin",
-        });
-    }
-
     // ── Username → users only ───────────────────────────────────────────────
     if (username && !email) {
       const user = await prisma.user.findFirst({
@@ -122,11 +119,17 @@ router.post(
         where: { id: user.id },
         omit: { password: true, refreshToken: true },
       });
+      const accountType = getUserAccountType(user);
       return res
         .status(200)
         .cookie("accessToken", access, options)
         .cookie("refreshToken", refresh, options)
-        .json({ message: "Logged in.", data: safe, accessToken: access, accountType: "user" });
+        .json({
+          message: accountType === "admin" ? "Admin logged in." : "Logged in.",
+          data: safe,
+          accessToken: access,
+          accountType,
+        });
     }
 
     // ── Email → try User → Company ──────────────────────────────────────────
@@ -140,11 +143,17 @@ router.post(
         where: { id: user.id },
         omit: { password: true, refreshToken: true },
       });
+      const accountType = getUserAccountType(user);
       return res
         .status(200)
         .cookie("accessToken", access, options)
         .cookie("refreshToken", refresh, options)
-        .json({ message: "Logged in.", data: safe, accessToken: access, accountType: "user" });
+        .json({
+          message: accountType === "admin" ? "Admin logged in." : "Logged in.",
+          data: safe,
+          accessToken: access,
+          accountType,
+        });
     }
 
     const organization = await prisma.organization.findUnique({ where: { email } });

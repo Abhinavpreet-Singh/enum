@@ -73,11 +73,11 @@ export const getStats = asyncHandler(async (req, res) => {
   });
 });
 
-export const getAdminPrev = asyncHandler(async (_req, res) => {
+export const getAdminPrev = asyncHandler(async (req, res) => {
   return res.status(200).json({
     message: "Admin privilege fetched.",
     data: {
-      email: process.env.ADMIN_EMAIL,
+      email: req.adminEmail || req.user?.email || "",
     },
   });
 });

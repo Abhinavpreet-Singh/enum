@@ -10,7 +10,8 @@ import { notifyAccountSessionUpdated } from "@/lib/account-session";
 
 type AuthMode = "login" | "register";
 type RegisterStep = "form" | "otp";
-type AccountType = "user" | "organization" | "admin";
+type AccountType = "user" | "organization";
+type AuthenticatedAccountType = "student" | "organization" | "admin";
 
 interface AuthFormProps {
   initialMode?: AuthMode;
@@ -251,22 +252,18 @@ export default function AuthForm({
         { withCredentials: true },
       );
 
-      const detectedType: AccountType = response.data.accountType ?? "user";
-      if (detectedType === "admin") {
-        const adminEmail =
-          response.data.data?.email ||
-          (isEmail ? loginForm.identifier : "");
-        if (adminEmail) localStorage.setItem("adminEmail", adminEmail);
-      }
-      localStorage.setItem(
-        "Name",
+      const detectedType: AuthenticatedAccountType =
+        response.data.accountType ?? "student";
+      const accountData = response.data.data ?? {};
+      localStorage.removeItem("adminEmail");
+      const displayName =
         detectedType === "organization"
-          && response.data.data.name
-      );
-      localStorage.setItem(
-        "id",
-        response.data.data.id ?? response.data.data._id,
-      );
+          ? accountData.name
+          : accountData.username || accountData.displayName || accountData.name;
+      if (displayName) localStorage.setItem("Name", displayName);
+
+      const id = accountData.id ?? accountData._id;
+      if (id) localStorage.setItem("id", id);
       localStorage.setItem("accessToken", response.data.accessToken);
       notifyAccountSessionUpdated();
       const destination =

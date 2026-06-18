@@ -139,18 +139,12 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
 
   // Hydrate display name + avatar from backend on every dashboard mount
   useEffect(() => {
-    if (isAdmin) {
-      const adminEmail = localStorage.getItem("adminEmail") || "Platform Admin";
-      setUserName(adminEmail);
-      return;
-    }
-
     const token = localStorage.getItem("accessToken");
     if (!token) return;
 
     // Organization accounts use a different profile endpoint
     const profileUrl =
-      verified && resolvedType === "organization"
+      verified && resolvedType === "organization" && !isAdmin
         ? `${proxy}/api/v1/organization-dashboard/profile`
         : `${proxy}/api/v1/users/profile`;
 
@@ -161,7 +155,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
       .then((res) => {
         const data = res?.data?.data;
         if (!data) return;
-        const name = data.displayName || data.name;
+        const name = data.displayName || data.name || data.email;
         if (name) {
           localStorage.setItem("displayName", name);
           setUserName(name);

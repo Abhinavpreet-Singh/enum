@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import {
   type AccountType,
   type AccountSession,
-  decodeAccountTypeFromStorage,
   fetchAccountSession,
   purgeSpoofedAccountType,
   ACCOUNT_SESSION_UPDATED,
@@ -18,7 +17,7 @@ export type AccountSessionState = AccountSession & {
 
 export function useAccountSession(): AccountSessionState {
   const [session, setSession] = useState<AccountSessionState>({
-    accountType: decodeAccountTypeFromStorage(),
+    accountType: "student",
     verified: false,
     isLoading: true,
   });
@@ -62,12 +61,12 @@ export function useAccountSession(): AccountSessionState {
   return session;
 }
 
-/** Account type for nav/guards — uses JWT while loading, backend session once verified. */
+/** Account type for nav/guards, resolved from the backend session endpoint. */
 export default function useAccountType(): AccountType {
   const { accountType, verified, isLoading } = useAccountSession();
 
   if (isLoading || !verified) {
-    return decodeAccountTypeFromStorage();
+    return "student";
   }
   return accountType;
 }
