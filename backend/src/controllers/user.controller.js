@@ -8,6 +8,7 @@ import { sendOtpEmail } from "../utils/resendEmail.js";
 import { getAuthCookieOptions } from "../utils/cookieOptions.js";
 import { tryAwardXp, AWARD_TYPES, buildAwardKey } from "../services/xpService.js";
 import { logUserActivity } from "../services/activityLogService.js";
+import { confirmPasswordReset } from "../services/passwordReset.service.js";
 
 const buildStreakUpdate = (user, now) => {
   const lastActivity = user?.lastActivityDate;
@@ -263,40 +264,12 @@ const logoutUser = asyncHandler(async (req, res) => {
 });
 
 const userForgetPassword = asyncHandler(async (req, res) => {
-  const { email, username, newPassword } = req.body;
-
-  if (!email && !username) {
-    throw new ApiError(400, "Email or username is required!!");
-  }
-
-  if (!newPassword) {
-    throw new ApiError(404, "New password is required!!");
-  }
-
-  const user = await prisma.user.findFirst({
-    where: {
-      OR: [
-        ...(username ? [{ username: username.toLowerCase() }] : []),
-        ...(email ? [{ email }] : []),
-      ],
-    },
+  const result = await confirmPasswordReset({
+    token: req.body.token,
+    newPassword: req.body.newPassword,
   });
 
-  if (!user) {
-    throw new ApiError(404, "User not found");
-  }
-
-  const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-  const existedUser = await prisma.user.update({
-    where: { id: user.id },
-    data: { password: hashedPassword },
-  });
-
-  return res.status(200).json({
-    message: "Password changed",
-    data: existedUser,
-  });
+  return res.status(200).json(result);
 });
 
 const getProfile = asyncHandler(async (req, res) => {

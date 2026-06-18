@@ -7,6 +7,10 @@ import jwt from "jsonwebtoken";
 import { getAuthCookieOptions } from "../utils/cookieOptions.js";
 import { assertOrganizationApproved } from "../utils/organizationApproval.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
+import {
+  confirmPasswordReset,
+  requestPasswordReset,
+} from "../services/passwordReset.service.js";
 
 const router = Router();
 
@@ -174,6 +178,34 @@ router.post(
     }
 
     throw new ApiError(404, "No account found. Please check your credentials or register first.");
+  }),
+);
+
+// ─── Password reset ───────────────────────────────────────────────────────────
+router.post(
+  "/password-reset/request",
+  asyncHandler(async (req, res) => {
+    const frontendBaseUrl =
+      req.get("origin") || process.env.FRONTEND_URL || "http://localhost:3000";
+    const result = await requestPasswordReset({
+      email: req.body.email,
+      accountType: req.body.accountType,
+      frontendBaseUrl,
+    });
+
+    return res.status(200).json(result);
+  }),
+);
+
+router.post(
+  "/password-reset/confirm",
+  asyncHandler(async (req, res) => {
+    const result = await confirmPasswordReset({
+      token: req.body.token,
+      newPassword: req.body.newPassword || req.body.password,
+    });
+
+    return res.status(200).json(result);
   }),
 );
 

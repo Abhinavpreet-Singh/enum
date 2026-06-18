@@ -1,10 +1,14 @@
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+const resendFromEmail =
+  process.env.RESEND_FROM_EMAIL ||
+  process.env.RESEND_FROM ||
+  "ENUM <onboarding@resend.dev>";
 
 export const sendOtpEmail = async (email, otp) => {
   const { error } = await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL,
+    from: resendFromEmail,
     to: email,
     subject: "Your ENUM verification code",
     html: `
@@ -71,5 +75,87 @@ export const sendOtpEmail = async (email, otp) => {
 
   if (error) {
     throw new Error(`Failed to send OTP email: ${error.message}`);
+  }
+};
+
+export const sendPasswordResetEmail = async (email, resetUrl, expiresAt) => {
+  const expiresLabel = new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(expiresAt);
+
+  const { error } = await resend.emails.send({
+    from: resendFromEmail,
+    to: email,
+    subject: "Reset your ENUM password",
+    html: `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <title>Reset ENUM Password</title>
+      </head>
+      <body style="margin:0;padding:0;background:#000;font-family:'Courier New',monospace;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#000;padding:40px 0;">
+          <tr>
+            <td align="center">
+              <table width="440" cellpadding="0" cellspacing="0" style="background:#0a0a0a;border:1px solid #fff;padding:40px;">
+                <tr>
+                  <td align="center" style="padding-bottom:28px;">
+                    <h1 style="color:#fff;font-size:36px;letter-spacing:-4px;margin:0;transform:scaleX(0.9);display:inline-block;">
+                      E<em style="font-style:italic;font-weight:400;">N</em>UM
+                    </h1>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-bottom:14px;">
+                    <p style="color:#a3a3a3;font-size:11px;letter-spacing:3px;margin:0;text-transform:uppercase;">
+                      Password Reset
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-bottom:28px;">
+                    <p style="color:#d4d4d4;font-size:13px;line-height:1.7;margin:0;">
+                      Use the secure link below to create a new password for your ENUM account.
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-bottom:28px;">
+                    <a href="${resetUrl}" style="display:inline-block;background:#fff;color:#000;text-decoration:none;font-size:12px;letter-spacing:2px;text-transform:uppercase;padding:14px 24px;font-weight:bold;">
+                      Reset Password
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-bottom:22px;">
+                    <p style="color:#737373;font-size:11px;letter-spacing:1px;line-height:1.6;margin:0;">
+                      This link expires at <strong style="color:#a3a3a3;">${expiresLabel}</strong>.
+                    </p>
+                    <p style="color:#737373;font-size:11px;letter-spacing:1px;line-height:1.6;margin:8px 0 0;">
+                      If you did not request this, you can safely ignore this email.
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="border-top:1px solid #222;padding-top:22px;">
+                    <p style="color:#404040;font-size:10px;letter-spacing:2px;margin:0;text-transform:uppercase;">
+                      enum.live
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `,
+  });
+
+  if (error) {
+    throw new Error(`Failed to send password reset email: ${error.message}`);
   }
 };

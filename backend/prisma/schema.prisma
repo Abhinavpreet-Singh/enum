@@ -104,6 +104,23 @@ model OtpVerification {
   @@map("otp_verifications")
 }
 
+model PasswordResetToken {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  accountId   String    @db.ObjectId
+  accountType String
+  email       String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([email, accountType])
+  @@index([accountType, accountId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
 // ─── Organization ────────────────────────────────────────────────────────────
 
 model Organization {

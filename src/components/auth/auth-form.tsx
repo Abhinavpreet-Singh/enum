@@ -68,6 +68,9 @@ export default function AuthForm({
         "New student signups and social logins are currently disabled by the platform admin.",
       );
     }
+    if (params.get("reset") === "success") {
+      setSuccess("Password reset successfully. Please log in with your new password.");
+    }
   }, []);
 
   const resetRegister = () => {
@@ -329,22 +332,13 @@ export default function AuthForm({
     accountType === "organization" &&
     registerStep === "form";
 
-  const orgInputCls = isOrgRegisterForm
-    ? `${inputCls} py-1.5 text-xs`
-    : inputCls;
-
-  const orgLabelCls = isOrgRegisterForm
-    ? `${labelCls} mb-0.5 text-[10px]`
-    : labelCls;
+  const orgInputCls = inputCls;
+  const orgLabelCls = labelCls;
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div
-      className={`relative w-full flex items-center justify-center px-4 bg-gray-50 dark:bg-black overflow-hidden ${
-        isOrgRegisterForm ? "h-screen max-h-screen py-3" : "min-h-screen py-8"
-      }`}
-    >
+    <div className="relative min-h-screen w-full flex items-center justify-center px-4 py-8 bg-gray-50 dark:bg-black overflow-hidden">
       {/* Grid Background – light */}
       <div className="absolute inset-0 opacity-[0.07]">
         <div
@@ -374,15 +368,9 @@ export default function AuthForm({
         />
       </div>
 
-      <div
-        className={`relative z-10 w-full ${
-          isOrgRegisterForm
-            ? "max-w-xl h-full max-h-full flex flex-col justify-center"
-            : "max-w-sm"
-        }`}
-      >
+      <div className="relative z-10 w-full max-w-xl">
         {/* Logo */}
-        <div className={`text-center shrink-0 ${isOrgRegisterForm ? "mb-2" : "mb-4"}`}>
+        <div className="text-center mb-4">
           <Link href="/" className="inline-block">
             <h1
               className="font-bold text-[40px] leading-none text-black dark:text-white flex justify-center"
@@ -397,17 +385,9 @@ export default function AuthForm({
         </div>
 
         {/* Auth Card */}
-        <div
-          className={`bg-white dark:bg-neutral-950 border border-gray-300 dark:border-white shrink-0 ${
-            isOrgRegisterForm ? "p-4" : "p-6"
-          }`}
-        >
+        <div className="bg-white dark:bg-neutral-950 border border-gray-300 dark:border-white p-6">
           {/* LOGIN / REGISTER tab toggle */}
-          <div
-            className={`flex border-b border-gray-200 dark:border-neutral-800 ${
-              isOrgRegisterForm ? "mb-2" : "mb-3"
-            }`}
-          >
+          <div className="flex border-b border-gray-200 dark:border-neutral-800 mb-4">
             <button
               id="auth-login-tab"
               onClick={() => {
@@ -442,7 +422,7 @@ export default function AuthForm({
 
           {/* Account-type selector – register only */}
           {mode === "register" && (
-            <div className={`flex gap-0 ${isOrgRegisterForm ? "mb-2" : "mb-3"}`}>
+            <div className="flex gap-0 mb-3">
               {(["user", "organization"] as const).map((type, i) => (
                 <button
                   key={type}
@@ -499,7 +479,7 @@ export default function AuthForm({
 
           {/* Account type banner */}
           {mode === "register" && accountType === "organization" && (
-            <div className="mb-2 px-3 py-1.5 border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900">
+            <div className="mb-3 px-3 py-2 border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900">
               <p className="font-mono text-[10px] tracking-wider text-gray-500 dark:text-neutral-400">
                 ORGANIZATION ACCOUNT · Requires admin approval before dashboard access
               </p>
@@ -570,10 +550,7 @@ export default function AuthForm({
             </form>
           ) : (
             /* Login OR Register step-1 form */
-            <form
-              onSubmit={handleSubmit}
-              className={isOrgRegisterForm ? "space-y-2" : "space-y-3"}
-            >
+            <form onSubmit={handleSubmit} className="space-y-3">
               {/* ── USER REGISTER FIELDS ── */}
               {mode === "register" && accountType === "user" && (
                 <div>
@@ -594,9 +571,9 @@ export default function AuthForm({
                 </div>
               )}
 
-              {/* ── organization REGISTER FIELDS (2-column, fits 100vh) ── */}
+              {/* ── organization REGISTER FIELDS ── */}
               {isOrgRegisterForm && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="organization-name" className={orgLabelCls}>
                       ORGANIZATION NAME
@@ -778,6 +755,14 @@ export default function AuthForm({
                       placeholder="Password"
                       required
                     />
+                    <div className="mt-1 text-right">
+                      <Link
+                        href="/forgot-password"
+                        className="text-[11px] font-mono tracking-wider text-gray-500 dark:text-neutral-500 hover:text-black dark:hover:text-white underline"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
                   </div>
                 </>
               ) : (
@@ -826,9 +811,7 @@ export default function AuthForm({
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full px-4 bg-black dark:bg-white text-white dark:text-black font-mono text-xs tracking-wider hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
-                  isOrgRegisterForm ? "py-1.5 mt-1" : "py-2 mt-3"
-                }`}
+                className="w-full px-4 py-2 mt-3 bg-black dark:bg-white text-white dark:text-black font-mono text-xs tracking-wider hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isLoading && <SpinnerIcon />}
                 {isLoading
@@ -857,11 +840,7 @@ export default function AuthForm({
               </button>
             </p>
           ) : (
-            <p
-              className={`text-center text-xs text-gray-600 dark:text-neutral-400 ${
-                isOrgRegisterForm ? "mt-1" : "mt-3"
-              }`}
-            >
+            <p className="text-center mt-3 text-xs text-gray-600 dark:text-neutral-400">
               Already have an account?{" "}
               <button
                 onClick={() => {
@@ -877,7 +856,7 @@ export default function AuthForm({
         </div>
 
         {/* Back to Home */}
-        <div className={`text-center shrink-0 ${isOrgRegisterForm ? "mt-1" : "mt-3"}`}>
+        <div className="text-center mt-3">
           <Link
             href="/"
             className="text-xs text-gray-600 dark:text-neutral-500 hover:text-black dark:hover:text-white font-mono tracking-wider transition-colors"
