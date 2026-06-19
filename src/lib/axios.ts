@@ -1,37 +1,51 @@
 import axios from "axios";
+import { proxy } from "@/app/proxy";
+import { getMemoryToken, setMemoryToken, clearMemoryToken } from "@/lib/tokenStore";
 
 /**
- * Global Axios request interceptor.
+ * Global Axios interceptors for the legacy `axios` instance.
  *
- * Modern browsers (Chrome 2024+) block third-party cookies by default.
- * Because our frontend (enum.live) and backend (enum-backend.onrender.com)
- * are on different domains, cookies set by the backend are treated as
- * third-party and silently dropped.
- *
- * To work around this, we always attach the JWT from localStorage as an
- * Authorization header.  The backend already accepts both cookies and
- * Bearer tokens (see auth.middleware.js → getAccessTokenFromRequest),
- * so this is a drop-in fix.
- *
- * This file should be imported once at the app root (e.g. via AxiosProvider)
- * to ensure the interceptor is registered before any API call fires.
+ * - Reads the access token from the in-memory store (not localStorage).
+ * - Automatically refreshes via POST /api/v1/auth/refresh on 401.
+ * - Retries the original request once with the new token.
  */
 
 let interceptorRegistered = false;
+let isRefreshing = false;
+let refreshQueue: Array<(token: string | null) => void> = [];
+
+function resolveQueue(token: string | null) {
+  refreshQueue.forEach((fn) => fn(token));
+  refreshQueue = [];
+}
+
+async function doRefresh(): Promise<string | null> {
+  try {
+    const res = await axios.post(
+      `${proxy}/api/v1/auth/refresh`,
+      {},
+      { withCredentials: true },
+    );
+    const newToken: string = res.data?.accessToken;
+    if (newToken) setMemoryToken(newToken);
+    return newToken || null;
+  } catch {
+    clearMemoryToken();
+    return null;
+  }
+}
 
 export function setupAxiosInterceptors() {
   if (interceptorRegistered) return;
   interceptorRegistered = true;
 
-  // ── Request interceptor: attach Bearer token + withCredentials ─────────
+  // ── Request: inject in-memory access token ─────────────────────────────
   axios.interceptors.request.use(
     (config) => {
-      // Always send cookies (still useful for localhost / same-site deploys)
       config.withCredentials = true;
 
-      // Attach token from localStorage if not already set
-      if (typeof window !== "undefined" && !config.headers.Authorization) {
-        const token = localStorage.getItem("accessToken");
+      if (!config.headers.Authorization) {
+        const token = getMemoryToken();
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -42,27 +56,39 @@ export function setupAxiosInterceptors() {
     (error) => Promise.reject(error),
   );
 
-  // ── Response interceptor: handle 401 gracefully ────────────────────────
+  // ── Response: refresh on 401 and retry once ────────────────────────────
   axios.interceptors.response.use(
     (response) => response,
-    (error) => {
-      // If the server says our token is invalid/expired and we're not
-      // already on the login page, clear stale state so the UI reacts.
-      if (
-        error?.response?.status === 401 &&
-        typeof window !== "undefined" &&
-        !window.location.pathname.startsWith("/login") &&
-        !window.location.pathname.startsWith("/oauth-success")
-      ) {
-        // Don't redirect automatically — let each page decide.
-        // But do clean up a clearly-invalid token.
-        const token = localStorage.getItem("accessToken");
-        if (token) {
-          // Token exists but server rejected it → stale
-          localStorage.removeItem("accessToken");
-        }
+    async (error) => {
+      const originalRequest = error.config as typeof error.config & {
+        _retried?: boolean;
+      };
+
+      if (error?.response?.status !== 401 || originalRequest?._retried) {
+        return Promise.reject(error);
       }
-      return Promise.reject(error);
+
+      originalRequest._retried = true;
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          refreshQueue.push((token) => {
+            if (!token) return reject(error);
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            resolve(axios(originalRequest));
+          });
+        });
+      }
+
+      isRefreshing = true;
+      const newToken = await doRefresh();
+      isRefreshing = false;
+      resolveQueue(newToken);
+
+      if (!newToken) return Promise.reject(error);
+
+      originalRequest.headers.Authorization = `Bearer ${newToken}`;
+      return axios(originalRequest);
     },
   );
 }

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { proxy } from "@/app/proxy.js";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
-import { notifyAccountSessionUpdated } from "@/lib/account-session";
+import { setMemoryToken } from "@/lib/tokenStore";
+import { AuthContext } from "@/providers/AuthProvider";
 
 type AuthMode = "login" | "register";
 type RegisterStep = "form" | "otp";
@@ -23,6 +24,7 @@ export default function AuthForm({
   initialReturnTo = "/dashboard",
 }: AuthFormProps) {
   const router = useRouter();
+  const authCtx = useContext(AuthContext);
   const { isEnabled: isSettingEnabled } = usePlatformSettings();
   const signupEnabled = isSettingEnabled("signup_enabled");
   const [mode, setMode] = useState<AuthMode>(initialMode);
@@ -171,13 +173,11 @@ export default function AuthForm({
           },
           { withCredentials: true },
         );
-        localStorage.setItem("Name", response.data.data.username);
-        localStorage.setItem(
-          "id",
-          response.data.data.id ?? response.data.data._id,
-        );
-        localStorage.setItem("accessToken", response.data.accessToken);
-        notifyAccountSessionUpdated();
+        // Store access token in memory only (no localStorage)
+        if (response.data.accessToken) {
+          setMemoryToken(response.data.accessToken);
+          authCtx?.setAccessToken?.(response.data.accessToken);
+        }
       } else if (accountType === "organization") {
         response = await axios.post(
           `${proxy}/api/v1/companies/register`,
@@ -249,26 +249,27 @@ export default function AuthForm({
         password: loginForm.password,
       };
 
-      const response = await axios.post(
-        `${proxy}/api/v1/auth/login`,
-        payload,
-        { withCredentials: true },
-      );
+      const authResult = authCtx
+        ? await authCtx.login(payload)
+        : await axios
+            .post(`${proxy}/api/v1/auth/login`, payload, {
+              withCredentials: true,
+            })
+            .then((response) => {
+              const token = response.data.accessToken;
+              if (token) setMemoryToken(token);
+              return {
+                user: response.data.data ?? null,
+                accountType:
+                  (response.data.accountType as AuthenticatedAccountType) ?? "student",
+                accessToken: token,
+              };
+            });
 
-      const detectedType: AuthenticatedAccountType =
-        response.data.accountType ?? "student";
-      const accountData = response.data.data ?? {};
+      const detectedType: AuthenticatedAccountType = authResult.accountType;
+      const accountData = authResult.user ?? {};
       localStorage.removeItem("adminEmail");
-      const displayName =
-        detectedType === "organization"
-          ? accountData.name
-          : accountData.username || accountData.displayName || accountData.name;
-      if (displayName) localStorage.setItem("Name", displayName);
 
-      const id = accountData.id ?? accountData._id;
-      if (id) localStorage.setItem("id", id);
-      localStorage.setItem("accessToken", response.data.accessToken);
-      notifyAccountSessionUpdated();
       const destination =
         detectedType === "admin"
           ? "/dashboard/admin/overview"

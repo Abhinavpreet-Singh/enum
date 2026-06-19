@@ -1,114 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { proxy } from "@/app/proxy.js";
-import { notifyAccountSessionUpdated } from "@/lib/account-session";
-
-const normalizeToken = (value: string | null) => {
-  if (!value) return "";
-
-  let token = value.trim();
-
-  try {
-    token = decodeURIComponent(token);
-  } catch {
-    // Keep original when value is already decoded.
-  }
-
-  token = token
-    .replace(/^Bearer\s+/i, "")
-    .replace(/^"|"$/g, "")
-    .trim();
-  return token;
-};
-
-const findTokenFromUrl = () => {
-  const searchParams = new URLSearchParams(window.location.search);
-  const hashParams = new URLSearchParams(
-    window.location.hash.replace(/^#/, ""),
-  );
-
-  const candidates = [
-    searchParams.get("token"),
-    searchParams.get("accessToken"),
-    searchParams.get("access_token"),
-    searchParams.get("jwt"),
-    hashParams.get("token"),
-    hashParams.get("accessToken"),
-    hashParams.get("access_token"),
-    hashParams.get("jwt"),
-  ];
-
-  for (const candidate of candidates) {
-    const normalized = normalizeToken(candidate);
-    if (normalized) return normalized;
-  }
-
-  // Fallback for uncommon callback formats where token is embedded in the full URL.
-  const rawHref = window.location.href;
-  const match = rawHref.match(/(?:token|access[_-]?token|jwt)=([^&#]+)/i);
-  if (match?.[1]) {
-    return normalizeToken(match[1]);
-  }
-
-  return "";
-};
+import { setMemoryToken } from "@/lib/tokenStore";
+import { AuthContext } from "@/providers/AuthProvider";
 
 export default function OAuthSuccessPage() {
   const router = useRouter();
+  const authCtx = useContext(AuthContext);
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
-    const exchangeCodeForToken = async () => {
-      const search = window.location.search;
-      const params = new URLSearchParams(search);
-
-      if (!params.get("code")) return "";
-
-      const callbacks = [
-        `${proxy}/api/auth/google/callback${search}`,
-        `${proxy}/auth/google/callback${search}`,
-        `${proxy}/api/auth/github/callback${search}`,
-        `${proxy}/auth/github/callback${search}`,
-      ];
-
-      for (const callbackUrl of callbacks) {
-        try {
-          const response = await axios.get(callbackUrl, {
-            withCredentials: true,
-          });
-
-          const resolved = normalizeToken(
-            response?.data?.token ||
-              response?.data?.accessToken ||
-              response?.data?.data?.token ||
-              null,
-          );
-
-          if (resolved) return resolved;
-        } catch {
-          // Try next provider callback endpoint.
-        }
-      }
-
-      return "";
-    };
-
     const run = async () => {
       const searchParams = new URLSearchParams(window.location.search);
-      const hashParams = new URLSearchParams(
-        window.location.hash.replace(/^#/, ""),
-      );
       const returnTo = searchParams.get("returnTo") || "/dashboard";
-      let token = findTokenFromUrl();
 
       const oauthError =
         searchParams.get("error") ||
-        hashParams.get("error") ||
-        searchParams.get("message") ||
-        hashParams.get("message");
+        searchParams.get("message");
 
       if (oauthError) {
         setError(decodeURIComponent(oauthError));
@@ -117,66 +28,40 @@ export default function OAuthSuccessPage() {
       }
 
       try {
-        if (!token) {
-          token = await exchangeCodeForToken();
-        }
+        // The backend set an HttpOnly refresh cookie on the OAuth callback redirect.
+        // Call /me to get the access token and user object.
+        const res = await axios.get(`${proxy}/api/v1/auth/me`, {
+          withCredentials: true,
+        });
 
-        if (token) {
-          localStorage.setItem("accessToken", token);
-          notifyAccountSessionUpdated();
-        }
+        const { data, accessToken, accountType } = res.data;
 
-        // Hydrate basic user info so dashboard/sidebar doesn't show Guest.
-        try {
-          const headers = token
-            ? { Authorization: `Bearer ${token}` }
-            : undefined;
-
-          const profileRes = await axios.get(`${proxy}/api/v1/users/profile`, {
-            headers,
-            withCredentials: true,
-          });
-
-          const user = profileRes?.data?.data;
-          if (user) {
-            const responseToken = normalizeToken(
-              profileRes?.data?.accessToken || profileRes?.data?.token || null,
-            );
-
-            if (!token && responseToken) {
-              localStorage.setItem("accessToken", responseToken);
-            }
-
-            if (user.username) localStorage.setItem("Name", user.username);
-            if (user.id || user._id)
-              localStorage.setItem("id", user.id ?? user._id);
-            if (user.displayName)
-              localStorage.setItem("displayName", user.displayName);
-            if (user.avatar) localStorage.setItem("userAvatar", user.avatar);
-            router.replace(returnTo);
-            return;
+        if (accessToken) {
+          setMemoryToken(accessToken);
+          if (authCtx) {
+            authCtx.setAccessToken(accessToken);
           }
-        } catch {
-          // Fallback below handles missing profile/token state.
         }
 
-        const storedToken = normalizeToken(localStorage.getItem("accessToken"));
-        if (storedToken) {
-          router.replace(returnTo);
-          return;
-        }
+        // Access token stays in memory; identity comes from backend/AuthProvider.
+        if (data?.avatar) localStorage.setItem("userAvatar", data.avatar);
 
-        setError("Missing token from OAuth callback.");
-        router.replace("/login");
+        const destination =
+          accountType === "admin"
+            ? "/dashboard/admin/overview"
+            : returnTo.startsWith("/dashboard/admin")
+              ? "/dashboard"
+              : returnTo;
+
+        router.replace(destination);
       } catch {
         setError("OAuth login failed. Please try again.");
-        localStorage.removeItem("accessToken");
         router.replace("/login");
       }
     };
 
     run();
-  }, [router]);
+  }, [router, authCtx]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black px-4">

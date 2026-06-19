@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useContext, useState, useEffect } from "react";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
 import {
@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/providers/theme-provider";
 import useAccountType, { useAccountSession } from "@/hooks/useAccountType";
+import { AuthContext } from "@/providers/AuthProvider";
 
 const STUDENT_NAV = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard", matchExact: true },
@@ -85,6 +86,7 @@ interface SidebarProps {
 
 export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
   const pathname = usePathname();
+  const authCtx = useContext(AuthContext);
   const accountType = useAccountType();
   const { accountType: resolvedType, verified } = useAccountSession();
   const isAdmin = verified && accountType === "admin";
@@ -101,9 +103,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
   const expanded = pinned || hovered;
 
   const [userName, setUserName] = useState<string | null>(() =>
-    typeof window !== "undefined"
-      ? localStorage.getItem("displayName") || localStorage.getItem("Name")
-      : null,
+    null,
   );
   const [sidebarAvatar, setSidebarAvatar] = useState<string | null>(() =>
     typeof window !== "undefined" ? localStorage.getItem("userAvatar") : null,
@@ -113,51 +113,40 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
   useEffect(() => {
     const syncAvatar = () =>
       setSidebarAvatar(localStorage.getItem("userAvatar"));
-    const syncName = (e: Event) => {
-      const newName =
-        (e as CustomEvent<string>).detail ||
-        localStorage.getItem("displayName") ||
-        localStorage.getItem("Name") ||
-        "Guest";
-      setUserName(newName);
-    };
-    const syncNameStorage = (e: StorageEvent) => {
-      if (e.key === "displayName")
-        setUserName(e.newValue || localStorage.getItem("Name") || "Guest");
-    };
     window.addEventListener("userAvatarChanged", syncAvatar);
     window.addEventListener("storage", syncAvatar);
-    window.addEventListener("userNameChanged", syncName);
-    window.addEventListener("storage", syncNameStorage);
     return () => {
       window.removeEventListener("userAvatarChanged", syncAvatar);
       window.removeEventListener("storage", syncAvatar);
-      window.removeEventListener("userNameChanged", syncName);
-      window.removeEventListener("storage", syncNameStorage);
     };
   }, []);
 
+  useEffect(() => {
+    const user = authCtx?.user;
+    const name =
+      (typeof user?.displayName === "string" && user.displayName) ||
+      (typeof user?.username === "string" && user.username) ||
+      (typeof user?.name === "string" && user.name) ||
+      null;
+    setUserName(name);
+  }, [authCtx?.user]);
+
   // Hydrate display name + avatar from backend on every dashboard mount
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
-
     // Organization accounts use a different profile endpoint
     const profileUrl =
       verified && resolvedType === "organization" && !isAdmin
         ? `${proxy}/api/v1/organization-dashboard/profile`
         : `${proxy}/api/v1/users/profile`;
 
+    // Global axios interceptor injects the in-memory access token automatically
     axios
-      .get(profileUrl, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      .get(profileUrl, { withCredentials: true })
       .then((res) => {
         const data = res?.data?.data;
         if (!data) return;
         const name = data.displayName || data.name || data.email;
         if (name) {
-          localStorage.setItem("displayName", name);
           setUserName(name);
         }
         if (data.avatar || data.logo) {
@@ -172,19 +161,14 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      const token = localStorage.getItem("accessToken");
       await axios.post(
-        `${proxy}/api/v1/users/logout`,
+        `${proxy}/api/v1/auth/logout`,
         {},
-        {
-          withCredentials: true,
-          headers: { Authorization: `Bearer ${token}` },
-        },
+        { withCredentials: true },
       );
-      localStorage.clear();
-      window.location.href = "/login";
     } catch (error) {
       console.error("Logout error:", error);
+    } finally {
       localStorage.clear();
       window.location.href = "/login";
     }

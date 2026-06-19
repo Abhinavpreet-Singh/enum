@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState } from "react";
 import { Plus, Trash2, FileCode } from "lucide-react";
@@ -152,7 +153,7 @@ export default function SimulationForm() {
         {
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${getMemoryToken()}`,
           },
         },
       );

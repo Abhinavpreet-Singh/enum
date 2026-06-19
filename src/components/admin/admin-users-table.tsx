@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
 import axios from "axios";
@@ -39,7 +40,7 @@ export default function AdminUsersTable({ onRefresh }: AdminUsersTableProps) {
     setLoading(true);
     setError("");
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = getMemoryToken();
       const response = await axios.get(`${proxy}/api/v1/admin/users`, {
         params: { page, limit, search: search || undefined },
         headers: { Authorization: `Bearer ${token}` },
@@ -70,7 +71,7 @@ export default function AdminUsersTable({ onRefresh }: AdminUsersTableProps) {
   const handleDeleteUser = async (userId: string) => {
     if (!confirm("Are you sure you want to delete this user?")) return;
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = getMemoryToken();
       await axios.delete(`${proxy}/api/v1/admin/users/${userId}`, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,

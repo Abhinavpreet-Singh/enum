@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
 import { Question } from "@/data/dsa-questions";
@@ -244,7 +245,7 @@ export default function EditQuestionModal({
         {
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${getMemoryToken()}`,
           },
         },
       );

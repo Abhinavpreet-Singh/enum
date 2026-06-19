@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
 import { X, Plus, Trash2, FileCode } from "lucide-react";
@@ -194,7 +195,7 @@ export default function EditSimulationModal({
         {
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${getMemoryToken()}`,
           },
         },
       );

@@ -1,5 +1,5 @@
 "use client";
-
+import { getMemoryToken } from "@/lib/tokenStore";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
@@ -121,17 +121,14 @@ export default function AuthCatchAllClientPage() {
         }
 
         if (token) {
-          localStorage.setItem("accessToken", token);
+          // Store in memory only — no localStorage
+          const { setMemoryToken: storeToken } = await import("@/lib/tokenStore");
+          storeToken(token);
         }
 
         // Hydrate basic user info so dashboard/sidebar doesn't show Guest.
         try {
-          const headers = token
-            ? { Authorization: `Bearer ${token}` }
-            : undefined;
-
           const profileRes = await axios.get(`${proxy}/api/v1/users/profile`, {
-            headers,
             withCredentials: true,
           });
 
@@ -142,14 +139,11 @@ export default function AuthCatchAllClientPage() {
             );
 
             if (!token && responseToken) {
-              localStorage.setItem("accessToken", responseToken);
+              const { setMemoryToken: storeToken2 } = await import("@/lib/tokenStore");
+              storeToken2(responseToken);
             }
 
-            if (user.username) localStorage.setItem("Name", user.username);
-            if (user.id || user._id)
-              localStorage.setItem("id", user.id ?? user._id);
-            if (user.displayName)
-              localStorage.setItem("displayName", user.displayName);
+            // Identity now comes from backend/AuthProvider, not localStorage.
             if (user.avatar) localStorage.setItem("userAvatar", user.avatar);
             router.replace(returnTo);
             return;
@@ -158,7 +152,7 @@ export default function AuthCatchAllClientPage() {
           // Fallback below handles missing profile/token state.
         }
 
-        const storedToken = normalizeToken(localStorage.getItem("accessToken"));
+        const storedToken = normalizeToken(getMemoryToken());
         if (storedToken) {
           router.replace(returnTo);
           return;
@@ -168,7 +162,8 @@ export default function AuthCatchAllClientPage() {
         router.replace("/login");
       } catch {
         setError("OAuth login failed. Please try again.");
-        localStorage.removeItem("accessToken");
+        const { clearMemoryToken } = await import("@/lib/tokenStore");
+        clearMemoryToken();
         router.replace("/login");
       }
     };

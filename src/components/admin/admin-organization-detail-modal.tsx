@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
 import axios from "axios";
@@ -61,7 +62,7 @@ export default function AdminCompanyDetailModal({
     setLoading(true);
     setError("");
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = getMemoryToken();
       const response = await axios.get(
         `${proxy}/api/v1/admin/companies/${company.id}`,
         {
@@ -81,7 +82,7 @@ export default function AdminCompanyDetailModal({
   const handleDelete = async () => {
     if (!confirm("Are you sure you want to delete this company?")) return;
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = getMemoryToken();
       await axios.delete(`${proxy}/api/v1/admin/companies/${company.id}`, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,

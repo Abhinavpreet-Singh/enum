@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
@@ -52,7 +53,7 @@ export default function ActivityPage() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchPage = useCallback(async (skip: number, append: boolean) => {
-    const token = localStorage.getItem("accessToken");
+    const token = getMemoryToken();
     if (!token) {
       setError("Log in to view your activity history.");
       setLoading(false);

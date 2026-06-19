@@ -1,5 +1,5 @@
 "use client";
-
+import { getMemoryToken } from "@/lib/tokenStore";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -23,7 +23,7 @@ export default function IncidentDetailClientPage() {
     const fetchIncident = async () => {
       try {
         setIsLoading(true);
-        const token = localStorage.getItem("accessToken");
+        const token = getMemoryToken();
         const [detailRes, listRes] = await Promise.all([
           axios.get(`${proxy}/api/v1/incidents/${id}`),
           axios.get(`${proxy}/api/v1/incidents`, {

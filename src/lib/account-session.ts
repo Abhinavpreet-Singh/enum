@@ -1,4 +1,5 @@
 import { proxy } from "@/app/proxy";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 export type AccountType = "student" | "organization" | "admin";
 
@@ -25,17 +26,37 @@ export function purgeSpoofedAccountType() {
   localStorage.removeItem("adminEmail");
 }
 
+/**
+ * Returns the in-memory access token.
+ * No longer reads from localStorage.
+ */
 export function getAccessToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("accessToken");
+  return getMemoryToken();
 }
 
 /** Fetch the authoritative account type from the backend session endpoint. */
 export async function fetchAccountSession(): Promise<AccountSession> {
   purgeSpoofedAccountType();
 
-  const token = getAccessToken();
+  const token = getMemoryToken();
   if (!token) {
+    // Try /me with cookie — may still be authenticated via refresh cookie
+    try {
+      const res = await fetch(`${proxy}/api/v1/auth/me`, {
+        credentials: "include",
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const data = json?.data;
+        return {
+          accountType: mapBackendAccountType(
+            json?.accountType,
+            data?.role ?? data?.user?.role,
+          ),
+          verified: true,
+        };
+      }
+    } catch { /* ignored */ }
     return { accountType: "student", verified: true };
   }
 
@@ -55,10 +76,6 @@ export async function fetchAccountSession(): Promise<AccountSession> {
         ),
         verified: true,
       };
-    }
-
-    if (res.status === 401) {
-      localStorage.removeItem("accessToken");
     }
 
     return { accountType: "student", verified: true };

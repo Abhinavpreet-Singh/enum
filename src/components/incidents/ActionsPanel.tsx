@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState } from "react";
 import {
@@ -53,7 +54,7 @@ export default function ActionsPanel({
     try {
       setIsTakingAction(action.id);
       setError(null);
-      const token = localStorage.getItem("accessToken");
+      const token = getMemoryToken();
 
       await axios.post(
         `${proxy}/api/v1/incidents/${incident.id}/session/${session.id}/action`,

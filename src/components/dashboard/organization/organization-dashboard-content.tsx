@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useContext, useState, useEffect } from "react";
 import Link from "next/link";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
+import { AuthContext } from "@/providers/AuthProvider";
 import {
   FileText,
   Users,
@@ -65,6 +66,7 @@ interface RecentViolation {
 }
 
 export default function OrganizationDashboardContent() {
+  const authCtx = useContext(AuthContext);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [recentTests, setRecentTests] = useState<RecentTest[]>([]);
   const [recentAttempts, setRecentAttempts] = useState<RecentAttempt[]>([]);
@@ -72,11 +74,11 @@ export default function OrganizationDashboardContent() {
   const [loading, setLoading] = useState(true);
   const [activityTab, setActivityTab] = useState<"tests" | "attempts" | "violations">("tests");
 
-  const [organizationName] = useState(() =>
-    typeof window !== "undefined"
-      ? localStorage.getItem("displayName") || localStorage.getItem("Name") || "Organization"
-      : "Organization",
-  );
+  const organizationName =
+    (typeof authCtx?.user?.name === "string" && authCtx.user.name) ||
+    (typeof authCtx?.user?.displayName === "string" && authCtx.user.displayName) ||
+    (typeof authCtx?.user?.email === "string" && authCtx.user.email) ||
+    "Organization";
 
   useEffect(() => {
     Promise.all([

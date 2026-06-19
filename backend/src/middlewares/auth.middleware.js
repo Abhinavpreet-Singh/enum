@@ -1,34 +1,35 @@
+/**
+ * auth.middleware.js
+ *
+ * Re-exports from the new verifyAccessToken module while preserving all
+ * existing named exports so every protected route continues to work unchanged.
+ */
 import prisma from "../db/index.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import jwt from "jsonwebtoken";
+import { verifyAccessToken as verifyJwtToken, extractIdFromToken } from "../auth/utils/tokens.js";
+import { assertAccessTokenSession } from "../auth/services/access-token.service.js";
+
+// ─── Token extraction ─────────────────────────────────────────────────────────
 
 const getAccessTokenFromRequest = (req) => {
   const bearer = req.header("Authorization")?.replace(/^Bearer\s+/i, "").trim();
-  if (bearer) return bearer;
-  // Desktop exam client sets examToken; web app uses accessToken.
-  return req?.cookies?.examToken || req?.cookies?.accessToken || "";
+  if (bearer) return { token: bearer, source: "bearer" };
+  // Desktop exam client uses examToken cookie — preserve that path.
+  // The old accessToken cookie is no longer issued but accept it for a grace period.
+  if (req?.cookies?.examToken) return { token: req.cookies.examToken, source: "exam" };
+  if (req?.cookies?.accessToken) return { token: req.cookies.accessToken, source: "access-cookie" };
+  return { token: "", source: null };
 };
 
-const verifyAccessToken = (token) => {
-  const secrets = [process.env.ACCESS_TOKEN_SECRET, process.env.JWT_SECRET].filter(
-    Boolean
-  );
+// ─── Internal verify helper ───────────────────────────────────────────────────
 
-  if (secrets.length === 0) {
-    throw new ApiError(500, "JWT secret not configured");
+const _verifyToken = (token) => {
+  try {
+    return verifyJwtToken(token);
+  } catch (err) {
+    throw err;
   }
-
-  let lastError;
-  for (const secret of secrets) {
-    try {
-      return jwt.verify(token, secret);
-    } catch (err) {
-      lastError = err;
-    }
-  }
-
-  throw lastError;
 };
 
 const getUserAccountType = (user) => {
@@ -36,8 +37,10 @@ const getUserAccountType = (user) => {
   return role === "admin" ? "admin" : "student";
 };
 
+// ─── verifyJWT ────────────────────────────────────────────────────────────────
+
 export const verifyJWT = asyncHandler(async (req, res, next) => {
-  const token = getAccessTokenFromRequest(req);
+  const { token, source } = getAccessTokenFromRequest(req);
 
   if (!token) {
     throw new ApiError(401, "Unauthorized request");
@@ -45,20 +48,24 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
 
   let decodedToken;
   try {
-    decodedToken = verifyAccessToken(token);
+    decodedToken = _verifyToken(token);
   } catch (err) {
     if (err instanceof ApiError) throw err;
     throw new ApiError(401, "Invalid access token");
   }
 
   const accountType = decodedToken?.accountType || "user";
+  const id = extractIdFromToken(decodedToken);
 
-  const id = decodedToken?._id || decodedToken?.userId || decodedToken?.id;
   if (!id || !/^[a-f\d]{24}$/i.test(String(id))) {
     throw new ApiError(401, "Invalid access token");
   }
 
-  // ── Organization token ──────────────────────────────────────────────────────────
+  if (source === "bearer" || source === "access-cookie") {
+    await assertAccessTokenSession({ token, decoded: decodedToken });
+  }
+
+  // ── Organization token ─────────────────────────────────────────────────────
   if (accountType === "organization") {
     const organization = await prisma.organization.findUnique({ where: { id } });
     if (!organization) throw new ApiError(401, "Invalid access token");
@@ -89,7 +96,7 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
   next();
 });
 
-// ── Candidate / user gate (desktop exam routes) ─────────────────────────────
+// ── Candidate / user gate (desktop exam routes) ──────────────────────────────
 export const requireUser = (req, _res, next) => {
   if (!req.user?.id) {
     throw new ApiError(401, "Candidate authentication required.");
@@ -97,8 +104,7 @@ export const requireUser = (req, _res, next) => {
   next();
 };
 
-// ── Role gate ────────────────────────────────────────────────────────────────
-// Usage: requireRole("organization")
+// ── Role gate ─────────────────────────────────────────────────────────────────
 export const requireRole = (...roles) => {
   return (req, _res, next) => {
     if (!roles.includes(req.accountType)) {
@@ -108,7 +114,7 @@ export const requireRole = (...roles) => {
   };
 };
 
-// ── Approval gate (organization must be approved) ─────────────────────────────────
+// ── Approval gate ─────────────────────────────────────────────────────────────
 export const requireApproved = (req, _res, next) => {
   if (req.accountType === "organization") {
     if (req.organization?.approvalStatus !== "approved") {
@@ -121,20 +127,24 @@ export const requireApproved = (req, _res, next) => {
 export const optionalAuth = asyncHandler(async (req, _res, next) => {
   try {
     const token = getAccessTokenFromRequest(req);
-    if (!token) {
+    if (!token.token) {
       req.user = null;
       req.accountType = null;
       return next();
     }
 
-    const decodedToken = verifyAccessToken(token);
-    const id = decodedToken?._id || decodedToken?.userId || decodedToken?.id;
+    const decodedToken = _verifyToken(token.token);
+    const id = extractIdFromToken(decodedToken);
     if (!id) {
       req.user = null;
       return next();
     }
 
     const accountType = decodedToken?.accountType || "user";
+
+    if (token.source === "bearer" || token.source === "access-cookie") {
+      await assertAccessTokenSession({ token: token.token, decoded: decodedToken });
+    }
 
     if (accountType === "organization") {
       const organization = await prisma.organization.findUnique({ where: { id } });

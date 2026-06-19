@@ -3,9 +3,8 @@ import passport from "passport";
 
 import "../auth/passport.js";
 import { requireEnv, env } from "../config/env.js";
-import { generateToken } from "../utils/generateToken.js";
-import { getAuthCookieOptions } from "../utils/cookieOptions.js";
 import { oauthSignupGate } from "../middlewares/feature-gate.middleware.js";
+import { handleOAuthSuccess } from "../auth/controllers/auth.controller.js";
 
 const router = Router();
 
@@ -77,19 +76,10 @@ const buildFailureRedirectUrl = (req, provider) => {
   }).toString();
 };
 
-// On successful OAuth login, issue a JWT and permanently redirect the browser
-// to the frontend callback route. The backend never renders a raw callback page.
-const respondWithOAuthSuccess = (req, res, token) => {
-  const options = getAuthCookieOptions();
-  const redirectUrl = getFrontendRedirectUrl(req, "/oauth-success");
-
-  redirectUrl.searchParams.set("token", token);
-  redirectUrl.searchParams.set("accessToken", token);
-  redirectUrl.hash = `token=${encodeURIComponent(token)}`;
-
-  return res
-    .cookie("accessToken", token, options)
-    .redirect(redirectUrl.toString());
+// On successful OAuth login, create a session (refresh cookie) and redirect
+// to /oauth-success without putting any token in the URL.
+const respondWithOAuthSuccess = (req, res, userId) => {
+  return handleOAuthSuccess(req, res, userId);
 };
 
 const ensureGoogleConfigured = (_req, res, next) => {
@@ -181,8 +171,7 @@ router.get("/google/callback", oauthSignupGate, (req, res, next) => {
     }
 
     console.log("[AUTH] Google auth successful, user:", { userId: user.id, email: user.email });
-    const token = generateToken({ userId: user.id, email: user.email });
-    return respondWithOAuthSuccess(req, res, token);
+    return respondWithOAuthSuccess(req, res, user.id);
   })(req, res, next);
 });
 
@@ -215,8 +204,7 @@ router.get("/github/callback", oauthSignupGate, (req, res, next) => {
       return res.redirect(buildFailureRedirectUrl(req, "github"));
     }
 
-    const token = generateToken({ userId: user.id, email: user.email });
-    return respondWithOAuthSuccess(req, res, token);
+    return respondWithOAuthSuccess(req, res, user.id);
   })(req, res, next);
 });
 

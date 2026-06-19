@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
 import axios from "axios";
@@ -13,7 +14,7 @@ const panelBorder = "border border-black/20 dark:border-white/25";
 const panelSurface = `${panelBorder} bg-white/80 dark:bg-black/75`;
 
 const cfg = () => {
-  const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+  const token = typeof window !== "undefined" ? getMemoryToken() : null;
   return { withCredentials: true as const, headers: token ? { Authorization: `Bearer ${token}` } : undefined };
 };
 

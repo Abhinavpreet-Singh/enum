@@ -2,10 +2,17 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import prisma from "../db/index.js";
 import { ApiError } from "../utils/apiError.js";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
 import { uploadAvatarToCloudinary } from "../utils/cloudinary.js";
 import { sendOtpEmail } from "../utils/resendEmail.js";
 import { getAuthCookieOptions } from "../utils/cookieOptions.js";
+import { setRefreshCookie, clearRefreshCookie } from "../auth/utils/cookies.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  getAccessTokenExpiryDate,
+  hashAccessToken,
+} from "../auth/utils/tokens.js";
+import { createSession, storeAccessToken } from "../auth/services/session.service.js";
 import { tryAwardXp, AWARD_TYPES, buildAwardKey } from "../services/xpService.js";
 import { logUserActivity } from "../services/activityLogService.js";
 import { confirmPasswordReset } from "../services/passwordReset.service.js";
@@ -37,40 +44,32 @@ const buildStreakUpdate = (user, now) => {
 
 const isValidObjectId = (value) => /^[a-f\d]{24}$/i.test(String(value || ""));
 
-const generateAccessToken = (user) => {
-  return jwt.sign(
-    {
-      _id: user.id,
-      email: user.email,
-      username: user.username,
-    },
-    process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: process.env.ACCESS_TOKEN_EXPIRY },
-  );
-};
-
-const generateRefreshToken = (user) => {
-  return jwt.sign(
-    {
-      _id: user.id,
-    },
-    process.env.REFRESH_TOKEN_SECRET,
-    {
-      expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
-    },
-  );
-};
-
-const generateAccessAndRefreshToken = async (userId) => {
+const generateAccessAndRefreshToken = async (userId, req) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: userId } });
 
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { refreshToken },
+    const refreshToken = generateRefreshToken();
+    const session = await createSession({
+      userId: user.id,
+      accountType: String(user.role || "Student").toLowerCase() === "admin" ? "admin" : "student",
+      refreshToken,
+      userAgent: req.get("User-Agent") || "",
+      ipAddress: (req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "")
+        .toString()
+        .split(",")[0]
+        .trim(),
+    });
+    const accessToken = generateAccessToken({
+      userId: user.id,
+      email: user.email,
+      username: user.username,
+      role: user.role || "Student",
+      accountType: session.accountType,
+      sessionId: session.id,
+    });
+    await storeAccessToken(session.id, {
+      accessTokenHash: hashAccessToken(accessToken),
+      accessTokenExpiresAt: getAccessTokenExpiryDate(),
     });
 
     return { refreshToken, accessToken };
@@ -201,6 +200,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
   const { refreshToken, accessToken } = await generateAccessAndRefreshToken(
     user.id,
+    req,
   );
 
   const loggedInUser = await prisma.user.findUnique({
@@ -212,12 +212,10 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Something went wrong while logging the user!!");
   }
 
-  const options = getAuthCookieOptions();
-
+  clearRefreshCookie(res);
+  setRefreshCookie(res, refreshToken);
   return res
     .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
     .json({
       message: "Logged In",
       data: loggedInUser,

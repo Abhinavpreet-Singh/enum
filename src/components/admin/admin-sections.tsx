@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
@@ -18,7 +19,7 @@ const panelSurface = `${panelBorder} bg-white/80 dark:bg-black/75`;
 const labelCls = "block font-mono text-[10px] tracking-[0.2em] text-gray-500 dark:text-gray-400 uppercase mb-1.5";
 
 const getAdminRequestConfig = () => {
-  const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+  const token = typeof window !== "undefined" ? getMemoryToken() : null;
   return {
     withCredentials: true as const,
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,

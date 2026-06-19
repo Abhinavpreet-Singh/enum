@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useEffect, useState, useMemo } from "react";
 import { Edit, Trash2, Search, Filter, Bug } from "lucide-react";
@@ -91,7 +92,7 @@ export default function SimulationsManager({
         `${proxy}/api/v1/simulations/deleteSimulation/${simulationId}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${getMemoryToken()}`,
           },
         },
       );

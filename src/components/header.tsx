@@ -5,9 +5,10 @@ import Link from "next/link";
 import useAuth from "@/hooks/useAuth";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
-import { useEffect, useState, type MouseEvent } from "react";
+import { useContext, useEffect, useState, type MouseEvent } from "react";
 import { useTheme } from "@/providers/theme-provider";
 import { Menu, Moon, Sun, X } from "lucide-react";
+import { AuthContext } from "@/providers/AuthProvider";
 
 function ThemeButton() {
   const { toggleTheme } = useTheme();
@@ -69,6 +70,7 @@ function ProfileTrigger({
 
 export default function Header() {
   const isAuthenticated = useAuth();
+  const authCtx = useContext(AuthContext);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -76,9 +78,7 @@ export default function Header() {
     typeof window !== "undefined" ? localStorage.getItem("userAvatar") : null,
   );
   const [profileName, setProfileName] = useState<string | null>(() =>
-    typeof window !== "undefined"
-      ? localStorage.getItem("displayName") || localStorage.getItem("Name")
-      : null,
+    null,
   );
 
   const navLinks = [
@@ -114,61 +114,53 @@ export default function Header() {
   useEffect(() => {
     const syncAvatar = () =>
       setProfileAvatar(localStorage.getItem("userAvatar"));
-    const syncName = () =>
-      setProfileName(
-        localStorage.getItem("displayName") || localStorage.getItem("Name"),
-      );
 
     window.addEventListener("storage", syncAvatar);
-    window.addEventListener("storage", syncName);
     window.addEventListener("userAvatarChanged", syncAvatar);
-    window.addEventListener("userNameChanged", syncName);
 
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      axios
-        .get(`${proxy}/api/v1/users/profile`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        .then((res) => {
-          const data = res?.data?.data;
-          if (!data) return;
-          if (data.avatar) {
-            localStorage.setItem("userAvatar", data.avatar);
-            setProfileAvatar(data.avatar);
-          }
-          if (data.displayName) {
-            localStorage.setItem("displayName", data.displayName);
-            setProfileName(data.displayName);
-          }
-        })
-        .catch(() => {});
-    }
+    // Fetch profile using the global axios instance (interceptor injects token from memory)
+    axios
+      .get(`${proxy}/api/v1/users/profile`, { withCredentials: true })
+      .then((res) => {
+        const data = res?.data?.data;
+        if (!data) return;
+        if (data.avatar) {
+          localStorage.setItem("userAvatar", data.avatar);
+          setProfileAvatar(data.avatar);
+        }
+        if (data.displayName) {
+          setProfileName(data.displayName);
+        }
+      })
+      .catch(() => {});
 
     return () => {
       window.removeEventListener("storage", syncAvatar);
-      window.removeEventListener("storage", syncName);
       window.removeEventListener("userAvatarChanged", syncAvatar);
-      window.removeEventListener("userNameChanged", syncName);
     };
   }, []);
+
+  useEffect(() => {
+    const user = authCtx?.user;
+    const name =
+      (typeof user?.displayName === "string" && user.displayName) ||
+      (typeof user?.username === "string" && user.username) ||
+      (typeof user?.name === "string" && user.name) ||
+      null;
+    setProfileName(name);
+  }, [authCtx?.user]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      const token = localStorage.getItem("accessToken");
       await axios.post(
-        `${proxy}/api/v1/users/logout`,
+        `${proxy}/api/v1/auth/logout`,
         {},
-        {
-          withCredentials: true,
-          headers: { Authorization: `Bearer ${token}` },
-        },
+        { withCredentials: true },
       );
-      localStorage.clear();
-      window.location.href = "/";
     } catch (error) {
       console.error("Logout error:", error);
+    } finally {
       localStorage.clear();
       window.location.href = "/";
     }

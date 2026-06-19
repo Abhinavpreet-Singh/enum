@@ -75,6 +75,7 @@ import complexityRouter from "./routes/complexity.route.js";
 import systemDesignRouter from "./routes/systemDesign.route.js";
 import incidentRouter from "./routes/incident.route.js";
 import authRouter from "./routes/auth.routes.js";
+import newAuthRouter from "./auth/routes/auth.routes.js";
 import organizationRouter from "./routes/organization.route.js";
 import unifiedLoginRouter from "./routes/unified-login.route.js";
 import assessmentRouter from "./routes/assessment.route.js";
@@ -106,6 +107,9 @@ app.use("/api/v1/system-design", systemDesignRouter);
 app.use("/api/v1/incidents", incidentRouter);
 app.use("/api/v1/organizations", organizationRouter);
 app.use("/api/v1/companies", organizationRouter);
+// New session-based auth endpoints (login, refresh, me, logout, sessions)
+app.use("/api/v1/auth", newAuthRouter);
+// Legacy unified-login routes (password-reset and old session endpoint) — kept as aliases
 app.use("/api/v1/auth", unifiedLoginRouter);
 app.use("/api/v1/assessments", assessmentRouter);
 app.use("/api/v1/assessments", assessmentInviteRouter);

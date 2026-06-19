@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect, useCallback } from "react";
 import {
@@ -208,7 +209,7 @@ export default function SimulationContainer({
   useEffect(() => {
     const loadProgress = async () => {
       try {
-        const token = localStorage.getItem("accessToken");
+        const token = getMemoryToken();
         if (!token) return;
 
         const res = await fetch(
@@ -242,7 +243,7 @@ export default function SimulationContainer({
   const persistProgress = useCallback(
     async (solved: boolean) => {
       try {
-        const token = localStorage.getItem("accessToken");
+        const token = getMemoryToken();
         if (!token) return;
 
         const res = await fetch(`${proxy}/api/v1/simulation-progress/${simulation.id}`, {
@@ -316,7 +317,7 @@ export default function SimulationContainer({
     setConsoleOutput(["$ Running simulation engine...", ""]);
 
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = getMemoryToken();
 
       // Convert FileMap to editedFiles array for the engine
       const editedFiles = Object.entries(files).map(([filename, content]) => ({

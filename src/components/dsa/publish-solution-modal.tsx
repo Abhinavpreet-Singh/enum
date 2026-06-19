@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState } from "react";
 import { X, Send, CheckCircle2 } from "lucide-react";
@@ -47,7 +48,7 @@ export default function PublishSolutionModal({
         { questionId, code, description, language },
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${getMemoryToken()}`,
           },
         },
       );

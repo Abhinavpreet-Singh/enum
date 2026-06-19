@@ -1,10 +1,12 @@
-﻿"use client";
+"use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
-import { useState, useRef, useEffect } from "react";
+import { useContext, useState, useRef, useEffect } from "react";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
 import Link from "next/link";
 import useAuth from "@/hooks/useAuth";
+import { AuthContext } from "@/providers/AuthProvider";
 import {
   Edit3,
   Github,
@@ -206,6 +208,8 @@ const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function ProfileContent() {
   const isAuthenticated = useAuth();
+  const authCtx = useContext(AuthContext);
+  const authUser = authCtx?.user;
   const fileInputRef = useRef<HTMLInputElement>(null);
   // null = no section editing; string = which section is being edited
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -213,14 +217,12 @@ export default function ProfileContent() {
   const [draftName, setDraftName] = useState("");
 
   const registeredUsername =
-    typeof window !== "undefined"
-      ? localStorage.getItem("Name") || "guest"
-      : "guest";
+    (typeof authUser?.username === "string" && authUser.username) || "guest";
 
   const [fetchedEmail, setFetchedEmail] = useState<string>("");
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
+    const token = getMemoryToken();
     if (!token) return;
     axios
       .get(`${proxy}/api/v1/users/profile`, {
@@ -234,8 +236,7 @@ export default function ProfileContent() {
           ...p,
           name:
             data.displayName ||
-            localStorage.getItem("displayName") ||
-            localStorage.getItem("Name") ||
+            data.username ||
             "Guest",
           bio: data.bio || "",
           role: data.role || "Student",
@@ -250,9 +251,7 @@ export default function ProfileContent() {
           // Use Cloudinary URL if present, fall back to localStorage cache
           avatar: data.avatar || localStorage.getItem("userAvatar") || null,
         }));
-        // Keep localStorage in sync so sidebar + dashboard update immediately
         if (data.displayName) {
-          localStorage.setItem("displayName", data.displayName);
           window.dispatchEvent(
             new CustomEvent("userNameChanged", { detail: data.displayName }),
           );
@@ -270,11 +269,9 @@ export default function ProfileContent() {
 
   const [profile, setProfile] = useState<ProfileData>(() => ({
     name:
-      typeof window !== "undefined"
-        ? localStorage.getItem("displayName") ||
-          localStorage.getItem("Name") ||
-          "Guest"
-        : "Guest",
+      (typeof authUser?.displayName === "string" && authUser.displayName) ||
+      (typeof authUser?.username === "string" && authUser.username) ||
+      "Guest",
     bio: "",
     role: "Student",
     location: "",
@@ -360,7 +357,7 @@ export default function ProfileContent() {
   );
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
+    const token = getMemoryToken();
 
     // Track daily login
     const today = new Date().toISOString().split("T")[0];
@@ -371,7 +368,7 @@ export default function ProfileContent() {
     }
 
     // Fetch leaderboard + submissions in parallel so setStats is called ONCE
-    // with all fields merged — eliminates the race condition where two separate
+    // with all fields merged � eliminates the race condition where two separate
     // setStats calls overwrite each other's data in localStorage.
     Promise.all([
       axios.get(`${proxy}/api/v1/users/leaderboard`).catch(() => null),
@@ -383,14 +380,14 @@ export default function ProfileContent() {
             .catch(() => null)
         : Promise.resolve(null),
     ]).then(([lbRes, subData]) => {
-      // ── Leaderboard data ──────────────────────────────
+      // -- Leaderboard data ------------------------------
       const lb: LeaderboardEntry[] = lbRes?.data?.data ?? [];
       const idx = lb.findIndex((e) => e.username === registeredUsername);
       const lbEntry = idx !== -1 ? lb[idx] : null;
 
-      // ── Submissions → two maps ─────────────────────────────────────────
-      // allSubmissionsMap  → ALL submissions per day  (drives heatmap color)
-      // activityMap        → days with ACCEPTED submissions (drives streak)
+      // -- Submissions ? two maps -----------------------------------------
+      // allSubmissionsMap  ? ALL submissions per day  (drives heatmap color)
+      // activityMap        ? days with ACCEPTED submissions (drives streak)
       const submissions: any[] = subData?.data ?? [];
       const allSubmissionsMap = new Map<string, number>();
       const acceptedByDate = new Map<string, Set<string>>();
@@ -423,14 +420,14 @@ export default function ProfileContent() {
         if (new Date(date + "T00:00:00") >= oneYearAgo) subsThisYear += count;
       });
 
-      // ── Heatmap + streaks ─────────────────────────────
+      // -- Heatmap + streaks -----------------------------
       setHeatmapCells(generateHeatmapCells(allSubmissionsMap));
       setTotalSubmissionsYear(subsThisYear);
       setTotalActiveDays(activityMap.size);
       const { currentStreak, longestStreak } = calculateStreak(activityMap);
       setStreakBadges(generateStreakBadges(currentStreak));
 
-      // ── Single setStats call — no race condition ──────
+      // -- Single setStats call � no race condition ------
       setStats((prev) => {
         const next: UserStats = {
           ...prev,
@@ -450,7 +447,7 @@ export default function ProfileContent() {
   }, [registeredUsername]);
 
   async function persistProfile(data: ProfileData) {
-    const token = localStorage.getItem("accessToken");
+    const token = getMemoryToken();
     if (!token) return;
     try {
       await axios.put(
@@ -472,7 +469,7 @@ export default function ProfileContent() {
   }
 
   async function persistCerts(updatedCerts: Cert[]) {
-    const token = localStorage.getItem("accessToken");
+    const token = getMemoryToken();
     if (!token) return;
     try {
       await axios.put(
@@ -501,7 +498,7 @@ export default function ProfileContent() {
     reader.readAsDataURL(file);
 
     // Upload to Cloudinary via backend
-    const token = localStorage.getItem("accessToken");
+    const token = getMemoryToken();
     if (!token) return;
     const formData = new FormData();
     formData.append("avatar", file);
@@ -542,7 +539,6 @@ export default function ProfileContent() {
     if (!trimmed) return;
     setProfile((p) => ({ ...p, name: trimmed }));
     setDraft((d) => ({ ...d, name: trimmed }));
-    localStorage.setItem("displayName", trimmed);
     window.dispatchEvent(
       new CustomEvent("userNameChanged", { detail: trimmed }),
     );
@@ -644,7 +640,7 @@ export default function ProfileContent() {
           <div className="space-y-4">
             {/* Identity card */}
             <div className="border border-gray-200 dark:border-white/8 p-6 bg-white/90 dark:bg-[#111] space-y-4">
-              {/* Avatar — always clickable */}
+              {/* Avatar � always clickable */}
               <div className="flex flex-col items-center gap-3">
                 <div
                   className="relative group cursor-pointer"
@@ -733,7 +729,7 @@ export default function ProfileContent() {
                 </div>
               </div>
 
-              {/* ABOUT — role, location */}
+              {/* ABOUT � role, location */}
               <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-white/8">
                 <div className="flex items-center justify-between">
                   <p className="font-mono text-[10px] tracking-widest text-gray-400">
@@ -821,7 +817,7 @@ export default function ProfileContent() {
                   </p>
                 )}
               </div>
-              {/* SKILLS — always inline editable */}
+              {/* SKILLS � always inline editable */}
               <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-white/8">
                 <p className="font-mono text-[10px] tracking-widest text-gray-400">
                   SKILLS
@@ -1001,7 +997,7 @@ export default function ProfileContent() {
                         {c.name}
                       </p>
                       <p className="font-mono text-[10px] text-gray-400">
-                        {c.issuer} · {c.date}
+                        {c.issuer} � {c.date}
                       </p>
                     </div>
                     <button
@@ -1104,9 +1100,9 @@ export default function ProfileContent() {
               ))}
             </div>
 
-            {/* Activity Heatmap — LeetCode style */}
+            {/* Activity Heatmap � LeetCode style */}
             <div className="border border-gray-200 dark:border-[#21262d] bg-white dark:bg-[#0d1117]">
-              {/* ── Header bar ── */}
+              {/* -- Header bar -- */}
               <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-gray-100 dark:border-[#21262d]">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   <span className="font-bold text-black dark:text-white text-base">
@@ -1117,7 +1113,7 @@ export default function ProfileContent() {
                     className="ml-1.5 text-gray-400 cursor-default select-none"
                     title="Cell intensity = all submissions that day. Streak = consecutive days with at least one accepted solution."
                   >
-                    ⓘ
+                    ?
                   </span>
                 </p>
                 <div className="flex items-center gap-5 text-[11px] font-mono text-gray-500 dark:text-gray-400 flex-wrap">
@@ -1136,14 +1132,14 @@ export default function ProfileContent() {
                 </div>
               </div>
 
-              {/* ── Grid ── */}
+              {/* -- Grid -- */}
               <div
                 className="px-5 py-4 overflow-x-auto"
                 style={{ scrollbarWidth: "none" }}
               >
                 {heatmapCells.length > 0 ? (
                   <div style={{ minWidth: 700 }}>
-                    {/* Month labels — absolutely positioned, left values include accumulated month-boundary extra gaps */}
+                    {/* Month labels � absolutely positioned, left values include accumulated month-boundary extra gaps */}
                     <div className="relative mb-1" style={{ height: 16 }}>
                       {computeMonthLabelPositions(heatmapCells).map(
                         ({ label, left }) => (
@@ -1159,7 +1155,7 @@ export default function ProfileContent() {
                     </div>
 
                     <div className="flex">
-                      {/* Day labels — Mon / Wed / Fri visible, others hidden */}
+                      {/* Day labels � Mon / Wed / Fri visible, others hidden */}
                       <div
                         className="flex flex-col gap-0.75 shrink-0"
                         style={{ width: DAY_W }}
@@ -1178,7 +1174,7 @@ export default function ProfileContent() {
                         ))}
                       </div>
 
-                      {/* Cell columns — extra marginLeft at every month boundary */}
+                      {/* Cell columns � extra marginLeft at every month boundary */}
                       {heatmapCells.map((week, wi) => {
                         const isNewMonth =
                           wi > 0 &&
@@ -1246,7 +1242,7 @@ export default function ProfileContent() {
 
             {/* Badges */}
             <div className="border border-gray-200 dark:border-white/8 p-5 bg-white/90 dark:bg-[#111] space-y-5">
-              {/* ── Streak track ── */}
+              {/* -- Streak track -- */}
               <div>
                 <div className="flex items-center gap-1.5 mb-3">
                   <Flame className="w-3.5 h-3.5 text-orange-400" />
@@ -1278,7 +1274,7 @@ export default function ProfileContent() {
                       </span>
                       {unlocked && (
                         <span className="font-mono text-[9px] text-orange-400">
-                          ✓
+                          ?
                         </span>
                       )}
                     </div>
