@@ -368,7 +368,7 @@ export default function ProfileContent() {
     }
 
     // Fetch leaderboard + submissions in parallel so setStats is called ONCE
-    // with all fields merged — eliminates the race condition where two separate
+    // with all fields merged - eliminates the race condition where two separate
     // setStats calls overwrite each other's data in localStorage.
     Promise.all([
       axios.get(`${proxy}/api/v1/users/leaderboard`).catch(() => null),
@@ -427,7 +427,7 @@ export default function ProfileContent() {
       const { currentStreak, longestStreak } = calculateStreak(activityMap);
       setStreakBadges(generateStreakBadges(currentStreak));
 
-      // -- Single setStats call — no race condition ------
+      // -- Single setStats call - no race condition ------
       setStats((prev) => {
         const next: UserStats = {
           ...prev,
@@ -640,7 +640,7 @@ export default function ProfileContent() {
           <div className="space-y-4">
             {/* Identity card */}
             <div className="border border-gray-200 dark:border-white/8 p-6 bg-white/90 dark:bg-[#111] space-y-4">
-              {/* Avatar — always clickable */}
+              {/* Avatar - always clickable */}
               <div className="flex flex-col items-center gap-3">
                 <div
                   className="relative group cursor-pointer"
@@ -729,7 +729,7 @@ export default function ProfileContent() {
                 </div>
               </div>
 
-              {/* ABOUT — role, location */}
+              {/* ABOUT - role, location */}
               <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-white/8">
                 <div className="flex items-center justify-between">
                   <p className="font-mono text-[10px] tracking-widest text-gray-400">
@@ -817,7 +817,7 @@ export default function ProfileContent() {
                   </p>
                 )}
               </div>
-              {/* SKILLS — always inline editable */}
+              {/* SKILLS - always inline editable */}
               <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-white/8">
                 <p className="font-mono text-[10px] tracking-widest text-gray-400">
                   SKILLS
@@ -997,7 +997,7 @@ export default function ProfileContent() {
                         {c.name}
                       </p>
                       <p className="font-mono text-[10px] text-gray-400">
-                        {c.issuer} · {c.date}
+                        {c.issuer} - {c.date}
                       </p>
                     </div>
                     <button
@@ -1100,7 +1100,7 @@ export default function ProfileContent() {
               ))}
             </div>
 
-            {/* Activity Heatmap — LeetCode style */}
+            {/* Activity Heatmap - LeetCode style */}
             <div className="border border-gray-200 dark:border-[#21262d] bg-white dark:bg-[#0d1117]">
               {/* -- Header bar -- */}
               <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-gray-100 dark:border-[#21262d]">
@@ -1139,7 +1139,7 @@ export default function ProfileContent() {
               >
                 {heatmapCells.length > 0 ? (
                   <div style={{ minWidth: 700 }}>
-                    {/* Month labels — absolutely positioned, left values include accumulated month-boundary extra gaps */}
+                    {/* Month labels - absolutely positioned, left values include accumulated month-boundary extra gaps */}
                     <div className="relative mb-1" style={{ height: 16 }}>
                       {computeMonthLabelPositions(heatmapCells).map(
                         ({ label, left }) => (
@@ -1155,7 +1155,7 @@ export default function ProfileContent() {
                     </div>
 
                     <div className="flex">
-                      {/* Day labels — Mon / Wed / Fri visible, others hidden */}
+                      {/* Day labels - Mon / Wed / Fri visible, others hidden */}
                       <div
                         className="flex flex-col gap-0.75 shrink-0"
                         style={{ width: DAY_W }}
@@ -1174,7 +1174,7 @@ export default function ProfileContent() {
                         ))}
                       </div>
 
-                      {/* Cell columns — extra marginLeft at every month boundary */}
+                      {/* Cell columns - extra marginLeft at every month boundary */}
                       {heatmapCells.map((week, wi) => {
                         const isNewMonth =
                           wi > 0 &&
