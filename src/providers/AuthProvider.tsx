@@ -38,11 +38,22 @@ export interface AuthState {
 }
 
 export interface AuthContextValue extends AuthState {
-  login: (credentials: { email?: string; username?: string; password: string }) => Promise<{
-    user: AuthUser | null;
-    accountType: AccountType;
-    accessToken: string;
-  }>;
+  login: (credentials: {
+    email?: string;
+    username?: string;
+    password: string;
+    accountType?: AccountType;
+  }) => Promise<
+    | {
+        user: AuthUser | null;
+        accountType: AccountType;
+        accessToken: string;
+      }
+    | {
+        requiresAccountSelection: true;
+        accountTypes: AccountType[];
+      }
+  >;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
   refresh: () => Promise<string | null>;
@@ -127,10 +138,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Login ─────────────────────────────────────────────────────────────────
 
   const login = useCallback(
-    async (credentials: { email?: string; username?: string; password: string }) => {
+    async (credentials: {
+      email?: string;
+      username?: string;
+      password: string;
+      accountType?: AccountType;
+    }) => {
       const res = await axios.post(`${proxy}/api/v1/auth/login`, credentials, {
         withCredentials: true,
       });
+      if (res.data.requiresAccountSelection) {
+        return {
+          requiresAccountSelection: true as const,
+          accountTypes: (res.data.accountTypes || []).map((type: string) =>
+            mapBackendAccountType(type),
+          ),
+        };
+      }
       const { data, accessToken, accountType } = res.data;
       if (!accessToken) throw new Error("No access token returned from login.");
       const resolvedAccountType = mapBackendAccountType(accountType, data?.role);

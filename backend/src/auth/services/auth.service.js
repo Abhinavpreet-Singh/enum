@@ -36,6 +36,13 @@ function safeOrg(org) {
   return safe;
 }
 
+function normalizeAccountType(accountType) {
+  const normalized = String(accountType || "").toLowerCase();
+  if (normalized === "user") return "student";
+  if (["student", "admin", "organization"].includes(normalized)) return normalized;
+  return null;
+}
+
 function buildAccessPayloadForUser(user) {
   const accountType = getUserAccountType(user);
   return {
@@ -68,59 +75,124 @@ async function issueTokens({ userId = null, organizationId = null, accountType, 
   return { accessToken, refreshToken };
 }
 
+async function loginUserAccount(user, { password, userAgent, ipAddress }) {
+  if (!user.password) throw new ApiError(401, "Please log in with Google or GitHub.");
+  if (!(await bcrypt.compare(password, user.password))) throw new ApiError(401, "Invalid password.");
+  const accountType = getUserAccountType(user);
+  const { accessToken, refreshToken } = await issueTokens({
+    userId: user.id,
+    accountType,
+    payload: buildAccessPayloadForUser(user),
+    userAgent,
+    ipAddress,
+  });
+  return { user: safeUser(user), accessToken, refreshToken, accountType };
+}
+
+async function loginOrganizationAccount(org, { password, userAgent, ipAddress }) {
+  if (!(await bcrypt.compare(password, org.password))) throw new ApiError(401, "Invalid password.");
+  assertOrganizationApproved(org);
+  const { accessToken, refreshToken } = await issueTokens({
+    organizationId: org.id,
+    accountType: "organization",
+    payload: buildAccessPayloadForOrg(org),
+    userAgent,
+    ipAddress,
+  });
+  return { user: safeOrg(org), accessToken, refreshToken, accountType: "organization" };
+}
+
 // ─── Login ────────────────────────────────────────────────────────────────────
 
-export async function loginWithCredentials({ email, username, password, userAgent, ipAddress }) {
+export async function loginWithCredentials({ email, username, password, accountType, userAgent, ipAddress }) {
   if (!email && !username) throw new ApiError(400, "Email or username is required.");
   if (!password) throw new ApiError(400, "Password is required.");
 
-  // Username → user accounts only
+  const requestedAccountType = normalizeAccountType(accountType);
+
   if (username && !email) {
     const user = await prisma.user.findFirst({ where: { username: username.toLowerCase() } });
+    const org = await prisma.organization.findFirst({ where: { name: username } });
+
+    if (requestedAccountType === "organization") {
+      if (!org) throw new ApiError(404, "No organization account found with that username.");
+      return loginOrganizationAccount(org, { password, userAgent, ipAddress });
+    }
+
+    if (requestedAccountType === "student" || requestedAccountType === "admin") {
+      if (!user) throw new ApiError(404, "No user account found with that username.");
+      const userAccountType = getUserAccountType(user);
+      if (requestedAccountType !== userAccountType) {
+        throw new ApiError(404, "No account found for the selected role.");
+      }
+      return loginUserAccount(user, { password, userAgent, ipAddress });
+    }
+
+    const userPasswordMatches =
+      Boolean(user?.password) && (await bcrypt.compare(password, user.password));
+    const orgPasswordMatches =
+      Boolean(org?.password) && (await bcrypt.compare(password, org.password));
+
+    if (userPasswordMatches && orgPasswordMatches) {
+      return {
+        requiresAccountSelection: true,
+        accountTypes: [getUserAccountType(user), "organization"],
+      };
+    }
+
+    if (userPasswordMatches) {
+      return loginUserAccount(user, { password, userAgent, ipAddress });
+    }
+
+    if (orgPasswordMatches) {
+      return loginOrganizationAccount(org, { password, userAgent, ipAddress });
+    }
+
+    if (user && !user.password) throw new ApiError(401, "Please log in with Google or GitHub.");
+    if (user || org) throw new ApiError(401, "Invalid password.");
     if (!user) throw new ApiError(404, "No account found with that username.");
-    if (!user.password) throw new ApiError(401, "Please log in with Google or GitHub.");
-    if (!(await bcrypt.compare(password, user.password))) throw new ApiError(401, "Invalid password.");
-    const accountType = getUserAccountType(user);
-    const { accessToken, refreshToken } = await issueTokens({
-      userId: user.id,
-      accountType,
-      payload: buildAccessPayloadForUser(user),
-      userAgent,
-      ipAddress,
-    });
-    return { user: safeUser(user), accessToken, refreshToken, accountType };
   }
 
-  // Email → try user then organization
+  // Email can belong to a student/admin account, an organization account, or both.
   const user = await prisma.user.findUnique({ where: { email } });
-  if (user) {
-    if (!user.password) throw new ApiError(401, "Please log in with Google or GitHub.");
-    if (!(await bcrypt.compare(password, user.password))) throw new ApiError(401, "Invalid password.");
-    const accountType = getUserAccountType(user);
-    const { accessToken, refreshToken } = await issueTokens({
-      userId: user.id,
-      accountType,
-      payload: buildAccessPayloadForUser(user),
-      userAgent,
-      ipAddress,
-    });
-    return { user: safeUser(user), accessToken, refreshToken, accountType };
-  }
-
   const org = await prisma.organization.findUnique({ where: { email } });
-  if (org) {
-    if (!(await bcrypt.compare(password, org.password))) throw new ApiError(401, "Invalid password.");
-    assertOrganizationApproved(org);
-    const { accessToken, refreshToken } = await issueTokens({
-      organizationId: org.id,
-      accountType: "organization",
-      payload: buildAccessPayloadForOrg(org),
-      userAgent,
-      ipAddress,
-    });
-    return { user: safeOrg(org), accessToken, refreshToken, accountType: "organization" };
+
+  if (requestedAccountType === "organization") {
+    if (!org) throw new ApiError(404, "No organization account found with that email.");
+    return loginOrganizationAccount(org, { password, userAgent, ipAddress });
   }
 
+  if (requestedAccountType === "student" || requestedAccountType === "admin") {
+    if (!user) throw new ApiError(404, "No user account found with that email.");
+    const userAccountType = getUserAccountType(user);
+    if (requestedAccountType !== userAccountType) {
+      throw new ApiError(404, "No account found for the selected role.");
+    }
+    return loginUserAccount(user, { password, userAgent, ipAddress });
+  }
+
+  const userPasswordMatches =
+    Boolean(user?.password) && (await bcrypt.compare(password, user.password));
+  const orgPasswordMatches =
+    Boolean(org?.password) && (await bcrypt.compare(password, org.password));
+
+  if (userPasswordMatches && orgPasswordMatches) {
+    return {
+      requiresAccountSelection: true,
+      accountTypes: [getUserAccountType(user), "organization"],
+    };
+  }
+
+  if (userPasswordMatches) {
+    return loginUserAccount(user, { password, userAgent, ipAddress });
+  }
+
+  if (orgPasswordMatches) {
+    return loginOrganizationAccount(org, { password, userAgent, ipAddress });
+  }
+
+  if (user && !user.password) throw new ApiError(401, "Please log in with Google or GitHub.");
+  if (user || org) throw new ApiError(401, "Invalid password.");
   throw new ApiError(404, "No account found. Please check your credentials or register first.");
 }
 
