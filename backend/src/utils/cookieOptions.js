@@ -36,11 +36,13 @@ const isCrossSiteDeployment = () => {
 
 export const getAuthCookieOptions = () => {
   const crossSite = isCrossSiteDeployment();
+  const cookieDomain = process.env.COOKIE_DOMAIN?.trim();
 
   return {
     httpOnly: true,
     secure: crossSite,
     sameSite: crossSite ? "none" : "lax",
+    ...(cookieDomain ? { domain: cookieDomain } : {}),
     path: "/",
     // Persist cookies across browser sessions (match the JWT expiry)
     maxAge: 24 * 60 * 60 * 1000, // 1 day (matches ACCESS_TOKEN_EXPIRY)

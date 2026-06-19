@@ -281,14 +281,13 @@ export default function BrowserSandboxWorkspace({ simulation }: Props) {
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
       if (token) {
-        await fetch(`${proxy}/api/v1/simulations/progress`, {
+        await fetch(`${proxy}/api/v1/simulation-progress/${simulation.id}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            simulationId: simulation.id,
             solved: result.passed,
             modifiedFiles: files,
           }),

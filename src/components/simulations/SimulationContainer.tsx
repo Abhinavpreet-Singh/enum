@@ -212,7 +212,7 @@ export default function SimulationContainer({
         if (!token) return;
 
         const res = await fetch(
-          `${proxy}/api/v1/simulations/progress?simulationId=${simulation.id}`,
+          `${proxy}/api/v1/simulation-progress/${simulation.id}`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
 
@@ -245,14 +245,13 @@ export default function SimulationContainer({
         const token = localStorage.getItem("accessToken");
         if (!token) return;
 
-        const res = await fetch(`${proxy}/api/v1/simulations/progress`, {
+        const res = await fetch(`${proxy}/api/v1/simulation-progress/${simulation.id}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            simulationId: simulation.id,
             solved,
             modifiedFiles: files,
           }),
@@ -341,9 +340,11 @@ export default function SimulationContainer({
 
       const json = await response.json();
 
-      // Direct backend response: { status: 'success', data: { passedTests, totalTests, logs, score } }
-      // or error response: { status: 'error', message: '...' }
-      const isSuccess = response.ok && (json.status === "success" || json.success);
+      // Backend response: { message, data: { passedTests, totalTests, logs, score } }
+      // Next proxy response: { success: true, passedTests, totalTests, logs, score }
+      const isSuccess =
+        response.ok &&
+        (json.status === "success" || json.success || Boolean(json.data));
       const engineData = (json.data ?? json) as SimulationEngineResponse;
 
       if (isSuccess) {

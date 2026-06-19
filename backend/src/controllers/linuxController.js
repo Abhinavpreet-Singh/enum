@@ -1,48 +1,15 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import { linuxQuestionModel } from "../models/LinuxQuestion.js";
-
-const COMPILER_URL = "http://enumcompiler.duckdns.org/run";
-const COMPILER_TIMEOUT_MS = 30_000;
+import { executeCompilerCode } from "../services/compilerService.js";
 
 function normalizeOutput(value) {
   return String(value ?? "").replace(/\r\n/g, "\n").trim();
 }
 
 async function runBashCode(code) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), COMPILER_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(COMPILER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ language: "bash", code }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new ApiError(
-        502,
-        `Compiler service error (${response.status}): ${errorText}`,
-      );
-    }
-
-    const data = await response.json();
-    return String(data.output ?? "");
-  } catch (error) {
-    clearTimeout(timeoutId);
-
-    if (error instanceof ApiError) throw error;
-    if (error?.name === "AbortError") {
-      throw new ApiError(504, "Execution timed out — compiler did not respond in time");
-    }
-
-    throw new ApiError(502, "Compiler service unavailable");
-  }
+  const { output } = await executeCompilerCode({ language: "bash", code });
+  return String(output ?? "");
 }
 
 export const getLinuxQuestions = asyncHandler(async (_req, res) => {

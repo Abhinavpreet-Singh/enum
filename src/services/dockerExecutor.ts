@@ -1,14 +1,15 @@
 /**
  * Code execution service for simulations.
  *
- * Routes execution through the Enum Compiler service at
- * enumcompiler.duckdns.org/run which already handles Docker
+ * Routes execution through the backend compiler endpoint, which handles Docker
  * sandboxing (--network none, --memory=256m, --cpus=0.5).
  *
  * For multi-file simulations the files are bundled into a single
  * self-contained script that writes them to /tmp at runtime, then
  * executes the entry file via require().
  */
+
+import { proxy } from "@/app/proxy";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -28,7 +29,7 @@ export interface ExecutionResult {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const COMPILER_URL = "http://enumcompiler.duckdns.org/run";
+const COMPILER_URL = `${proxy}/api/v1/compiler/run`;
 const COMPILER_TIMEOUT_MS = 30_000; // 30 s network timeout
 
 // ─── Bundle multi-file simulation into a single Node.js script ──────────────

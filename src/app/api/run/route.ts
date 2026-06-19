@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { proxy } from "@/app/proxy";
 
-const RUN_API_URL = "http://enumcompiler.duckdns.org/run";
+const RUN_API_URL = `${proxy}/api/v1/compiler/run`;
 
 export async function POST(request: NextRequest) {
   try {

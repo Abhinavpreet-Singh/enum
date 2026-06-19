@@ -123,8 +123,7 @@ export default function LinuxArenaPage({
     setOutputLines(["$ Running Bash command...", ""]);
 
     try {
-      // Call the external compiler API directly (no Next.js server in Tauri .exe)
-      const response = await fetch("http://enumcompiler.duckdns.org/run", {
+      const response = await fetch(`${proxy}/api/v1/compiler/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ language: "bash", code }),
@@ -170,6 +169,7 @@ export default function LinuxArenaPage({
         verdict: string;
         expectedOutput?: string;
         normalizedOutput?: string;
+        totalXp?: number;
       };
 
       setActualOutput(result?.output ?? null);
@@ -188,7 +188,7 @@ export default function LinuxArenaPage({
         if (typeof window !== "undefined") {
           window.dispatchEvent(
             new CustomEvent("userXpUpdated", {
-              detail: { xp: (response.data as any)?.data?.totalXp },
+              detail: { xp: result?.totalXp },
             }),
           );
         }

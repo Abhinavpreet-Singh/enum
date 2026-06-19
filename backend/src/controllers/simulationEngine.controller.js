@@ -3,9 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import prisma from "../db/index.js";
 import { fetchFileFromCloudinary } from "../utils/cloudinary.js";
-
-const COMPILER_URL = "http://enumcompiler.duckdns.org/run";
-const COMPILER_TIMEOUT_MS = 30_000;
+import { executeCompilerCode } from "../services/compilerService.js";
 
 /**
  * Bundle simulation files into a single ESM bootstrap script.
@@ -152,36 +150,10 @@ export const runSimulationEngine = asyncHandler(async (req, res) => {
     // ── Bundle and send to enum-compiler ─────────────────────────────────
     const code = bundleFiles(fileMap, entryFile);
 
-    const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), COMPILER_TIMEOUT_MS);
-
-    let compilerOutput = "";
-
-    try {
-        const compilerRes = await fetch(COMPILER_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ language: "node", code }),
-            signal: abortController.signal,
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!compilerRes.ok) {
-            const errText = await compilerRes.text();
-            throw new ApiError(502, `Compiler service error (${compilerRes.status}): ${errText}`);
-        }
-
-        const data = await compilerRes.json();
-        compilerOutput = data.output ?? "";
-    } catch (err) {
-        clearTimeout(timeoutId);
-        if (err instanceof ApiError) throw err;
-        if (err?.name === "AbortError") {
-            throw new ApiError(504, "Execution timed out — compiler did not respond in time");
-        }
-        throw new ApiError(502, "Compiler service unavailable");
-    }
+    const { output: compilerOutput = "" } = await executeCompilerCode({
+        language: "node",
+        code,
+    });
 
     // ── Evaluate result ──────────────────────────────────────────────────
     const expectedOutput = (simulation.expectedOutput || "").trim();
