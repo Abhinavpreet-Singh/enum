@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState } from "react";
 import Header from "@/components/header";
@@ -20,7 +21,7 @@ export default function ContactPage() {
     try {
       const token =
         typeof window !== "undefined"
-          ? localStorage.getItem("accessToken")
+          ? getMemoryToken()
           : null;
 
       // In the Tauri .exe there is no Next.js server, so we call the contact

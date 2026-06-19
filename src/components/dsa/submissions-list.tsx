@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useEffect, useState } from "react";
 import { CircleCheck, Clock, Code2 } from "lucide-react";
@@ -69,7 +70,7 @@ export default function SubmissionsList({
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = getMemoryToken();
       if (!token) {
         setError("Please log in to view your submissions.");
         setLoading(false);

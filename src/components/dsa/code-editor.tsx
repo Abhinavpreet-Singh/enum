@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
 import { proxy } from "@/app/proxy";
@@ -362,7 +363,7 @@ export default function CodeEditor({
 
     // Save all submissions to backend (accepted AND failed)
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = getMemoryToken();
       const saveRes = await fetch(`${proxy}/api/v1/submissions/save`, {
         method: "POST",
         headers: {

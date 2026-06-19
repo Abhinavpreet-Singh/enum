@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
 import {
@@ -149,7 +150,7 @@ export default function SimulationWorkspace({
 
         // Persist progress to backend as attempted or solved
         try {
-          const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+          const token = typeof window !== "undefined" ? getMemoryToken() : null;
           if (token) {
             await fetch(`${proxy}/api/v1/simulation-progress/${simulation.id}`, {
               method: "POST",
@@ -215,7 +216,7 @@ export default function SimulationWorkspace({
     try {
       const token =
         typeof window !== "undefined"
-          ? localStorage.getItem("accessToken")
+          ? getMemoryToken()
           : null;
       if (!token) return;
 

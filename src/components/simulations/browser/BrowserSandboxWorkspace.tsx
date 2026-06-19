@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 /**
  * BrowserSandboxWorkspace — Phase 1 (with Solution + Evaluate)
@@ -279,7 +280,7 @@ export default function BrowserSandboxWorkspace({ simulation }: Props) {
 
     // Persist progress to backend as attempted or solved
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+      const token = typeof window !== "undefined" ? getMemoryToken() : null;
       if (token) {
         await fetch(`${proxy}/api/v1/simulation-progress/${simulation.id}`, {
           method: "POST",
@@ -312,7 +313,7 @@ export default function BrowserSandboxWorkspace({ simulation }: Props) {
     try {
       const token =
         typeof window !== "undefined"
-          ? localStorage.getItem("accessToken")
+          ? getMemoryToken()
           : null;
       if (!token) return; // not logged in, skip silently
 

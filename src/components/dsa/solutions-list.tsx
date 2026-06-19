@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useEffect, useState } from "react";
 import { ThumbsUp, Calendar, Code2 } from "lucide-react";
@@ -55,7 +56,7 @@ export default function SolutionsList({ questionId }: SolutionsListProps) {
         {},
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${getMemoryToken()}`,
           },
         }
       );

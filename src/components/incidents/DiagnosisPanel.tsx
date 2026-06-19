@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState } from "react";
 import { CheckCircle, XCircle } from "lucide-react";
@@ -41,7 +42,7 @@ export default function DiagnosisPanel({
 
     try {
       setIsSubmitting(true);
-      const token = localStorage.getItem("accessToken");
+      const token = getMemoryToken();
 
       const response = await axios.post(
         `${proxy}/api/v1/incidents/${incident.id}/session/${session.id}/diagnose`,

@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useEffect, useState, useMemo } from "react";
 import { Question, fetchQuestions } from "@/data/dsa-questions";
@@ -61,7 +62,7 @@ export default function QuestionsManager({ onEdit }: QuestionsManagerProps) {
             // Note: You'll need to implement this endpoint in your backend
             await axios.delete(`${proxy}/api/v1/admin/deleteQuestion/${questionId}`, {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+                    Authorization: `Bearer ${getMemoryToken()}`,
                 },
             });
 

@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect, type MouseEvent } from "react";
 import {
@@ -99,7 +100,7 @@ export default function IncidentWorkspace({
     const initSession = async () => {
       try {
         setIsLoading(true);
-        const token = localStorage.getItem("accessToken");
+        const token = getMemoryToken();
 
         if (!token) {
           setError("You must be logged in to play incidents");
@@ -144,7 +145,7 @@ export default function IncidentWorkspace({
 
     const interval = setInterval(async () => {
       try {
-        const token = localStorage.getItem("accessToken");
+        const token = getMemoryToken();
         const response = await axios.post(
           `${proxy}/api/v1/incidents/${incident.id}/session/${session.id}/tick`,
           {},
@@ -175,7 +176,7 @@ export default function IncidentWorkspace({
     const handleBeforeUnload = async () => {
       if (session && isRunning && !isCompleted) {
         try {
-          const token = localStorage.getItem("accessToken");
+          const token = getMemoryToken();
           await axios.post(
             `${proxy}/api/v1/incidents/${incident.id}/session/${session.id}/stop`,
             {},
@@ -203,7 +204,7 @@ export default function IncidentWorkspace({
   const handleReset = async () => {
     try {
       setIsLoading(true);
-      const token = localStorage.getItem("accessToken");
+      const token = getMemoryToken();
       const response = await axios.post(
         `${proxy}/api/v1/incidents/${incident.id}/session`,
         { restart: true },
@@ -232,7 +233,7 @@ export default function IncidentWorkspace({
     if (!session || isSubmittingReport) return;
     try {
       setIsSubmittingReport(true);
-      const token = localStorage.getItem("accessToken");
+      const token = getMemoryToken();
       const response = await axios.post(
         `${proxy}/api/v1/incidents/${incident.id}/session/${session.id}/complete`,
         { rootCauseId: session.selectedRootCauseId || "" },
@@ -271,7 +272,7 @@ export default function IncidentWorkspace({
 
   const handleActionTaken = () => {
     if (!session) return;
-    const token = localStorage.getItem("accessToken");
+    const token = getMemoryToken();
     axios
       .get(`${proxy}/api/v1/incidents/${incident.id}/session/${session.id}`, {
         headers: { Authorization: `Bearer ${token}` },

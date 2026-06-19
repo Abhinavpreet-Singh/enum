@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useEffect, useState } from "react";
 import { Clock, Zap, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
@@ -44,7 +45,7 @@ export default function IncidentsPage() {
     const fetchIncidents = async () => {
       try {
         setIsLoading(true);
-        const token = localStorage.getItem("accessToken");
+        const token = getMemoryToken();
         const response = await axios.get(`${proxy}/api/v1/incidents`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Check, Copy, Users } from "lucide-react";
 import CollaborativeEditor from "@/components/simulations/CollaborativeEditor";
+import { AuthContext } from "@/providers/AuthProvider";
 
 const toolbarBtn =
   "inline-flex h-9 items-center justify-center gap-2 rounded-md border px-3 text-xs font-medium transition-colors";
@@ -19,17 +20,21 @@ const toolbarBtnActive = `${toolbarBtn} border-black bg-black text-white dark:bo
 export default function CollabRoomContent() {
   const params = useParams<{ roomId: string }>();
   const router = useRouter();
+  const authCtx = useContext(AuthContext);
 
   const [username, setUsername] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const roomId = params.roomId;
 
   useEffect(() => {
+    const user = authCtx?.user;
+    const backendName =
+      (typeof user?.displayName === "string" && user.displayName) ||
+      (typeof user?.username === "string" && user.username) ||
+      "";
     const stored =
       sessionStorage.getItem("collab_username") ||
-      localStorage.getItem("displayName") ||
-      localStorage.getItem("Name") ||
-      "";
+      backendName;
 
     if (!stored.trim()) {
       router.replace("/dashboard/collab");
@@ -39,7 +44,7 @@ export default function CollabRoomContent() {
     sessionStorage.setItem("collab_username", stored.trim());
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setUsername(stored.trim());
-  }, [router]);
+  }, [authCtx?.user, router]);
 
   function handleCopyLink() {
     const url = window.location.href;

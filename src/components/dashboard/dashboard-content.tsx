@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import {
   Code2,
@@ -41,12 +42,13 @@ const progressTrack =
   "relative h-1.5 overflow-hidden rounded-sm border border-black/15 bg-black/[0.08] dark:border-white/20 dark:bg-white/[0.1]";
 const progressFill =
   "absolute inset-y-0 left-0 bg-black dark:bg-white transition-all duration-700";
-import { useState, useEffect, useMemo } from "react";
+import { useContext, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import useAuth from "@/hooks/useAuth";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
 import { browserSimulations } from "@/data/browser-simulations";
+import { AuthContext } from "@/providers/AuthProvider";
 
 interface DashboardContentProps {
   userName?: string;
@@ -100,19 +102,22 @@ interface DailyChallengeSimulation {
 
 export default function DashboardContent({ userName }: DashboardContentProps) {
   const isAuthenticated = useAuth();
+  const authCtx = useContext(AuthContext);
+  const authUser = authCtx?.user;
+  const backendDisplayName =
+    userName ||
+    (typeof authUser?.displayName === "string" && authUser.displayName) ||
+    (typeof authUser?.username === "string" && authUser.username) ||
+    (typeof authUser?.name === "string" && authUser.name) ||
+    "Guest";
+  const currentUsername =
+    (typeof authUser?.username === "string" && authUser.username) || "";
+  const currentUserId =
+    (typeof authUser?.id === "string" && authUser.id) ||
+    (typeof authUser?._id === "string" && authUser._id) ||
+    "";
   const [displayName, setDisplayName] = useState<string>(
-    () =>
-      (typeof window !== "undefined" &&
-        (userName ||
-          localStorage.getItem("displayName") ||
-          localStorage.getItem("Name"))) ||
-      "Guest",
-  );
-  const [currentUsername] = useState<string>(() =>
-    typeof window !== "undefined" ? localStorage.getItem("Name") || "" : "",
-  );
-  const [currentUserId] = useState<string>(() =>
-    typeof window !== "undefined" ? localStorage.getItem("id") || "" : "",
+    () => backendDisplayName,
   );
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [profileXp, setProfileXp] = useState<number | null>(null);
@@ -146,33 +151,17 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
   });
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const name =
-        userName ||
-        localStorage.getItem("displayName") ||
-        localStorage.getItem("Name") ||
-        "Guest";
-      if (name !== displayName) setDisplayName(name);
-    }
+    setDisplayName(backendDisplayName);
     const handleNameChanged = (e: Event) => {
-      const newName =
-        (e as CustomEvent<string>).detail ||
-        localStorage.getItem("Name") ||
-        "Guest";
+      const newName = (e as CustomEvent<string>).detail || backendDisplayName;
       setDisplayName(newName);
     };
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === "displayName")
-        setDisplayName(e.newValue || localStorage.getItem("Name") || "Guest");
-    };
     window.addEventListener("userNameChanged", handleNameChanged);
-    window.addEventListener("storage", handleStorage);
     return () => {
       window.removeEventListener("userNameChanged", handleNameChanged);
-      window.removeEventListener("storage", handleStorage);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userName]);
+  }, [backendDisplayName]);
 
   useEffect(() => {
     Promise.all([
@@ -209,14 +198,9 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
         });
       }
 
-      const uid =
-        typeof window !== "undefined" ? localStorage.getItem("id") || "" : "";
-      const uname =
-        typeof window !== "undefined" ? localStorage.getItem("Name") || "" : "";
-      const dname =
-        typeof window !== "undefined"
-          ? localStorage.getItem("displayName") || ""
-          : "";
+      const uid = currentUserId;
+      const uname = currentUsername;
+      const dname = displayName === "Guest" ? "" : displayName;
       const normalize = (v: string) => v.trim().toLowerCase();
       const idx = lb.findIndex(
         (e) =>
@@ -237,12 +221,12 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
         }));
       }
     });
-  }, []);
+  }, [currentUserId, currentUsername, displayName]);
 
   useEffect(() => {
     const token =
       typeof window !== "undefined"
-        ? localStorage.getItem("accessToken")
+        ? getMemoryToken()
         : null;
     if (!token) return;
 

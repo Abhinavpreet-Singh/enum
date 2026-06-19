@@ -1,4 +1,5 @@
 "use client";
+import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
 import axios from "axios";
@@ -42,7 +43,7 @@ export default function AdminCompaniesTable({ onRefresh }: AdminCompaniesTablePr
     setLoading(true);
     setError("");
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = getMemoryToken();
       const response = await axios.get(`${proxy}/api/v1/admin/companies`, {
         params: {
           page,
@@ -78,7 +79,7 @@ export default function AdminCompaniesTable({ onRefresh }: AdminCompaniesTablePr
   const handleDeleteCompany = async (companyId: string) => {
     if (!confirm("Are you sure you want to delete this company?")) return;
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = getMemoryToken();
       await axios.delete(`${proxy}/api/v1/admin/companies/${companyId}`, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
@@ -92,7 +93,7 @@ export default function AdminCompaniesTable({ onRefresh }: AdminCompaniesTablePr
 
   const handleApprovalChange = async (companyId: string, newStatus: string) => {
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = getMemoryToken();
       await axios.patch(
         `${proxy}/api/v1/admin/companies/${companyId}/approval`,
         { status: newStatus },

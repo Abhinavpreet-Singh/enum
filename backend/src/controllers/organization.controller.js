@@ -2,44 +2,45 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import prisma from "../db/index.js";
 import { ApiError } from "../utils/apiError.js";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
 import { sendOtpEmail } from "../utils/resendEmail.js";
-import { getAuthCookieOptions } from "../utils/cookieOptions.js";
+import { setRefreshCookie } from "../auth/utils/cookies.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  getAccessTokenExpiryDate,
+  hashAccessToken,
+} from "../auth/utils/tokens.js";
+import { createSession, storeAccessToken } from "../auth/services/session.service.js";
 import { assertOrganizationApproved } from "../utils/organizationApproval.js";
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
 
-const generateOrganizationAccessToken = (organization) => {
-  return jwt.sign(
-    {
-      _id: organization.id,
-      email: organization.email,
-      name: organization.name,
-      accountType: "organization",
-    },
-    process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: process.env.ACCESS_TOKEN_EXPIRY },
-  );
-};
-
-const generateOrganizationRefreshToken = (organization) => {
-  return jwt.sign(
-    { _id: organization.id, accountType: "organization" },
-    process.env.REFRESH_TOKEN_SECRET,
-    { expiresIn: process.env.REFRESH_TOKEN_EXPIRY },
-  );
-};
-
-const generateOrganizationTokens = async (organizationId) => {
+const generateOrganizationTokens = async (organizationId, req) => {
   const organization = await prisma.organization.findUnique({ where: { id: organizationId } });
   if (!organization) throw new ApiError(500, "Organization not found while generating tokens");
 
-  const accessToken = generateOrganizationAccessToken(organization);
-  const refreshToken = generateOrganizationRefreshToken(organization);
-
-  await prisma.organization.update({
-    where: { id: organizationId },
-    data: { refreshToken },
+  const refreshToken = generateRefreshToken();
+  const session = await createSession({
+    organizationId: organization.id,
+    accountType: "organization",
+    refreshToken,
+    userAgent: req.get("User-Agent") || "",
+    ipAddress: (req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "")
+      .toString()
+      .split(",")[0]
+      .trim(),
+  });
+  const accessToken = generateAccessToken({
+    userId: organization.id,
+    email: organization.email,
+    username: organization.name,
+    role: "Organization",
+    accountType: "organization",
+    sessionId: session.id,
+  });
+  await storeAccessToken(session.id, {
+    accessTokenHash: hashAccessToken(accessToken),
+    accessTokenExpiresAt: getAccessTokenExpiryDate(),
   });
 
   return { accessToken, refreshToken };
@@ -172,24 +173,20 @@ const loginOrganization = asyncHandler(async (req, res) => {
 
   assertOrganizationApproved(organization);
 
-  const { accessToken, refreshToken } = await generateOrganizationTokens(organization.id);
+  const { accessToken, refreshToken } = await generateOrganizationTokens(organization.id, req);
 
   const loggedInOrganization = await prisma.organization.findUnique({
     where: { id: organization.id },
     omit: { password: true, refreshToken: true },
   });
 
-  const options = getAuthCookieOptions();
+  setRefreshCookie(res, refreshToken);
 
-  return res
-    .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
-    .json({
-      message: "Logged in successfully.",
-      data: loggedInOrganization,
-      accessToken,
-    });
+  return res.status(200).json({
+    message: "Logged in successfully.",
+    data: loggedInOrganization,
+    accessToken,
+  });
 });
 
 export { sendOrganizationOtp, registerOrganization, loginOrganization };

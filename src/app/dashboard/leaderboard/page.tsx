@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
+import { AuthContext } from "@/providers/AuthProvider";
 import { Code2, PlayCircle, Zap, Medal } from "lucide-react";
 import {
   DashboardPageHeader,
@@ -84,12 +85,12 @@ function Avatar({
 const ITEMS_PER_PAGE = 30;
 
 export default function LeaderboardPage() {
+  const authCtx = useContext(AuthContext);
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [currentUsername] = useState<string>(() =>
-    typeof window !== "undefined" ? localStorage.getItem("Name") || "" : "",
-  );
+  const currentUsername =
+    (typeof authCtx?.user?.username === "string" && authCtx.user.username) || "";
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {

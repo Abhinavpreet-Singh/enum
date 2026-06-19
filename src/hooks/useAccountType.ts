@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useContext, useEffect, useState } from "react";
+import { AuthContext } from "@/providers/AuthProvider";
 import {
   type AccountType,
   type AccountSession,
@@ -16,33 +17,37 @@ export type AccountSessionState = AccountSession & {
 };
 
 export function useAccountSession(): AccountSessionState {
-  const [session, setSession] = useState<AccountSessionState>({
+  const authCtx = useContext(AuthContext);
+
+  // Fallback state (used when AuthProvider is unavailable)
+  const [fallbackSession, setFallbackSession] = useState<AccountSessionState>({
     accountType: "student",
     verified: false,
     isLoading: true,
   });
 
+  const hasProvider = authCtx !== null;
+
   useEffect(() => {
+    // Only run the legacy fetch path when AuthProvider is not mounted
+    if (hasProvider) return;
+
     let cancelled = false;
 
     const refresh = async () => {
       purgeSpoofedAccountType();
       const next = await fetchAccountSession();
       if (!cancelled) {
-        setSession({ ...next, isLoading: false });
+        setFallbackSession({ ...next, isLoading: false });
       }
     };
 
     refresh();
 
-    const onUpdate = () => {
-      refresh();
-    };
-
+    const onUpdate = () => { refresh(); };
     window.addEventListener(ACCOUNT_SESSION_UPDATED, onUpdate);
     window.addEventListener("storage", onUpdate);
 
-    // DevTools edits in the same tab do not fire "storage" — strip spoofed key periodically.
     const interval = window.setInterval(() => {
       if (localStorage.getItem("accountType") !== null) {
         purgeSpoofedAccountType();
@@ -56,9 +61,21 @@ export function useAccountSession(): AccountSessionState {
       window.removeEventListener("storage", onUpdate);
       window.clearInterval(interval);
     };
-  }, []);
+  }, [hasProvider]);
 
-  return session;
+  // When AuthProvider is present, derive state from it (no extra network call)
+  if (authCtx !== null) {
+    if (authCtx.loading) {
+      return { accountType: "student", verified: false, isLoading: true };
+    }
+    return {
+      accountType: authCtx.accountType,
+      verified: true,
+      isLoading: false,
+    };
+  }
+
+  return fallbackSession;
 }
 
 /** Account type for nav/guards, resolved from the backend session endpoint. */

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useContext, useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { ArrowRight, Check, KeyRound, Plus, User } from "lucide-react";
+import { AuthContext } from "@/providers/AuthProvider";
 
 const inputClass =
   "h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 font-mono text-sm text-black outline-none transition-colors placeholder:text-gray-400 focus:border-black dark:border-white/10 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-white";
@@ -52,6 +53,7 @@ function getStoredUsername() {
 
 export default function CollabLanding() {
   const router = useRouter();
+  const authCtx = useContext(AuthContext);
   const [lastRoomId, setLastRoomId] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [joinValue, setJoinValue] = useState("");
@@ -67,14 +69,13 @@ export default function CollabLanding() {
       return;
     }
 
-    const localFallback =
-      typeof window !== "undefined"
-        ? localStorage.getItem("displayName") ||
-          localStorage.getItem("Name") ||
-          ""
-        : "";
-    setDisplayName(localFallback);
-  }, []);
+    const user = authCtx?.user;
+    const backendName =
+      (typeof user?.displayName === "string" && user.displayName) ||
+      (typeof user?.username === "string" && user.username) ||
+      "";
+    setDisplayName(backendName);
+  }, [authCtx?.user]);
 
   function ensureUsername() {
     const nextName = displayName.trim();
