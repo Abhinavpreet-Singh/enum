@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import desktopApi from "@/lib/api";
 import { useExamStore } from "@/store/exam-store";
@@ -13,14 +13,28 @@ export default function LoginPage() {
   const [step, setStep] = useState<"link" | "credentials">("link");
   const [testCode, setTestCode] = useState("");
   const [assessmentTitle, setAssessmentTitle] = useState("");
-  const [orgName, setOrgName] = useState("");
 
   const [email, setEmail] = useState("");
-  const [rollNumber, setRollNumber] = useState("");
   const [password, setPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [themeMode, setThemeMode] = useState<"light" | "dark">("dark");
+
+  useEffect(() => {
+    const savedTheme =
+      typeof window !== "undefined" ? localStorage.getItem("enum_theme") : null;
+    const initialTheme = savedTheme === "light" ? "light" : "dark";
+    setThemeMode(initialTheme);
+    document.documentElement.classList.toggle("dark", initialTheme === "dark");
+  }, []);
+
+  function toggleTheme() {
+    const nextTheme = themeMode === "dark" ? "light" : "dark";
+    setThemeMode(nextTheme);
+    localStorage.setItem("enum_theme", nextTheme);
+    document.documentElement.classList.toggle("dark", nextTheme === "dark");
+  }
 
   async function handleValidateCode() {
     setError("");
@@ -33,7 +47,6 @@ export default function LoginPage() {
     try {
       const { data } = await desktopApi.getAssessmentByCode(code);
       setAssessmentTitle(data.data.title);
-      setOrgName(data.data.organization?.name ?? "");
       setTestCode(code);
       setStep("credentials");
     } catch (e: unknown) {
@@ -49,13 +62,12 @@ export default function LoginPage() {
   async function handleLogin() {
     setError("");
     if (!password) { setError("Password is required."); return; }
-    if (!email && !rollNumber) { setError("Email or roll number is required."); return; }
+    if (!email) { setError("Email is required."); return; }
 
     setLoading(true);
     try {
       const { data } = await desktopApi.login({
-        email: email || undefined,
-        rollNumber: rollNumber || undefined,
+        email,
         password,
         testCode,
       });
@@ -84,59 +96,57 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-white">
+    <div className="relative flex h-screen flex-col overflow-hidden bg-white text-[#0a0a0a] dark:bg-black dark:text-white">
       {/* Ambient glow + grid texture */}
       <div className="pointer-events-none fixed inset-0 enum-glow" />
       <div className="pointer-events-none fixed inset-0 enum-grid-bg" />
 
       {/* Top title bar */}
       <div
-        className="relative z-10 flex h-9 shrink-0 items-center gap-2 px-4 border-b border-black/8 select-none"
+        className="relative z-10 flex h-12 shrink-0 items-center gap-3 border-b border-black/10 bg-white/90 px-4 select-none backdrop-blur-xl dark:border-white/10 dark:bg-black/90"
         data-tauri-drag-region
       >
-        <span
-          className="text-xs font-black text-gray-400 uppercase"
-          style={{ letterSpacing: "0.2em" }}
-        >
-          enum
+        <EnumLogo />
+        <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.2em] text-black dark:text-white">
+          ENUM EXAM CLIENT
         </span>
-        <span className="ml-auto text-xs text-gray-400 tracking-wide">Secure Exam Client</span>
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="ml-auto rounded border border-black/10 px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] text-gray-600 transition-colors hover:border-black/30 hover:text-black dark:border-white/10 dark:text-gray-400 dark:hover:border-white/30 dark:hover:text-white"
+        >
+          {themeMode === "dark" ? "Light" : "Dark"}
+        </button>
       </div>
 
       {/* Center content */}
       <div className="relative z-10 flex flex-1 items-center justify-center p-6">
-        <div className="w-full max-w-sm animate-fade-slide-up">
+        <div className="w-full max-w-md animate-fade-slide-up">
 
-          {/* Logo mark */}
-          <div className="mb-8 text-center">
-            <div
-              className="inline-block text-4xl font-black text-[#0a0a0a] mb-3"
-              style={{ letterSpacing: "-0.05em", transform: "scaleX(0.92)", display: "inline-block" }}
-            >
-              enum
+          {/* Wordmark */}
+          <div className="mb-7 text-center">
+            <div className="mb-3 flex justify-center">
+              <EnumWordmark />
             </div>
             <div>
-              <h1 className="text-xl font-semibold tracking-tight text-[#0a0a0a]">
+              <h1 className="text-xl font-semibold tracking-tight text-[#0a0a0a] dark:text-white">
                 {step === "link" ? "Join Assessment" : assessmentTitle}
               </h1>
-              {step === "credentials" && orgName && (
-                <p className="mt-0.5 text-sm text-gray-500">{orgName}</p>
-              )}
             </div>
           </div>
 
           {/* Card */}
-          <div className="enum-card p-6 backdrop-blur-sm">
+          <div className="enum-card p-7 backdrop-blur-sm">
             {/* Error banner */}
             {error && (
-              <div className="mb-5 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
-                <span className="mt-0.5 shrink-0 text-red-500">✕</span>
+              <div className="mb-5 flex items-start gap-2.5 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-400/25 dark:bg-red-400/10 dark:text-red-200">
+                <span className="mt-0.5 shrink-0">!</span>
                 <span>{error}</span>
               </div>
             )}
 
             {step === "link" ? (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div>
                   <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500">
                     Test Code or Assessment Link
@@ -167,7 +177,7 @@ export default function LoginPage() {
                 </button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div>
                   <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500">
                     Email
@@ -179,25 +189,6 @@ export default function LoginPage() {
                     placeholder="candidate@example.com"
                     className="input-field"
                     autoFocus
-                  />
-                </div>
-
-                <div className="flex items-center gap-3 text-xs text-gray-400">
-                  <div className="flex-1 border-t border-black/8" />
-                  <span>or</span>
-                  <div className="flex-1 border-t border-black/8" />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500">
-                    Roll Number
-                  </label>
-                  <input
-                    type="text"
-                    value={rollNumber}
-                    onChange={(e) => setRollNumber(e.target.value)}
-                    placeholder="e.g. 2021CS001"
-                    className="input-field"
                   />
                 </div>
 
@@ -241,12 +232,38 @@ export default function LoginPage() {
             )}
           </div>
 
-          <p className="mt-6 text-center text-xs text-gray-400" style={{ letterSpacing: "0.03em" }}>
+          <p className="mt-6 text-center font-mono text-xs tracking-[0.12em] text-gray-400">
             All activity is monitored and recorded
           </p>
         </div>
       </div>
     </div>
+  );
+}
+
+function EnumLogo({ large = false }: { large?: boolean }) {
+  return (
+    <div className="flex items-center gap-2 text-[#0a0a0a] dark:text-white">
+      <img
+        src="/lgogo.png"
+        alt="Enum logo"
+        className={`${large ? "h-10 w-10" : "h-7 w-7"} shrink-0 object-contain`}
+      />
+    </div>
+  );
+}
+
+function EnumWordmark() {
+  return (
+    <span
+      className="inline-flex select-none items-center text-[42px] font-bold leading-none text-[#0a0a0a] dark:text-white"
+      style={{ letterSpacing: "-0.085em", transform: "scaleX(0.9)" }}
+    >
+      <span>E</span>
+      <span className="font-medium italic">N</span>
+      <span>U</span>
+      <span>M</span>
+    </span>
   );
 }
 

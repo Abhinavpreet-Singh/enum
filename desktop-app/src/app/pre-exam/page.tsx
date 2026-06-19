@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useExamStore } from "@/store/exam-store";
 import SystemCheck from "@/components/pre-exam/system-check";
@@ -15,12 +15,27 @@ export default function PreExamPage() {
   const [checkResult, setCheckResult] = useState<SystemCheckResult | null>(null);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
+  const [themeMode, setThemeMode] = useState<"light" | "dark">("dark");
 
   useEffect(() => {
     if (!assessment || !candidate) {
       router.replace("/login");
     }
   }, [assessment, candidate, router]);
+
+  useEffect(() => {
+    const savedTheme =
+      typeof window !== "undefined" ? localStorage.getItem("enum_theme") : null;
+    const initialTheme = savedTheme === "light" ? "light" : "dark";
+    setThemeMode(initialTheme);
+    document.documentElement.classList.toggle("dark", initialTheme === "dark");
+  }, []);
+
+  function applyTheme(nextTheme: "light" | "dark") {
+    setThemeMode(nextTheme);
+    localStorage.setItem("enum_theme", nextTheme);
+    document.documentElement.classList.toggle("dark", nextTheme === "dark");
+  }
 
   if (!assessment || !candidate) return null;
 
@@ -59,54 +74,103 @@ export default function PreExamPage() {
     hours > 0 ? `${hours}h${minutes > 0 ? ` ${minutes}m` : ""}` : `${minutes}m`;
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-white">
+    <div className="relative flex h-screen flex-col overflow-hidden bg-white text-[#0a0a0a] dark:bg-[#050505] dark:text-white">
       {/* Ambient glow + grid texture */}
       <div className="pointer-events-none fixed inset-0 enum-glow" />
       <div className="pointer-events-none fixed inset-0 enum-grid-bg" />
 
       {/* Title bar */}
       <div
-        className="relative z-10 flex h-9 shrink-0 items-center px-4 border-b border-black/8 select-none"
+        className="relative z-10 flex h-12 shrink-0 items-center gap-3 border-b border-black/8 bg-white/85 px-5 backdrop-blur-xl select-none dark:border-white/10 dark:bg-[#050505]/85"
         data-tauri-drag-region
       >
-        <span
-          className="text-xs font-black text-gray-400 uppercase"
-          style={{ letterSpacing: "0.2em" }}
-        >
-          enum
+        <EnumLogo />
+        <span className="ml-auto font-mono text-[11px] tracking-[0.2em] text-gray-400">
+          PRE-EXAM CHECKS
         </span>
-        <span className="ml-auto text-xs text-gray-400 tracking-wide">Pre-Exam Checks</span>
       </div>
 
-      <div className="relative z-10 flex flex-1 flex-col items-center overflow-y-auto p-6">
-        <div className="w-full max-w-lg animate-fade-slide-up">
+      <div className="relative z-10 grid min-h-0 flex-1 grid-cols-[minmax(320px,0.86fr)_minmax(460px,1.14fr)] gap-6 overflow-hidden p-6">
+        <aside className="enum-card flex min-h-0 flex-col overflow-hidden p-6 animate-fade-slide-up">
 
           {/* Assessment header */}
-          <div className="mb-8">
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
             {assessment.organization?.name && (
               <p className="mb-1 text-xs font-medium uppercase tracking-[0.15em] text-gray-400">
                 {assessment.organization.name}
               </p>
             )}
-            <h1 className="text-2xl font-black tracking-tight text-[#0a0a0a]">
+            <h1 className="text-3xl font-black tracking-tight text-[#0a0a0a] dark:text-white">
               {assessment.title}
             </h1>
+            {assessment.description && (
+              <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                {assessment.description}
+              </p>
+            )}
             <div className="mt-4 flex flex-wrap gap-2">
-              <AssessmentPill icon="⏱" label="Duration" value={durationStr} />
+              <AssessmentPill icon="Time" label="Duration" value={durationStr} />
               <AssessmentPill icon="?" label="Questions" value={String(assessment.totalQuestions)} />
-              <AssessmentPill icon="✓" label="Pass Mark" value={`${assessment.passingScore}%`} />
+              <AssessmentPill icon="Pass" label="Pass Mark" value={`${assessment.passingScore}%`} />
+            </div>
+
+            <div className="mt-7 border border-black/10 bg-white/70 p-5 dark:border-white/10 dark:bg-white/[0.03]">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-[#0a0a0a] dark:text-white">
+                    Interface Theme
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Choose before entering the secure exam workspace.
+                  </p>
+                </div>
+                <div className="grid shrink-0 grid-cols-2 border border-black/10 bg-gray-100 p-1 dark:border-white/10 dark:bg-white/5">
+                  {(["light", "dark"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => applyTheme(mode)}
+                      className={`px-3 py-1.5 text-xs font-semibold capitalize transition-all ${
+                        themeMode === mode
+                          ? "bg-[#0a0a0a] text-white shadow-sm dark:bg-white dark:text-[#050505]"
+                          : "text-gray-500 hover:text-[#0a0a0a] dark:text-gray-400 dark:hover:text-white"
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 border border-black/10 bg-white/70 p-5 dark:border-white/10 dark:bg-white/[0.03]">
+              <p className="mb-3 text-sm font-semibold text-[#0a0a0a] dark:text-white">Before you begin</p>
+              <ul className="space-y-2 text-sm leading-5 text-gray-600 dark:text-gray-400">
+                <InstructionItem>Stay inside the exam app for the full session.</InstructionItem>
+                {settings?.forceFullscreen && (
+                  <InstructionItem>The exam opens in fullscreen mode.</InstructionItem>
+                )}
+                {settings?.copyPasteDetection && (
+                  <InstructionItem>Copy and paste activity is monitored.</InstructionItem>
+                )}
+                {settings?.devToolsDetection && (
+                  <InstructionItem>Developer tools are blocked.</InstructionItem>
+                )}
+                <InstructionItem>Violations are logged and reviewed by the administrator.</InstructionItem>
+              </ul>
             </div>
           </div>
+        </aside>
 
-          {/* Divider */}
-          <div className="mb-6 flex items-center gap-3">
-            <span className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-400">
+        <main className="enum-card flex min-h-0 flex-col overflow-hidden p-6 animate-fade-slide-up animate-delay-100">
+          <div className="mb-4 flex items-center gap-3">
+            <span className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
               System Check
             </span>
-            <div className="flex-1 border-t border-black/8" />
+            <div className="h-px flex-1 bg-black/10 dark:bg-white/10" />
           </div>
 
-          {/* System Check */}
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           {settings && (
             <SystemCheck settings={settings} onComplete={setCheckResult} />
           )}
@@ -114,48 +178,14 @@ export default function PreExamPage() {
           {/* Error */}
           {error && (
             <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
-              <span className="mt-0.5 shrink-0">✕</span>
+              <span className="mt-0.5 shrink-0">!</span>
               <span>{error}</span>
             </div>
           )}
-
-          {/* Instructions panel */}
-          {checkResult?.canProceed && (
-            <div className="enum-card mt-6 p-5 animate-fade-slide-up animate-delay-200">
-              <p className="mb-3 text-sm font-semibold text-[#0a0a0a]">Before you begin</p>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-start gap-2">
-                  <span className="mt-0.5 shrink-0 text-gray-300">—</span>
-                  Do not switch tabs or windows during the exam.
-                </li>
-                {settings?.forceFullscreen && (
-                  <li className="flex items-start gap-2">
-                    <span className="mt-0.5 shrink-0 text-gray-300">—</span>
-                    The exam will run in fullscreen mode.
-                  </li>
-                )}
-                {settings?.copyPasteDetection && (
-                  <li className="flex items-start gap-2">
-                    <span className="mt-0.5 shrink-0 text-gray-300">—</span>
-                    Copy-paste is monitored.
-                  </li>
-                )}
-                {settings?.devToolsDetection && (
-                  <li className="flex items-start gap-2">
-                    <span className="mt-0.5 shrink-0 text-gray-300">—</span>
-                    Developer tools are blocked.
-                  </li>
-                )}
-                <li className="flex items-start gap-2">
-                  <span className="mt-0.5 shrink-0 text-gray-300">—</span>
-                  All violations are logged and reviewed.
-                </li>
-              </ul>
-            </div>
-          )}
+          </div>
 
           {/* Actions */}
-          <div className="mt-8 flex gap-3">
+          <div className="mt-5 flex shrink-0 gap-3 border-t border-black/10 pt-4 dark:border-white/10">
             <button
               onClick={() => router.push("/login")}
               className="btn-ghost flex-1"
@@ -180,12 +210,36 @@ export default function PreExamPage() {
             </button>
           </div>
 
-          <p className="mt-6 text-center text-xs text-gray-400">
-            Candidate: {candidate.name ?? candidate.email}
+          <p className="mt-4 text-center text-xs text-gray-400">
+            Candidate: {candidate.displayName ?? candidate.email}
           </p>
-        </div>
+        </main>
       </div>
     </div>
+  );
+}
+
+function EnumLogo() {
+  return (
+    <div className="flex items-center gap-2 text-[#0a0a0a] dark:text-white">
+      <img
+        src="/lgogo.png"
+        alt="Enum logo"
+        className="h-7 w-7 shrink-0 object-contain"
+      />
+      <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.2em]">
+        ENUM EXAM CLIENT
+      </span>
+    </div>
+  );
+}
+
+function InstructionItem({ children }: { children: ReactNode }) {
+  return (
+    <li className="flex items-start gap-2">
+      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-gray-400 dark:bg-gray-500" />
+      <span>{children}</span>
+    </li>
   );
 }
 
@@ -199,10 +253,10 @@ function AssessmentPill({
   value: string;
 }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-3 py-1 text-xs shadow-sm">
+    <span className="inline-flex items-center gap-1.5 border border-black/10 bg-white px-3 py-1 text-xs shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
       <span className="text-gray-400">{icon}</span>
       <span className="text-gray-400">{label}:</span>
-      <span className="font-medium text-[#0a0a0a]">{value}</span>
+      <span className="font-medium text-[#0a0a0a] dark:text-white">{value}</span>
     </span>
   );
 }

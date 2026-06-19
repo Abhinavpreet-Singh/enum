@@ -13,8 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ENUM — Secure Exam Client",
+  title: "ENUM Exam Client",
   description: "ENUM Secure Desktop Examination Client",
+  icons: {
+    icon: "/lgogo.png",
+  },
 };
 
 export default function RootLayout({
@@ -30,7 +33,7 @@ export default function RootLayout({
             __html: `
               try {
                 const t = localStorage.getItem('enum_theme');
-                if (t === 'dark') {
+                if (t !== 'light') {
                   document.documentElement.classList.add('dark');
                 } else {
                   document.documentElement.classList.remove('dark');
@@ -41,7 +44,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-white text-[#0a0a0a] antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-white text-[#0a0a0a] antialiased dark:bg-[#050505] dark:text-white`}
       >
         {children}
       </body>

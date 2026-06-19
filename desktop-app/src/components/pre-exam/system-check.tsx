@@ -71,8 +71,8 @@ export default function SystemCheck({ settings, onComplete }: Props) {
       {done && (
         <div className="mt-5">
           {blocking.length > 0 ? (
-            <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
-              <span className="mt-0.5 shrink-0">✕</span>
+            <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-400/25 dark:bg-red-400/10 dark:text-red-200">
+              <span className="mt-0.5 shrink-0">!</span>
               <div>
                 <span className="font-semibold">Cannot proceed.</span>{" "}
                 {blocking.length} required check{blocking.length > 1 ? "s" : ""} failed.
@@ -80,7 +80,7 @@ export default function SystemCheck({ settings, onComplete }: Props) {
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+            <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-200">
               <span className="shrink-0">✓</span>
               <span>All required checks passed. You may proceed.</span>
             </div>
@@ -103,23 +103,23 @@ function CheckRow({ item }: { item: SystemCheckItem }) {
   const cfg = statusConfig[item.status];
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-black/8 bg-white px-4 py-2.5 shadow-sm transition-colors">
+    <div className="flex items-center gap-3 rounded-xl border border-black/8 bg-white px-4 py-3 shadow-sm transition-colors dark:border-white/10 dark:bg-white/[0.04]">
       <span
         className={`w-4 shrink-0 text-center text-xs font-mono ${cfg.className}`}
       >
         {cfg.icon}
       </span>
-      <span className="flex-1 text-sm text-gray-700">{item.label}</span>
+      <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">{item.label}</span>
       {item.message && (
         <span
-          className="text-xs text-gray-400"
+          className="text-xs text-gray-400 dark:text-gray-500"
           style={{ fontFamily: "var(--font-geist-mono), monospace" }}
         >
           {item.message}
         </span>
       )}
       {item.required && item.status === "fail" && (
-        <span className="rounded-md border border-red-200 bg-red-50 px-1.5 py-0.5 text-xs text-red-600">
+        <span className="rounded-md border border-red-200 bg-red-50 px-1.5 py-0.5 text-xs text-red-600 dark:border-red-400/25 dark:bg-red-400/10 dark:text-red-200">
           Required
         </span>
       )}

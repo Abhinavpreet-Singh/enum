@@ -22,7 +22,7 @@ function SubmittedContent() {
   }, [reset]);
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-white p-6">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-white p-6 text-black dark:bg-black dark:text-white">
       {/* Ambient glow + grid texture */}
       <div className="pointer-events-none fixed inset-0 enum-glow" />
       <div className="pointer-events-none fixed inset-0 enum-grid-bg" />
@@ -30,16 +30,16 @@ function SubmittedContent() {
       <div className="relative z-10 w-full max-w-sm text-center animate-fade-slide-up">
         {/* Result mark */}
         <div
-          className={`mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold ${
+          className={`mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded border text-2xl font-bold ${
             passed
-              ? "border border-green-200 bg-green-50 text-green-600"
-              : "border border-black/10 bg-gray-50 text-gray-500"
+              ? "border-green-200 bg-green-50 text-green-600 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-200"
+              : "border-black/10 bg-gray-50 text-gray-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-400"
           }`}
         >
           {passed ? "✓" : "○"}
         </div>
 
-        <h1 className="text-3xl font-black tracking-tight text-[#0a0a0a]">
+        <h1 className="text-3xl font-black tracking-tight text-[#0a0a0a] dark:text-white">
           {passed ? "Passed" : "Submitted"}
         </h1>
         <p className="mt-2 text-sm text-gray-500">
@@ -47,10 +47,10 @@ function SubmittedContent() {
         </p>
 
         {max > 0 && (
-          <div className="enum-card mt-8 p-6 animate-fade-slide-up animate-delay-200">
+          <div className="enum-card mt-8 rounded-lg p-6 animate-fade-slide-up animate-delay-200">
             <div
               className={`text-5xl font-black tracking-tight ${
-                passed ? "text-[#0a0a0a]" : "text-gray-700"
+                passed ? "text-[#0a0a0a] dark:text-white" : "text-gray-700 dark:text-gray-300"
               }`}
             >
               {percent}
@@ -61,10 +61,10 @@ function SubmittedContent() {
             </div>
 
             {/* Progress bar */}
-            <div className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-black/8">
+            <div className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-black/8 dark:bg-white/10">
               <div
                 className={`h-full rounded-full transition-all duration-700 ease-out ${
-                  passed ? "bg-green-500" : "bg-[#0a0a0a]"
+                  passed ? "bg-green-500" : "bg-[#0a0a0a] dark:bg-white"
                 }`}
                 style={{ width: `${percent}%` }}
               />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import type { ExamQuestion, Answer } from "@/types";
 
@@ -22,7 +22,7 @@ interface JudgeResult {
   output?: string;
   expected?: string;
   error?: string;
-  input?: string[];
+  input?: string | string[];
 }
 
 interface TestRunResult {
@@ -32,6 +32,18 @@ interface TestRunResult {
   expected: string;
   input: string;
   error?: string;
+}
+
+type PanelTab = "testcase" | "result" | "custom";
+type RunMode = "run" | "submit" | "custom";
+type Verdict = "idle" | "running" | "accepted" | "wrong_answer" | "error";
+
+interface SubmitOverlayState {
+  phase: "submitting" | "done" | "error";
+  passed: number;
+  total: number;
+  runtime: number | null;
+  message?: string;
 }
 
 interface Props {
@@ -54,9 +66,20 @@ export default function CodingQuestion({ question, answer, language = "python", 
   );
   const [lang, setLang] = useState(existing?.language ?? language);
   const [running, setRunning] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [results, setResults] = useState<TestRunResult[]>([]);
   const [summary, setSummary] = useState("");
   const [runError, setRunError] = useState("");
+  const [activeTab, setActiveTab] = useState<PanelTab>("testcase");
+  const [customInput, setCustomInput] = useState("");
+  const [runtime, setRuntime] = useState<number | null>(null);
+  const [verdict, setVerdict] = useState<Verdict>("idle");
+  const [passedCount, setPassedCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [lastMode, setLastMode] = useState<RunMode>("run");
+  const [panelExpanded, setPanelExpanded] = useState(false);
+  const [editorTheme, setEditorTheme] = useState<"light" | "dark">("dark");
+  const [submitOverlay, setSubmitOverlay] = useState<SubmitOverlayState | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -66,11 +89,42 @@ export default function CodingQuestion({ question, answer, language = "python", 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, lang]);
 
-  async function runCode() {
-    setRunning(true);
+  useEffect(() => {
+    const syncTheme = () =>
+      setEditorTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
+    syncTheme();
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
+  function openPanel(tab: PanelTab) {
+    setActiveTab(tab);
+    setPanelExpanded((expanded) => (activeTab === tab ? !expanded : true));
+  }
+
+  async function runCode(mode: RunMode = "run") {
+    const isSubmit = mode === "submit";
+    setRunning(!isSubmit);
+    setSubmitting(isSubmit);
     setResults([]);
     setSummary("");
     setRunError("");
+    setActiveTab("result");
+    setPanelExpanded(true);
+    setRuntime(null);
+    setVerdict("running");
+    setPassedCount(0);
+    setTotalCount(0);
+    setLastMode(mode);
+    if (isSubmit) {
+      setSubmitOverlay({ phase: "submitting", passed: 0, total: 0, runtime: null });
+    }
+
+    const testCases = mode === "custom"
+      ? [{ input: customInput, expectedOutput: "" }]
+      : question.testCases ?? [];
+    const startTime = Date.now();
 
     try {
       const backendUrl =
@@ -81,8 +135,8 @@ export default function CodingQuestion({ question, answer, language = "python", 
         body: JSON.stringify({
           language: lang,
           code,
-          testCases: question.testCases ?? [],
-          mode: "run",
+          testCases,
+          mode: isSubmit ? "submit" : "run",
           // Include function signature so the judge can auto-generate the harness
           functionName: question.functionName ?? undefined,
           parameterTypes: question.parameterTypes?.length ? question.parameterTypes : undefined,
@@ -93,12 +147,23 @@ export default function CodingQuestion({ question, answer, language = "python", 
 
       if (data.message && !data.results) {
         setRunError(data.message);
+        setVerdict("error");
+        setActiveTab("result");
+        if (isSubmit) {
+          setSubmitOverlay({
+            phase: "error",
+            passed: 0,
+            total: 0,
+            runtime: Date.now() - startTime,
+            message: data.message,
+          });
+        }
         return;
       }
 
       if (Array.isArray(data.results) && data.results.length > 0) {
         const mapped: TestRunResult[] = data.results.map((r: JudgeResult, i: number) => {
-          const sample = question.testCases?.[i];
+          const sample = testCases?.[i];
           return {
             index: i + 1,
             passed: Boolean(r.passed),
@@ -109,53 +174,151 @@ export default function CodingQuestion({ question, answer, language = "python", 
           };
         });
         setResults(mapped);
-        setSummary(`${data.passedCount ?? mapped.filter((r) => r.passed).length}/${data.totalCount ?? mapped.length} test cases passed`);
+        setRuntime(Date.now() - startTime);
+        const passed = data.passedCount ?? mapped.filter((r) => r.passed).length;
+        const total = data.totalCount ?? mapped.length;
+        const allPassed = data.allPassed ?? (mapped.length > 0 && mapped.every((r) => r.passed));
+        const hasError = mapped.some((r) => r.error);
+        setPassedCount(passed);
+        setTotalCount(total);
+        setVerdict(allPassed ? "accepted" : hasError ? "error" : "wrong_answer");
+        setActiveTab(!isSubmit && hasError ? "result" : "testcase");
+        setSummary(
+          mode === "custom"
+            ? "Custom run completed"
+            : `${passed}/${total} test cases passed`,
+        );
+        if (isSubmit) {
+          setSubmitOverlay({
+            phase: allPassed ? "done" : "error",
+            passed,
+            total,
+            runtime: Date.now() - startTime,
+          });
+        }
         return;
       }
 
       if (data.results?.length === 0) {
         setRunError("No test cases to run for this question.");
+        setVerdict("error");
+        setActiveTab("result");
+        if (isSubmit) {
+          setSubmitOverlay({
+            phase: "error",
+            passed: 0,
+            total: 0,
+            runtime: Date.now() - startTime,
+            message: "No test cases to run for this question.",
+          });
+        }
         return;
       }
 
       setRunError(data.output ?? data.error ?? data.message ?? "No output");
+      setVerdict("error");
+      setActiveTab("result");
+      if (isSubmit) {
+        setSubmitOverlay({
+          phase: "error",
+          passed: 0,
+          total: 0,
+          runtime: Date.now() - startTime,
+          message: data.output ?? data.error ?? data.message ?? "No output",
+        });
+      }
     } catch {
       setRunError("Judge service unavailable. Your code is saved.");
+      setVerdict("error");
+      setActiveTab("result");
+      if (isSubmit) {
+        setSubmitOverlay({
+          phase: "error",
+          passed: 0,
+          total: 0,
+          runtime: Date.now() - startTime,
+          message: "Judge service unavailable. Your code is saved.",
+        });
+      }
     } finally {
       setRunning(false);
+      setSubmitting(false);
     }
   }
 
-  const langs = ["python", "javascript", "typescript", "java", "cpp", "c"];
+  const languageOptions = [
+    { label: "Python", value: "python" },
+    { label: "Java", value: "java" },
+    { label: "C", value: "c" },
+    { label: "C++", value: "cpp" },
+    { label: "JavaScript", value: "javascript" },
+    { label: "TypeScript", value: "typescript" },
+  ];
+  const isProcessing = running || submitting;
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Language selector */}
-      <div className="flex items-center gap-3">
-        <span className="text-xs text-gray-500 uppercase tracking-wider">Language</span>
-        <div className="flex gap-1.5">
-          {langs.map((l) => (
-            <button
-              key={l}
-              onClick={() => setLang(l)}
-              className={`rounded px-2.5 py-1 text-xs transition-all ${
-                lang === l
-                  ? "bg-[#0a0a0a] text-white font-semibold"
-                  : "border border-black/12 text-gray-500 hover:border-black/30 hover:text-[#0a0a0a]"
-              }`}
-            >
-              {l}
-            </button>
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden border-l border-black/10 bg-white dark:border-white/10 dark:bg-black">
+      <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-black/10 bg-white px-3 dark:border-white/10 dark:bg-black">
+        <select
+          value={lang}
+          onChange={(e) => setLang(e.target.value)}
+          className="rounded border border-black/10 bg-gray-100 px-2.5 py-1.5 font-mono text-xs text-black outline-none transition-colors hover:border-black/25 focus:border-black/40 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:hover:border-white/25 dark:focus:border-white/40"
+        >
+          {languageOptions.map((opt) => (
+            <option key={opt.value} value={opt.value} className="bg-white text-black dark:bg-black dark:text-white">
+              {opt.label}
+            </option>
           ))}
+        </select>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigator.clipboard.writeText(code)}
+            className="rounded border border-black/10 px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.12em] text-gray-500 transition-colors hover:border-black/30 hover:text-black dark:border-white/10 dark:text-gray-400 dark:hover:border-white/30 dark:hover:text-white"
+            title="Copy code"
+          >
+            Copy
+          </button>
+          <button
+            onClick={() => runCode("run")}
+            disabled={isProcessing}
+            className="rounded border border-black bg-black px-4 py-1.5 font-mono text-xs font-semibold tracking-[0.14em] text-white transition-colors hover:bg-gray-800 disabled:opacity-50 dark:border-white/15 dark:bg-white/[0.08] dark:text-white dark:hover:bg-white/[0.14]"
+          >
+            {running ? "RUNNING" : "RUN"}
+          </button>
+          <button
+            onClick={() => runCode("submit")}
+            disabled={isProcessing}
+            className="rounded border border-black bg-black px-4 py-1.5 font-mono text-xs font-semibold tracking-[0.14em] text-white transition-colors hover:bg-gray-800 disabled:opacity-50 dark:border-white dark:bg-white dark:text-black dark:hover:bg-gray-100"
+          >
+            {submitting ? "SUBMITTING" : "SUBMIT"}
+          </button>
         </div>
       </div>
 
-      {/* Monaco Editor */}
-      <div className="rounded-lg overflow-hidden border border-black/12 shadow-sm" style={{ height: 320 }}>
+      <div className="min-h-0 flex-1 overflow-hidden">
         <MonacoEditor
           height="100%"
           language={LANGUAGE_MAP[lang] ?? lang}
-          theme="light"
+          theme={editorTheme === "dark" ? "pitch-black" : "vs-light"}
+          beforeMount={(monaco) => {
+            monaco.editor.defineTheme("pitch-black", {
+              base: "vs-dark",
+              inherit: true,
+              rules: [],
+              colors: {
+                "editor.background": "#000000",
+                "editor.foreground": "#cbd5e1",
+                "editorLineNumber.foreground": "#71717a",
+                "editorLineNumber.activeForeground": "#ffffff",
+                "editorCursor.foreground": "#ffffff",
+                "editor.selectionBackground": "rgba(255, 255, 255, 0.18)",
+                "editor.lineHighlightBackground": "#0a0a0a",
+                "editorIndentGuide.background": "rgba(255, 255, 255, 0.12)",
+                "editorIndentGuide.activeBackground": "rgba(255, 255, 255, 0.28)",
+              },
+            });
+          }}
           value={code}
           onChange={(v) => setCode(v ?? "")}
           options={{
@@ -167,80 +330,395 @@ export default function CodingQuestion({ question, answer, language = "python", 
             tabSize: 2,
             lineNumbers: "on",
             renderLineHighlight: "line",
+            padding: { top: 14, bottom: 14 },
+            wordWrap: "on",
           }}
         />
       </div>
 
-      {/* Run + results */}
-      <div className="flex flex-col gap-2">
-        <button
-          onClick={runCode}
-          disabled={running}
-          className="self-start rounded-lg border border-[#0a0a0a] bg-[#0a0a0a] px-4 py-2 text-xs font-medium text-white transition-all hover:bg-[#1f1f1f] hover:-translate-y-px disabled:opacity-50"
-        >
-          {running ? "Running…" : "▶ Run"}
-        </button>
-
-        {runError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-600">
-            {runError}
+      <div
+        className={`flex shrink-0 flex-col border-t border-black/10 bg-white transition-[height] duration-200 dark:border-white/10 dark:bg-black ${
+          panelExpanded ? "h-[280px]" : "h-10"
+        }`}
+      >
+        <div className="flex h-10 shrink-0 items-center justify-between border-b border-black/10 bg-gray-50 px-2 dark:border-white/10 dark:bg-[#0d0d0d]">
+          <div className="flex items-center gap-1">
+            <ConsoleTab active={activeTab === "testcase" && panelExpanded} onClick={() => openPanel("testcase")}>
+              Testcase
+            </ConsoleTab>
+            <ConsoleTab active={activeTab === "result" && panelExpanded} onClick={() => openPanel("result")}>
+              Console
+            </ConsoleTab>
+            <ConsoleTab active={activeTab === "custom" && panelExpanded} onClick={() => openPanel("custom")}>
+              Custom
+            </ConsoleTab>
           </div>
-        )}
+          <button
+            type="button"
+            onClick={() => setPanelExpanded((expanded) => !expanded)}
+            className="absolute left-1/2 grid h-7 w-10 -translate-x-1/2 place-items-center border border-black/10 bg-white font-mono text-xs text-gray-500 transition-colors hover:border-black/30 hover:text-black dark:border-white/10 dark:bg-black dark:text-gray-400 dark:hover:border-white/30 dark:hover:text-white"
+            title={panelExpanded ? "Hide console" : "Show console"}
+          >
+            {panelExpanded ? "⌄" : "⌃"}
+          </button>
+          <VerdictSummary
+            verdict={verdict}
+            runtime={runtime}
+            passedCount={passedCount}
+            totalCount={totalCount}
+            summary={summary}
+            lastMode={lastMode}
+          />
+        </div>
 
-        {results.length > 0 && (
-          <div className="space-y-3">
-            {summary && (
-              <p className="text-xs font-medium text-gray-500">{summary}</p>
-            )}
-            {results.map((r) => (
-              <div
-                key={r.index}
-                className={`rounded-lg border p-3 text-xs ${
-                  r.passed
-                    ? "border-emerald-200 bg-emerald-50"
-                    : "border-red-200 bg-red-50"
+        {panelExpanded && <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          {activeTab === "testcase" && (
+            <TestcasePanel
+              question={question}
+              results={results}
+              passedCount={passedCount}
+              totalCount={totalCount}
+            />
+          )}
+
+          {activeTab === "result" && (
+            <ConsoleResults
+              runError={runError}
+              results={results}
+              verdict={verdict}
+              lastMode={lastMode}
+              passedCount={passedCount}
+              totalCount={totalCount}
+              runtime={runtime}
+            />
+          )}
+
+          {activeTab === "custom" && (
+            <div className="flex h-full min-h-0 flex-col gap-3">
+              <textarea
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value)}
+                placeholder="Enter custom input exactly as stdin..."
+                className="min-h-0 flex-1 resize-none rounded border border-black/10 bg-white p-3 font-mono text-xs text-gray-800 outline-none placeholder:text-gray-400 focus:border-black/35 dark:border-white/10 dark:bg-black dark:text-gray-200 dark:placeholder:text-gray-600 dark:focus:border-white/35"
+              />
+              <button
+                onClick={() => runCode("custom")}
+                disabled={isProcessing}
+                className="self-end rounded border border-black/80 px-4 py-2 font-mono text-[11px] font-semibold tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white disabled:opacity-50 dark:border-white/80 dark:text-white dark:hover:bg-white dark:hover:text-black"
+              >
+                RUN CUSTOM
+              </button>
+            </div>
+          )}
+        </div>}
+      </div>
+      {submitOverlay && (
+        <SubmitOverlay
+          state={submitOverlay}
+          onClose={() => setSubmitOverlay(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ConsoleTab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors ${
+        active
+          ? "bg-black text-white dark:bg-white dark:text-black"
+          : "text-gray-500 hover:bg-black/[0.06] hover:text-black dark:hover:bg-white/[0.06] dark:hover:text-white"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function VerdictSummary({
+  verdict,
+  runtime,
+  passedCount,
+  totalCount,
+  summary,
+  lastMode,
+}: {
+  verdict: Verdict;
+  runtime: number | null;
+  passedCount: number;
+  totalCount: number;
+  summary: string;
+  lastMode: RunMode;
+}) {
+  if (verdict === "idle" && !summary) return null;
+
+  const label =
+    verdict === "running"
+      ? "Running"
+      : verdict === "accepted"
+      ? "Accepted"
+      : verdict === "wrong_answer"
+      ? "Wrong Answer"
+      : verdict === "error"
+      ? "Runtime Error"
+      : "Ready";
+
+  const color =
+    verdict === "accepted"
+      ? "text-emerald-400"
+      : verdict === "wrong_answer" || verdict === "error"
+      ? "text-red-400"
+      : "text-gray-400";
+
+  return (
+    <div className="ml-auto hidden items-center gap-2 pr-1 font-mono text-[11px] md:flex">
+      <span className="uppercase tracking-[0.12em] text-gray-600">
+        {lastMode === "submit" ? "Submit" : lastMode === "custom" ? "Custom" : "Run"}
+      </span>
+      <span className={color}>{label}</span>
+      {totalCount > 0 && (
+        <span className="text-gray-500">
+          {passedCount}/{totalCount}
+        </span>
+      )}
+      {runtime !== null && <span className="text-gray-500">{runtime}ms</span>}
+    </div>
+  );
+}
+
+function TestcasePanel({
+  question,
+  results,
+  passedCount,
+  totalCount,
+}: {
+  question: ExamQuestion;
+  results: TestRunResult[];
+  passedCount: number;
+  totalCount: number;
+}) {
+  const samples = question.testCases ?? [];
+  const visibleRows = results.length
+    ? results
+    : samples.map((test, index) => ({
+        index: index + 1,
+        passed: false,
+        actual: "",
+        expected: test.expectedOutput ?? "",
+        input: formatInput(test.input),
+      }));
+
+  if (!visibleRows.length) {
+    return (
+      <div className="border border-black/10 bg-black/[0.03] p-4 text-sm text-gray-500 dark:border-white/10 dark:bg-white/[0.03]">
+        No sample test cases are available for this question.
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid h-full min-h-0 grid-cols-[220px_minmax(0,1fr)] gap-4">
+      <aside className="min-h-0 border-r border-black/10 pr-3 dark:border-white/10">
+        <div className="space-y-2">
+          {visibleRows.map((row) => (
+            <div key={row.index} className="flex items-center gap-2 font-mono text-xs">
+              <span className={row.passed ? "text-emerald-600" : "text-red-500"}>
+                {row.passed ? "✓" : "×"}
+              </span>
+              <span
+                className={`border px-2 py-1 ${
+                  row.passed
+                    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
+                    : "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-200"
                 }`}
               >
-                <div className="mb-2 flex items-center gap-2">
-                  <span
-                    className={`rounded px-2 py-0.5 font-semibold uppercase tracking-wider ${
-                      r.passed ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
-                    }`}
-                  >
-                    Test {r.index}: {r.passed ? "Pass" : "Fail"}
-                  </span>
-                </div>
+                Test case {row.index}
+              </span>
+            </div>
+          ))}
+        </div>
+        {totalCount > 0 && (
+          <p className="mt-4 font-mono text-xs text-emerald-700 dark:text-emerald-300">
+            Test case passed {passedCount}/{totalCount}
+          </p>
+        )}
+      </aside>
 
-                <div className="space-y-2 font-mono">
-                  <div>
-                    <p className="mb-1 text-[10px] uppercase tracking-wider text-gray-400">Input</p>
-                    <pre className="whitespace-pre-wrap rounded bg-white border border-black/8 p-2 text-gray-700">
-                      {r.input || "—"}
-                    </pre>
-                  </div>
-
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div>
-                      <p className="mb-1 text-[10px] uppercase tracking-wider text-gray-400">
-                        Your output
-                      </p>
-                      <pre className="whitespace-pre-wrap rounded bg-white border border-black/8 p-2 text-[#0a0a0a]">
-                        {r.error ? r.error : r.actual || "(empty)"}
-                      </pre>
-                    </div>
-                    <div>
-                      <p className="mb-1 text-[10px] uppercase tracking-wider text-gray-400">
-                        Expected output
-                      </p>
-                      <pre className="whitespace-pre-wrap rounded bg-white border border-black/8 p-2 text-emerald-700">
-                        {r.expected || "(not set)"}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+      <div className="min-h-0 overflow-y-auto pr-1">
+        {visibleRows.map((row) => (
+          <div key={row.index} className="mb-4 grid gap-3 last:mb-0">
+            <OutputBlock label="Input" value={row.input || "-"} />
+            <OutputBlock label="Expected Output" value={row.expected || "(not set)"} />
+            <OutputBlock label="Your Output" value={row.actual || "(empty)"} />
           </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ConsoleResults({
+  runError,
+  results,
+  verdict,
+  lastMode,
+  passedCount,
+  totalCount,
+  runtime,
+}: {
+  runError: string;
+  results: TestRunResult[];
+  verdict: Verdict;
+  lastMode: RunMode;
+  passedCount: number;
+  totalCount: number;
+  runtime: number | null;
+}) {
+  if (runError) {
+    return (
+      <div className="rounded border border-red-500/25 bg-red-500/10 p-3 font-mono text-xs text-red-600 dark:text-red-200">
+        {runError}
+      </div>
+    );
+  }
+
+  const errored = results.find((result) => result.error);
+  if (errored) {
+    return (
+      <div className="rounded border border-red-500/25 bg-red-500/10 p-4 font-mono text-xs text-red-700 dark:text-red-200">
+        <p className="mb-2 text-[10px] uppercase tracking-[0.16em]">Compilation / Runtime Error</p>
+        <pre className="whitespace-pre-wrap">{errored.error}</pre>
+      </div>
+    );
+  }
+
+  if (!results.length || verdict !== "error") {
+    return (
+      <div className="rounded border border-black/10 bg-white p-4 font-mono text-xs text-gray-500 dark:border-white/10 dark:bg-black">
+        {verdict === "running"
+          ? "Running your code..."
+          : "No compilation errors."}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-3">
+      {results.map((r) => (
+        <div
+          key={r.index}
+          className={`rounded border p-3 text-xs ${
+            r.passed
+              ? "border-emerald-500/25 bg-emerald-500/10"
+              : "border-red-500/25 bg-red-500/10"
+          }`}
+        >
+          <div className="mb-2 flex items-center gap-2">
+            <span
+              className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                r.passed
+                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-200"
+                  : "bg-red-500/15 text-red-700 dark:text-red-200"
+              }`}
+            >
+              {lastMode === "submit" ? "Submit" : "Test"} {r.index}: {r.passed ? "Pass" : "Fail"}
+            </span>
+          </div>
+
+          <div className="grid gap-2 font-mono lg:grid-cols-3">
+            <OutputBlock label="Input" value={r.input || "-"} />
+            <OutputBlock label="Your Output" value={r.error ? r.error : r.actual || "(empty)"} />
+            <OutputBlock label="Expected" value={r.expected || "(not set)"} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function OutputBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="mb-1 text-[10px] uppercase tracking-[0.14em] text-gray-500">{label}</p>
+      <pre className="max-h-24 overflow-auto whitespace-pre-wrap rounded border border-black/10 bg-white p-2 text-gray-700 dark:border-white/10 dark:bg-black dark:text-gray-300">
+        {value}
+      </pre>
+    </div>
+  );
+}
+
+function SubmitOverlay({
+  state,
+  onClose,
+}: {
+  state: SubmitOverlayState;
+  onClose: () => void;
+}) {
+  const done = state.phase !== "submitting";
+  const passedAll = state.total > 0 && state.passed === state.total;
+
+  return (
+    <div className="absolute inset-0 z-40 grid place-items-center bg-white/85 backdrop-blur-sm dark:bg-black/85">
+      <div className="w-full max-w-sm border border-black/20 bg-white p-6 text-center shadow-2xl dark:border-white/20 dark:bg-black">
+        <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-gray-400">
+          {state.phase === "submitting" ? "Submitting" : "Submission Result"}
+        </p>
+        <h3
+          className={`mt-3 text-2xl font-bold ${
+            state.phase === "submitting"
+              ? "text-black dark:text-white"
+              : passedAll
+              ? "text-emerald-600 dark:text-emerald-300"
+              : "text-red-600 dark:text-red-300"
+          }`}
+        >
+          {state.phase === "submitting"
+            ? "Checking final test cases..."
+            : passedAll
+            ? "Accepted"
+            : "Failed"}
+        </h3>
+        {done && (
+          <>
+            <p className="mt-4 font-mono text-4xl font-bold text-black dark:text-white">
+              {state.passed}/{state.total}
+            </p>
+            <p className="mt-1 font-mono text-xs uppercase tracking-[0.14em] text-gray-500">
+              final test cases passed
+            </p>
+            {state.runtime !== null && (
+              <p className="mt-2 font-mono text-xs text-gray-500">{state.runtime}ms</p>
+            )}
+            {state.message && (
+              <pre className="mt-4 max-h-28 overflow-auto whitespace-pre-wrap border border-black/10 bg-black/[0.03] p-3 text-left font-mono text-xs text-red-600 dark:border-white/10 dark:bg-white/[0.04] dark:text-red-200">
+                {state.message}
+              </pre>
+            )}
+          </>
+        )}
+        {state.phase === "submitting" ? (
+          <div className="mx-auto mt-5 h-1 w-40 overflow-hidden bg-black/10 dark:bg-white/10">
+            <div className="h-full w-1/2 animate-pulse bg-black dark:bg-white" />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-6 w-full border border-black bg-black px-4 py-3 font-mono text-xs font-semibold uppercase tracking-[0.16em] text-white transition-colors hover:bg-gray-800 dark:border-white dark:bg-white dark:text-black dark:hover:bg-gray-100"
+          >
+            OK
+          </button>
         )}
       </div>
     </div>

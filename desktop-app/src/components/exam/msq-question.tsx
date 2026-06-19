@@ -23,22 +23,26 @@ export default function MSQQuestion({ question, answer, onAnswer }: Props) {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-gray-500 mb-1">Select all that apply.</p>
+      <p className="mb-1 font-mono text-xs uppercase tracking-[0.14em] text-gray-500">
+        Select all that apply
+      </p>
       {opts.map((opt, idx) => {
         const checked = selected.includes(idx);
         return (
           <button
             key={idx}
             onClick={() => toggle(idx)}
-            className={`w-full rounded-lg border px-4 py-3 text-left text-sm transition-all flex items-center gap-3 ${
+            className={`flex w-full items-center gap-3 rounded border px-4 py-4 text-left text-sm transition-colors ${
               checked
-                ? "border-[#0a0a0a] bg-[#0a0a0a]/5 text-[#0a0a0a] shadow-sm"
-                : "border-black/10 bg-white text-gray-700 hover:border-black/30 hover:bg-gray-50"
+                ? "border-black bg-black text-white shadow-sm dark:border-white dark:bg-white dark:text-black"
+                : "border-black/10 bg-black/[0.03] text-gray-700 hover:border-black/30 hover:bg-black/[0.06] hover:text-black dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:border-white/30 dark:hover:bg-white/[0.06] dark:hover:text-white"
             }`}
           >
             <span
-              className={`h-4 w-4 rounded border shrink-0 flex items-center justify-center text-xs ${
-                checked ? "border-[#0a0a0a] bg-[#0a0a0a] text-white" : "border-gray-300"
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs ${
+                checked
+                  ? "border-white bg-white text-black dark:border-black dark:bg-black dark:text-white"
+                  : "border-black/20 dark:border-white/20"
               }`}
             >
               {checked && "✓"}
