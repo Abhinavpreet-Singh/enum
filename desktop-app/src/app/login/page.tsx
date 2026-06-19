@@ -146,7 +146,7 @@ export default function LoginPage() {
                     value={testCode}
                     onChange={(e) => setTestCode(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleValidateCode()}
-                    placeholder="abc12345 or https://enum.live/test/…"
+                    placeholder="abc12345 or https://exam.enum.live/test/..."
                     className="input-field"
                     autoFocus
                   />
