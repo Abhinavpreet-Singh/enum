@@ -23,7 +23,7 @@ export default function MSQQuestion({ question, answer, onAnswer }: Props) {
 
   return (
     <div className="space-y-3">
-      <p className="mb-1 font-mono text-xs uppercase tracking-[0.14em] text-gray-500">
+      <p className="mb-1 font-mono text-xs uppercase tracking-[0.14em] text-gray-700 dark:text-gray-200">
         Select all that apply
       </p>
       {opts.map((opt, idx) => {

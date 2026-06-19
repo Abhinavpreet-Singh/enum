@@ -17,6 +17,7 @@ interface ExamActions {
   setAttemptId: (id: string) => void;
   // Answer management
   saveAnswer: (answer: Answer) => void;
+  clearAnswer: (aqId: string) => void;
   // Navigation
   setCurrentQuestion: (index: number) => void;
   // Timer
@@ -72,6 +73,11 @@ export const useExamStore = create<ExamState & ExamActions>((set) => ({
       }
       return { answers: [...state.answers, answer] };
     }),
+
+  clearAnswer: (aqId) =>
+    set((state) => ({
+      answers: state.answers.filter((answer) => answer.aqId !== aqId),
+    })),
 
   setCurrentQuestion: (index) => set({ currentQuestionIndex: index }),
 

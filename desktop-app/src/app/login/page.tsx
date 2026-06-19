@@ -107,9 +107,7 @@ export default function LoginPage() {
         data-tauri-drag-region
       >
         <EnumLogo />
-        <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.2em] text-black dark:text-white">
-          ENUM EXAM CLIENT
-        </span>
+        <BrandText />
         <button
           type="button"
           onClick={toggleTheme}
@@ -249,6 +247,25 @@ function EnumLogo({ large = false }: { large?: boolean }) {
         alt="Enum logo"
         className={`${large ? "h-10 w-10" : "h-7 w-7"} shrink-0 object-contain`}
       />
+    </div>
+  );
+}
+
+function BrandText() {
+  return (
+    <div className="leading-none text-[#0a0a0a] dark:text-white">
+      <span
+        className="inline-flex select-none items-center text-[20px] font-bold leading-none"
+        style={{ letterSpacing: "-0.085em", transform: "scaleX(0.9)", transformOrigin: "left" }}
+      >
+        <span>E</span>
+        <span className="font-medium italic">N</span>
+        <span>U</span>
+        <span>M</span>
+      </span>
+      <p className="mt-1 font-mono text-[8px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+        EXAM CLIENT
+      </p>
     </div>
   );
 }

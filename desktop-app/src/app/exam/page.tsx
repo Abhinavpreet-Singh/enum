@@ -40,6 +40,7 @@ export default function ExamPage() {
     violationCount,
     suspicionLevel,
     saveAnswer,
+    clearAnswer,
     setCurrentQuestion,
     incrementViolation,
     setExamStatus,
@@ -48,6 +49,7 @@ export default function ExamPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [submitConfirmText, setSubmitConfirmText] = useState("");
   const [showRefreshConfirm, setShowRefreshConfirm] = useState(false);
   const [loadingQuestions, setLoadingQuestions] = useState(true);
   const [questionsError, setQuestionsError] = useState("");
@@ -79,6 +81,10 @@ export default function ExamPage() {
     localStorage.setItem("enum_theme", nextTheme);
     document.documentElement.classList.toggle("dark", nextTheme === "dark");
   }
+
+  useEffect(() => {
+    if (!showConfirm) setSubmitConfirmText("");
+  }, [showConfirm]);
 
   useEffect(() => {
     if (!assessment || !attemptId) return;
@@ -171,9 +177,30 @@ export default function ExamPage() {
     (value: unknown) => {
       const q = questions[currentQuestionIndex];
       if (!q) return;
-      saveAnswer({ aqId: q.aqId, value, savedAt: new Date().toISOString() });
+      if (value === null) {
+        clearAnswer(q.aqId);
+        if (attemptId) {
+          const nextAnswers = useExamStore
+            .getState()
+            .answers.filter((answer) => answer.aqId !== q.aqId);
+          desktopApi.autosave(attemptId, nextAnswers).catch(() => {});
+        }
+        return;
+      }
+      const answer = { aqId: q.aqId, value, savedAt: new Date().toISOString() };
+      saveAnswer(answer);
+
+      if (attemptId) {
+        const currentAnswers = useExamStore.getState().answers;
+        const existing = currentAnswers.findIndex((a) => a.aqId === answer.aqId);
+        const nextAnswers =
+          existing >= 0
+            ? currentAnswers.map((a, i) => (i === existing ? answer : a))
+            : [...currentAnswers, answer];
+        desktopApi.autosave(attemptId, nextAnswers).catch(() => {});
+      }
     },
-    [questions, currentQuestionIndex, saveAnswer],
+    [questions, currentQuestionIndex, clearAnswer, saveAnswer, attemptId],
   );
 
   function navigateToQuestion(index: number) {
@@ -293,17 +320,35 @@ export default function ExamPage() {
 
       {/* ── Top Bar ── */}
       <div
-        className="relative z-10 flex h-12 shrink-0 items-center gap-3 border-b border-black/10 bg-white px-4 dark:border-white/10 dark:bg-black"
+        className="relative z-50 flex h-14 shrink-0 items-center border-b border-black/50 bg-white dark:border-white/50 dark:bg-black"
         data-tauri-drag-region
       >
-        <EnumLogo />
-        <span className="flex-1 truncate font-mono text-xs tracking-[0.08em] text-gray-500 dark:text-gray-400">
-          {assessment.title}
-        </span>
+        <div className="flex h-full w-16 shrink-0 items-center justify-center border-r border-black/50 dark:border-white/50">
+          <img
+            src="/lgogo.png"
+            alt="Enum logo"
+            className="h-8 w-8 shrink-0 object-contain"
+          />
+        </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-4 px-4">
+          <BrandText />
+          <div className="min-w-0 border-l border-black/25 pl-4 dark:border-white/25">
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-gray-400">
+              Test
+            </p>
+            <h1 className="truncate text-sm font-semibold text-black dark:text-white">
+              {assessment.title}
+            </h1>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 px-4">
+          <span className="border border-black/10 px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] text-gray-500 dark:border-white/10 dark:text-gray-400">
+            {answeredCount}/{totalQ} attempted
+          </span>
           <IconAction
-            label="Refresh test"
+            label="Refresh"
             onClick={() => setShowRefreshConfirm(true)}
             disabled={refreshing}
             icon={<RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />}
@@ -323,18 +368,21 @@ export default function ExamPage() {
             <ZoomIn className="h-3.5 w-3.5 text-gray-400" />
           </div>
           <IconAction
-            label={themeMode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            label={themeMode === "dark" ? "Light mode" : "Dark mode"}
             onClick={toggleTheme}
             icon={themeMode === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           />
           <ViolationBadge count={violationCount} level={suspicionLevel} />
           <ExamTimer seconds={timeRemainingSeconds} />
           <button
-            onClick={() => setShowConfirm(true)}
+            onClick={() => {
+              setSubmitConfirmText("");
+              setShowConfirm(true);
+            }}
             disabled={submitting}
             className="rounded border border-black bg-black px-4 py-1.5 font-mono text-[11px] font-semibold tracking-[0.16em] text-white transition-colors hover:bg-gray-800 disabled:opacity-50 dark:border-white dark:bg-white dark:text-black dark:hover:bg-gray-100"
           >
-            {submitting ? "SUBMITTING" : "FINISH EXAM"}
+            {submitting ? "SUBMITTING" : "END EXAM"}
           </button>
           <div
             className="grid h-8 w-8 place-items-center border border-black/10 bg-black text-[10px] font-bold uppercase tracking-[0.08em] text-white dark:border-white/10 dark:bg-white dark:text-black"
@@ -351,17 +399,17 @@ export default function ExamPage() {
       >
         {/* ── Left: Question Navigator ── */}
         <div
-          className="flex w-14 shrink-0 flex-col items-center overflow-hidden border-r border-black/10 bg-white dark:border-white/10 dark:bg-black"
+          className="flex w-16 shrink-0 flex-col items-center overflow-hidden border-r border-black/50 bg-white dark:border-white/50 dark:bg-black"
         >
-          <div className="flex w-full flex-col items-center gap-2 border-b border-black/10 p-2 dark:border-white/10">
+          <div className="flex w-full flex-col items-center gap-2 border-b border-black/[0.06] py-2 dark:border-white/[0.06]">
             <button
               type="button"
               onClick={() => setView("home")}
               title="Question overview"
-              className={`grid h-10 w-10 place-items-center rounded border font-mono text-[10px] font-bold transition-colors ${
+              className={`grid h-9 w-9 place-items-center rounded border font-mono text-[9px] font-bold transition-colors ${
                 view === "home"
-                  ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-                  : "border-black/10 text-gray-500 hover:border-black/30 hover:text-black dark:border-white/10 dark:text-gray-400 dark:hover:border-white/30 dark:hover:text-white"
+                  ? "border-black bg-black text-white shadow-sm dark:border-white dark:bg-white dark:text-black"
+                  : "border-black/35 bg-black/[0.04] text-black hover:border-black hover:bg-black hover:text-white dark:border-white/35 dark:bg-white/[0.06] dark:text-white dark:hover:border-white dark:hover:bg-white dark:hover:text-black"
               }`}
             >
               HOME
@@ -389,7 +437,10 @@ export default function ExamPage() {
                 currentIndex={currentQuestionIndex}
                 answeredCount={answeredCount}
                 onNavigate={navigateToQuestion}
-                onSubmit={() => setShowConfirm(true)}
+                onSubmit={() => {
+                  setSubmitConfirmText("");
+                  setShowConfirm(true);
+                }}
                 submitting={submitting}
               />
             ) : currentQ && (
@@ -400,9 +451,15 @@ export default function ExamPage() {
                 answer={currentAnswer}
                 onAnswer={handleAnswer}
                 onPrevious={() => setCurrentQuestion(Math.max(0, currentQuestionIndex - 1))}
-                onNext={() => setCurrentQuestion(Math.min(totalQ - 1, currentQuestionIndex + 1))}
+                onNext={() => {
+                  if (currentQuestionIndex >= totalQ - 1) {
+                    setView("home");
+                    return;
+                  }
+                  setCurrentQuestion(currentQuestionIndex + 1);
+                }}
                 canPrevious={currentQuestionIndex > 0}
-                canNext={currentQuestionIndex < totalQ - 1}
+                canNext={totalQ > 0}
               />
             )}
           </div>
@@ -413,13 +470,25 @@ export default function ExamPage() {
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-lg border border-black/20 bg-white p-6 shadow-2xl animate-fade-slide-up dark:border-white/10 dark:bg-[#101010]">
-            <h3 className="text-base font-bold text-black dark:text-white">Submit Exam?</h3>
+            <h3 className="text-base font-bold text-black dark:text-white">End Exam?</h3>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
               You have answered{" "}
               <span className="font-semibold text-black dark:text-white">{answeredCount}</span> of{" "}
               <span className="font-semibold text-black dark:text-white">{totalQ}</span> questions.
               This action cannot be undone.
             </p>
+            <label className="mt-4 block">
+              <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
+                Type SUBMIT to end exam
+              </span>
+              <input
+                value={submitConfirmText}
+                onChange={(event) => setSubmitConfirmText(event.target.value.toUpperCase())}
+                className="mt-2 w-full border border-black/10 bg-black/[0.03] px-3 py-2 font-mono text-xs font-semibold uppercase tracking-[0.16em] text-black outline-none transition-colors placeholder:text-gray-400 focus:border-black/30 dark:border-white/10 dark:bg-white/[0.04] dark:text-white dark:placeholder:text-gray-600 dark:focus:border-white/30"
+                placeholder="SUBMIT"
+                autoComplete="off"
+              />
+            </label>
             {totalQ - answeredCount > 0 && (
               <div className="mt-3 flex items-center gap-2 rounded border border-amber-400/25 bg-amber-400/10 p-2.5 text-xs text-amber-700 dark:text-amber-200">
                 <span>!</span>
@@ -437,10 +506,10 @@ export default function ExamPage() {
               </button>
               <button
                 onClick={() => { setShowConfirm(false); submitExam("manual"); }}
-                disabled={submitting}
+                disabled={submitting || submitConfirmText !== "SUBMIT"}
                 className="btn-primary flex-1 py-2.5"
               >
-                {submitting ? "Submitting…" : "Confirm Submit"}
+                {submitting ? "Submitting…" : "End Exam"}
               </button>
             </div>
           </div>
@@ -476,17 +545,21 @@ export default function ExamPage() {
   );
 }
 
-function EnumLogo() {
+function BrandText() {
   return (
-    <div className="flex items-center gap-2 text-black dark:text-white">
-      <img
-        src="/lgogo.png"
-        alt="Enum logo"
-        className="h-7 w-7 shrink-0 object-contain"
-      />
-      <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.2em]">
-        ENUM EXAM CLIENT
+    <div className="shrink-0 leading-none text-black dark:text-white">
+      <span
+        className="inline-flex select-none items-center text-[20px] font-bold leading-none"
+        style={{ letterSpacing: "-0.085em", transform: "scaleX(0.9)", transformOrigin: "left" }}
+      >
+        <span>E</span>
+        <span className="font-medium italic">N</span>
+        <span>U</span>
+        <span>M</span>
       </span>
+      <p className="mt-1 font-mono text-[8px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+        EXAM CLIENT
+      </p>
     </div>
   );
 }
@@ -513,7 +586,7 @@ function IconAction({
       >
         {icon}
       </button>
-      <div className="pointer-events-none absolute right-0 top-10 z-50 hidden whitespace-nowrap border border-black/10 bg-white px-2 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-gray-600 shadow-sm group-hover:block dark:border-white/10 dark:bg-black dark:text-gray-300">
+      <div className="pointer-events-none absolute right-0 top-10 z-[9999] hidden whitespace-nowrap border border-black bg-black px-2.5 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-white shadow-xl group-hover:block dark:border-white dark:bg-white dark:text-black">
         {label}
       </div>
     </div>
@@ -547,86 +620,100 @@ function QuestionOverview({
     {},
   );
   const answered = new Set(answers.map((answer) => answer.aqId));
+  const remainingCount = Math.max(questions.length - answeredCount, 0);
+  const completionPercent = questions.length > 0
+    ? Math.round((answeredCount / questions.length) * 100)
+    : 0;
 
   return (
-    <div className="h-full overflow-hidden p-4">
-      <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_280px] gap-4">
-        <section className="min-h-0 overflow-y-auto border border-black/20 bg-white/80 p-4 dark:border-white/25 dark:bg-black/75">
+    <div className="h-full overflow-hidden">
+      <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_300px]">
+        <section className="min-h-0 overflow-y-auto border-r border-black/10 bg-white p-4 dark:border-white/10 dark:bg-black">
           <div className="mb-4 flex items-center justify-between border-b border-black/10 pb-3 dark:border-white/10">
             <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-gray-400">
-                Exam Home
-              </p>
-              <h1 className="mt-1 font-mono text-xl font-bold tracking-tight text-black dark:text-white">
-                Questions
+              <h1 className="font-mono text-xl font-bold tracking-tight text-black dark:text-white">
+                Question List
               </h1>
-            </div>
-            <div className="font-mono text-xs text-gray-500">
-              {answeredCount}/{questions.length} answered
             </div>
           </div>
 
-          <div className="grid gap-4">
-          {Object.entries(grouped).map(([type, rows]) => (
+          <div className="grid gap-3">
+          {Object.entries(grouped).map(([type, rows], sectionIndex) => {
+            const sectionName = String.fromCharCode(65 + sectionIndex);
+            return (
             <section
               key={type}
-              className="border border-black/10 bg-white dark:border-white/10 dark:bg-black"
+              className="overflow-hidden border border-black/10 bg-white dark:border-white/10 dark:bg-black"
             >
-              <div className="flex items-center justify-between border-b border-black/10 px-3 py-2 dark:border-white/10">
-                <h2 className="font-mono text-[10px] uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">
-                  {type}
-                </h2>
-                <span className="font-mono text-[10px] text-gray-400">
-                  {rows.length} question{rows.length === 1 ? "" : "s"}
-                </span>
+              <div className="grid grid-cols-[2rem_minmax(0,1fr)_1rem_6rem] items-center gap-3 border-b border-black/10 bg-black/[0.025] px-3 py-2 dark:border-white/10 dark:bg-white/[0.025]">
+                <div className="grid h-8 w-8 place-items-center border border-black/10 bg-white font-mono text-sm font-bold uppercase tracking-[0.18em] text-black dark:border-white/10 dark:bg-black dark:text-white">
+                  {sectionName}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate font-mono text-[10px] uppercase tracking-[0.18em] text-gray-700 dark:text-gray-200">
+                    {type}
+                  </p>
+                  <p className="mt-0.5 font-mono text-[10px] text-gray-500 dark:text-gray-400">
+                    {rows.length} question{rows.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <span />
+                <span />
               </div>
 
               <div className="divide-y divide-black/10 dark:divide-white/10">
-                {rows.map(({ question, index }) => {
+                {rows.map(({ question, index }, localIndex) => {
                   const isAnswered = answered.has(question.aqId);
                   const isCurrent = false;
                   return (
                     <div
                       key={question.aqId}
-                      className={`flex items-center gap-3 px-3 py-2 ${
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onNavigate(index)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onNavigate(index);
+                        }
+                      }}
+                      className={`grid min-h-11 grid-cols-[2rem_minmax(0,1fr)_1rem_6rem] items-center gap-3 px-3 py-2 transition-colors focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 ${
                         isCurrent
                           ? "bg-black text-white dark:bg-white dark:text-black"
-                          : "bg-white text-black dark:bg-black dark:text-white"
+                          : "bg-white text-black hover:bg-black/[0.025] dark:bg-black dark:text-white dark:hover:bg-white/[0.025]"
                       }`}
                     >
                       <span
-                        className={`grid h-8 w-8 shrink-0 place-items-center border font-mono text-xs font-bold ${
+                        className={`grid h-8 w-8 shrink-0 place-items-center border bg-black/[0.02] font-mono text-xs font-bold dark:bg-white/[0.025] ${
                           isCurrent
                             ? "border-white/30 dark:border-black/20"
                             : "border-black/10 dark:border-white/10"
                         }`}
                       >
-                        {index + 1}
+                        {localIndex + 1}
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-xs font-semibold">
+                      <span className="min-w-0">
+                        <span className="block truncate text-xs font-semibold text-gray-900 dark:text-gray-100">
                           {question.title || `Question ${index + 1}`}
                         </span>
-                        <span
-                          className={`mt-0.5 block font-mono text-[10px] uppercase tracking-[0.12em] ${
-                            isCurrent ? "text-white/70 dark:text-black/60" : "text-gray-400"
-                          }`}
-                        >
-                          {question.points} pts · {isAnswered ? "Answered" : "Not answered"}
-                        </span>
                       </span>
-                      <span
-                        className={`h-2 w-2 shrink-0 rounded-full ${
-                          isAnswered ? "bg-emerald-500" : "bg-gray-300 dark:bg-white/20"
-                        }`}
-                      />
+                      <span className="grid h-full place-items-center">
+                        <span
+                          className={`h-2 w-2 rounded-full ${
+                            isAnswered ? "bg-emerald-500" : "bg-gray-300 dark:bg-white/20"
+                          }`}
+                        />
+                      </span>
                       <button
                         type="button"
-                        onClick={() => onNavigate(index)}
-                        className={`border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] transition-colors ${
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onNavigate(index);
+                        }}
+                        className={`h-7 w-24 justify-self-end border px-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] transition-colors ${
                           isCurrent
                             ? "border-white/30 text-white hover:bg-white/10 dark:border-black/20 dark:text-black dark:hover:bg-black/10"
-                            : "border-black/10 text-gray-600 hover:border-black/30 hover:text-black dark:border-white/10 dark:text-gray-400 dark:hover:border-white/30 dark:hover:text-white"
+                            : "border-black/10 text-gray-700 hover:border-black/25 hover:text-black dark:border-white/10 dark:text-gray-200 dark:hover:border-white/25 dark:hover:text-white"
                         }`}
                       >
                         {isAnswered ? "Modify" : "Attempt"}
@@ -636,29 +723,42 @@ function QuestionOverview({
                 })}
               </div>
             </section>
-          ))}
+          );
+          })}
         </div>
 
         </section>
 
-        <aside className="flex min-h-0 flex-col border border-black/20 bg-white/80 p-4 dark:border-white/25 dark:bg-black/75">
-          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-gray-400">
-            Attempt
-          </p>
-          <div className="mt-4 grid grid-cols-2 gap-2 font-mono text-xs">
-            <Stat label="Total" value={questions.length} />
-            <Stat label="Done" value={answeredCount} />
-            <Stat label="Left" value={Math.max(questions.length - answeredCount, 0)} />
-            <Stat label="Current" value={currentIndex + 1} />
+        <aside className="flex min-h-0 flex-col bg-white p-4 dark:bg-black">
+          <div className="border border-black/10 p-3 dark:border-white/10">
+            <div className="text-center">
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-gray-600 dark:text-gray-300">
+                Stats
+              </p>
+              <p className="mt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-700 dark:text-gray-200">
+                {completionPercent}% Complete
+              </p>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-xs">
+              <Stat label="Total" value={questions.length} />
+              <Stat label="Attempted" value={answeredCount} />
+              <Stat label="Left" value={remainingCount} />
+            </div>
+            <div className="mt-3 h-1.5 border border-black/10 bg-black/[0.025] dark:border-white/10 dark:bg-white/[0.035]">
+              <div
+                className="h-full bg-black transition-[width] dark:bg-white"
+                style={{ width: `${completionPercent}%` }}
+              />
+            </div>
           </div>
-          <div className="mt-auto border-t border-black/10 pt-4 dark:border-white/10">
+          <div className="mt-auto border-t border-black/[0.06] pt-4 dark:border-white/[0.06]">
           <button
             type="button"
             onClick={onSubmit}
             disabled={submitting}
             className="w-full border border-black bg-black px-4 py-3 font-mono text-xs font-semibold uppercase tracking-[0.16em] text-white transition-colors hover:bg-gray-800 disabled:opacity-50 dark:border-white dark:bg-white dark:text-black dark:hover:bg-gray-100"
           >
-            {submitting ? "Submitting" : "Submit Test"}
+            {submitting ? "Submitting" : "End Exam"}
           </button>
           </div>
         </aside>
@@ -669,8 +769,8 @@ function QuestionOverview({
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="border border-black/10 p-2 dark:border-white/10">
-      <p className="text-[10px] uppercase tracking-[0.16em] text-gray-400">{label}</p>
+    <div className="border border-black/[0.06] p-2 text-center dark:border-white/[0.06]">
+      <p className="text-[10px] uppercase tracking-[0.16em] text-gray-600 dark:text-gray-300">{label}</p>
       <p className="mt-1 text-lg font-bold text-black dark:text-white">{value}</p>
     </div>
   );

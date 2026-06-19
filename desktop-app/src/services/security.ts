@@ -115,6 +115,13 @@ function installClipboardDetector() {
   });
 }
 
+function isClipboardAllowedTarget(target: EventTarget | null) {
+  return (
+    target instanceof Element &&
+    Boolean(target.closest('[data-allow-clipboard="true"], .monaco-editor'))
+  );
+}
+
 // ─── Focus detector ───────────────────────────────────────────────────────────
 
 function installFocusDetector() {
@@ -203,7 +210,10 @@ export function installKeyboardBlocker(s: AssessmentSettings) {
 // ─── Context menu blocker ─────────────────────────────────────────────────────
 
 export function installContextMenuBlocker() {
-  const handler = (e: MouseEvent) => e.preventDefault();
+  const handler = (e: MouseEvent) => {
+    if (isClipboardAllowedTarget(e.target)) return;
+    e.preventDefault();
+  };
   document.addEventListener("contextmenu", handler);
   cleanupFns.push(() => document.removeEventListener("contextmenu", handler));
 }

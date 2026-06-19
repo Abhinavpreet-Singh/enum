@@ -78,6 +78,7 @@ export default function CodingQuestion({ question, answer, language = "python", 
   const [totalCount, setTotalCount] = useState(0);
   const [lastMode, setLastMode] = useState<RunMode>("run");
   const [panelExpanded, setPanelExpanded] = useState(false);
+  const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [editorTheme, setEditorTheme] = useState<"light" | "dark">("dark");
   const [submitOverlay, setSubmitOverlay] = useState<SubmitOverlayState | null>(null);
 
@@ -257,28 +258,54 @@ export default function CodingQuestion({ question, answer, language = "python", 
   const isProcessing = running || submitting;
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col overflow-hidden border-l border-black/10 bg-white dark:border-white/10 dark:bg-black">
-      <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-black/10 bg-white px-3 dark:border-white/10 dark:bg-black">
-        <select
-          value={lang}
-          onChange={(e) => setLang(e.target.value)}
-          className="rounded border border-black/10 bg-gray-100 px-2.5 py-1.5 font-mono text-xs text-black outline-none transition-colors hover:border-black/25 focus:border-black/40 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:hover:border-white/25 dark:focus:border-white/40"
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden border-l border-black/[0.06] bg-white dark:border-white/[0.06] dark:bg-black">
+      <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-black/[0.06] bg-white px-3 dark:border-white/[0.06] dark:bg-black">
+        <div
+          className="relative"
+          onMouseLeave={() => setLanguageMenuOpen(false)}
         >
-          {languageOptions.map((opt) => (
-            <option key={opt.value} value={opt.value} className="bg-white text-black dark:bg-black dark:text-white">
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          <button
+            type="button"
+            onClick={() => setLanguageMenuOpen((open) => !open)}
+            className="flex h-8 min-w-32 items-center justify-between gap-3 border border-black/[0.08] bg-white px-3 font-mono text-xs font-semibold uppercase tracking-[0.08em] text-black outline-none transition-colors hover:border-black/20 dark:border-white/[0.08] dark:bg-black dark:text-white dark:hover:border-white/20"
+            aria-haspopup="listbox"
+            aria-expanded={languageMenuOpen}
+          >
+            <span>{languageOptions.find((opt) => opt.value === lang)?.label ?? lang}</span>
+            <span className="text-[10px] text-gray-500 dark:text-gray-400">▾</span>
+          </button>
+          {languageMenuOpen && (
+            <div
+              className="absolute left-0 top-9 z-30 w-44 border border-black/[0.08] bg-white p-1 shadow-lg dark:border-white/[0.08] dark:bg-black"
+              role="listbox"
+            >
+              {languageOptions.map((opt) => {
+                const active = opt.value === lang;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      setLang(opt.value);
+                      setLanguageMenuOpen(false);
+                    }}
+                    className={`block h-8 w-full px-3 text-left font-mono text-xs font-semibold uppercase tracking-[0.08em] transition-colors ${
+                      active
+                        ? "bg-black text-white dark:bg-white dark:text-black"
+                        : "text-gray-700 hover:bg-black/[0.05] hover:text-black dark:text-gray-200 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                    }`}
+                    role="option"
+                    aria-selected={active}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigator.clipboard.writeText(code)}
-            className="rounded border border-black/10 px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.12em] text-gray-500 transition-colors hover:border-black/30 hover:text-black dark:border-white/10 dark:text-gray-400 dark:hover:border-white/30 dark:hover:text-white"
-            title="Copy code"
-          >
-            Copy
-          </button>
           <button
             onClick={() => runCode("run")}
             disabled={isProcessing}
@@ -296,12 +323,23 @@ export default function CodingQuestion({ question, answer, language = "python", 
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-hidden" data-allow-clipboard="true">
         <MonacoEditor
           height="100%"
           language={LANGUAGE_MAP[lang] ?? lang}
-          theme={editorTheme === "dark" ? "pitch-black" : "vs-light"}
+          theme={editorTheme === "dark" ? "pitch-black" : "exam-light"}
           beforeMount={(monaco) => {
+            monaco.editor.defineTheme("exam-light", {
+              base: "vs",
+              inherit: true,
+              rules: [],
+              colors: {
+                "editor.selectionBackground": "#c7c7c7",
+                "editor.inactiveSelectionBackground": "#e2e2e2",
+                "editor.selectionHighlightBackground": "#b8b8b880",
+                "editor.lineHighlightBackground": "#f8fafc",
+              },
+            });
             monaco.editor.defineTheme("pitch-black", {
               base: "vs-dark",
               inherit: true,
@@ -312,7 +350,9 @@ export default function CodingQuestion({ question, answer, language = "python", 
                 "editorLineNumber.foreground": "#71717a",
                 "editorLineNumber.activeForeground": "#ffffff",
                 "editorCursor.foreground": "#ffffff",
-                "editor.selectionBackground": "rgba(255, 255, 255, 0.18)",
+                "editor.selectionBackground": "#f5f5f533",
+                "editor.inactiveSelectionBackground": "#ffffff1f",
+                "editor.selectionHighlightBackground": "#ffffff24",
                 "editor.lineHighlightBackground": "#0a0a0a",
                 "editorIndentGuide.background": "rgba(255, 255, 255, 0.12)",
                 "editorIndentGuide.activeBackground": "rgba(255, 255, 255, 0.28)",
@@ -323,25 +363,35 @@ export default function CodingQuestion({ question, answer, language = "python", 
           onChange={(v) => setCode(v ?? "")}
           options={{
             minimap: { enabled: false },
-            fontSize: 13,
+            fontSize: 15,
             fontFamily: "ui-monospace, 'Cascadia Code', monospace",
             scrollBeyondLastLine: false,
             automaticLayout: true,
             tabSize: 2,
             lineNumbers: "on",
+            lineNumbersMinChars: 2,
+            lineDecorationsWidth: 14,
+            glyphMargin: false,
+            folding: false,
             renderLineHighlight: "line",
             padding: { top: 14, bottom: 14 },
-            wordWrap: "on",
+            wordWrap: "off",
+            scrollbar: {
+              horizontal: "auto",
+              vertical: "auto",
+              horizontalScrollbarSize: 8,
+              verticalScrollbarSize: 8,
+            },
           }}
         />
       </div>
 
       <div
-        className={`flex shrink-0 flex-col border-t border-black/10 bg-white transition-[height] duration-200 dark:border-white/10 dark:bg-black ${
+        className={`flex shrink-0 flex-col border-t border-black/[0.06] bg-white transition-[height] duration-200 dark:border-white/[0.06] dark:bg-black ${
           panelExpanded ? "h-[280px]" : "h-10"
         }`}
       >
-        <div className="flex h-10 shrink-0 items-center justify-between border-b border-black/10 bg-gray-50 px-2 dark:border-white/10 dark:bg-[#0d0d0d]">
+        <div className="flex h-10 shrink-0 items-center justify-between border-b border-black/[0.06] bg-black/[0.02] px-2 dark:border-white/[0.06] dark:bg-white/[0.025]">
           <div className="flex items-center gap-1">
             <ConsoleTab active={activeTab === "testcase" && panelExpanded} onClick={() => openPanel("testcase")}>
               Testcase
@@ -353,22 +403,24 @@ export default function CodingQuestion({ question, answer, language = "python", 
               Custom
             </ConsoleTab>
           </div>
-          <button
-            type="button"
-            onClick={() => setPanelExpanded((expanded) => !expanded)}
-            className="absolute left-1/2 grid h-7 w-10 -translate-x-1/2 place-items-center border border-black/10 bg-white font-mono text-xs text-gray-500 transition-colors hover:border-black/30 hover:text-black dark:border-white/10 dark:bg-black dark:text-gray-400 dark:hover:border-white/30 dark:hover:text-white"
-            title={panelExpanded ? "Hide console" : "Show console"}
-          >
-            {panelExpanded ? "⌄" : "⌃"}
-          </button>
-          <VerdictSummary
-            verdict={verdict}
-            runtime={runtime}
-            passedCount={passedCount}
-            totalCount={totalCount}
-            summary={summary}
-            lastMode={lastMode}
-          />
+          <div className="ml-auto flex items-center gap-2">
+            <VerdictSummary
+              verdict={verdict}
+              runtime={runtime}
+              passedCount={passedCount}
+              totalCount={totalCount}
+              summary={summary}
+              lastMode={lastMode}
+            />
+            <button
+              type="button"
+              onClick={() => setPanelExpanded((expanded) => !expanded)}
+              className="grid h-7 w-10 place-items-center border border-black/[0.08] bg-white font-mono text-xs leading-none text-gray-700 transition-colors hover:border-black/20 hover:text-black dark:border-white/[0.08] dark:bg-black dark:text-gray-200 dark:hover:border-white/20 dark:hover:text-white"
+              title={panelExpanded ? "Hide console" : "Show console"}
+            >
+              {panelExpanded ? "⌄" : "⌃"}
+            </button>
+          </div>
         </div>
 
         {panelExpanded && <div className="min-h-0 flex-1 overflow-y-auto p-3">
@@ -435,10 +487,10 @@ function ConsoleTab({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors ${
+      className={`h-7 px-3 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors ${
         active
           ? "bg-black text-white dark:bg-white dark:text-black"
-          : "text-gray-500 hover:bg-black/[0.06] hover:text-black dark:hover:bg-white/[0.06] dark:hover:text-white"
+          : "text-gray-700 hover:bg-black/[0.06] hover:text-black dark:text-gray-200 dark:hover:bg-white/[0.06] dark:hover:text-white"
       }`}
     >
       {children}
@@ -483,16 +535,16 @@ function VerdictSummary({
 
   return (
     <div className="ml-auto hidden items-center gap-2 pr-1 font-mono text-[11px] md:flex">
-      <span className="uppercase tracking-[0.12em] text-gray-600">
+      <span className="uppercase tracking-[0.12em] text-gray-700 dark:text-gray-300">
         {lastMode === "submit" ? "Submit" : lastMode === "custom" ? "Custom" : "Run"}
       </span>
       <span className={color}>{label}</span>
       {totalCount > 0 && (
-        <span className="text-gray-500">
+        <span className="text-gray-700 dark:text-gray-300">
           {passedCount}/{totalCount}
         </span>
       )}
-      {runtime !== null && <span className="text-gray-500">{runtime}ms</span>}
+      {runtime !== null && <span className="text-gray-700 dark:text-gray-300">{runtime}ms</span>}
     </div>
   );
 }
@@ -529,7 +581,7 @@ function TestcasePanel({
 
   return (
     <div className="grid h-full min-h-0 grid-cols-[220px_minmax(0,1fr)] gap-4">
-      <aside className="min-h-0 border-r border-black/10 pr-3 dark:border-white/10">
+      <aside className="min-h-0 border-r border-black/[0.06] pr-3 dark:border-white/[0.06]">
         <div className="space-y-2">
           {visibleRows.map((row) => (
             <div key={row.index} className="flex items-center gap-2 font-mono text-xs">

@@ -2,8 +2,11 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { Moon, Sun } from "lucide-react";
 import { useExamStore } from "@/store/exam-store";
 import SystemCheck from "@/components/pre-exam/system-check";
+import ExamTimer from "@/components/exam/exam-timer";
+import ViolationBadge from "@/components/security/violation-badge";
 import type { SystemCheckResult } from "@/types";
 import desktopApi from "@/lib/api";
 import { loadLocalDraft } from "@/services/autosave";
@@ -31,7 +34,8 @@ export default function PreExamPage() {
     document.documentElement.classList.toggle("dark", initialTheme === "dark");
   }, []);
 
-  function applyTheme(nextTheme: "light" | "dark") {
+  function toggleTheme() {
+    const nextTheme = themeMode === "dark" ? "light" : "dark";
     setThemeMode(nextTheme);
     localStorage.setItem("enum_theme", nextTheme);
     document.documentElement.classList.toggle("dark", nextTheme === "dark");
@@ -79,27 +83,55 @@ export default function PreExamPage() {
       <div className="pointer-events-none fixed inset-0 enum-glow" />
       <div className="pointer-events-none fixed inset-0 enum-grid-bg" />
 
-      {/* Title bar */}
       <div
-        className="relative z-10 flex h-12 shrink-0 items-center gap-3 border-b border-black/8 bg-white/85 px-5 backdrop-blur-xl select-none dark:border-white/10 dark:bg-[#050505]/85"
+        className="relative z-50 flex h-14 shrink-0 items-center border-b border-black/10 bg-white dark:border-white/10 dark:bg-black"
         data-tauri-drag-region
       >
-        <EnumLogo />
-        <span className="ml-auto font-mono text-[11px] tracking-[0.2em] text-gray-400">
-          PRE-EXAM CHECKS
-        </span>
+        <div className="flex h-full w-16 shrink-0 items-center justify-center border-r border-black/10 dark:border-white/10">
+          <img
+            src="/lgogo.png"
+            alt="Enum logo"
+            className="h-8 w-8 shrink-0 object-contain"
+          />
+        </div>
+
+        <div className="flex min-w-0 flex-1 items-center gap-4 px-4">
+          <BrandText />
+          <div className="min-w-0 border-l border-black/10 pl-4 dark:border-white/10">
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-gray-600 dark:text-gray-300">
+              Test
+            </p>
+            <h1 className="truncate text-sm font-semibold text-black dark:text-white">
+              {assessment.title}
+            </h1>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 px-4">
+          <span className="border border-black/10 px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] text-gray-700 dark:border-white/10 dark:text-gray-200">
+            0/{assessment.totalQuestions} attempted
+          </span>
+          <IconAction
+            label={themeMode === "dark" ? "Light mode" : "Dark mode"}
+            onClick={toggleTheme}
+            icon={themeMode === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          />
+          <ViolationBadge count={0} level="low" />
+          <ExamTimer seconds={assessment.duration * 60} />
+          <div
+            className="grid h-8 w-8 place-items-center border border-black/10 bg-black text-[10px] font-bold uppercase tracking-[0.08em] text-white dark:border-white/10 dark:bg-white dark:text-black"
+            title={candidate.displayName ?? candidate.email ?? "Candidate"}
+          >
+            {(candidate.displayName ?? candidate.email ?? "U").slice(0, 2)}
+          </div>
+        </div>
       </div>
 
-      <div className="relative z-10 grid min-h-0 flex-1 grid-cols-[minmax(320px,0.86fr)_minmax(460px,1.14fr)] gap-6 overflow-hidden p-6">
-        <aside className="enum-card flex min-h-0 flex-col overflow-hidden p-6 animate-fade-slide-up">
+      <div className="relative z-10 grid min-h-0 flex-1 grid-cols-[minmax(320px,0.86fr)_minmax(460px,1.14fr)] gap-0 overflow-hidden">
+        <aside className="flex min-h-0 flex-col overflow-hidden border-r border-black/10 bg-white/80 p-6 animate-fade-slide-up dark:border-white/10 dark:bg-black/75">
 
           {/* Assessment header */}
           <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-            {assessment.organization?.name && (
-              <p className="mb-1 text-xs font-medium uppercase tracking-[0.15em] text-gray-400">
-                {assessment.organization.name}
-              </p>
-            )}
             <h1 className="text-3xl font-black tracking-tight text-[#0a0a0a] dark:text-white">
               {assessment.title}
             </h1>
@@ -114,38 +146,11 @@ export default function PreExamPage() {
               <AssessmentPill icon="Pass" label="Pass Mark" value={`${assessment.passingScore}%`} />
             </div>
 
-            <div className="mt-7 border border-black/10 bg-white/70 p-5 dark:border-white/10 dark:bg-white/[0.03]">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-[#0a0a0a] dark:text-white">
-                    Interface Theme
-                  </p>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Choose before entering the secure exam workspace.
-                  </p>
-                </div>
-                <div className="grid shrink-0 grid-cols-2 border border-black/10 bg-gray-100 p-1 dark:border-white/10 dark:bg-white/5">
-                  {(["light", "dark"] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => applyTheme(mode)}
-                      className={`px-3 py-1.5 text-xs font-semibold capitalize transition-all ${
-                        themeMode === mode
-                          ? "bg-[#0a0a0a] text-white shadow-sm dark:bg-white dark:text-[#050505]"
-                          : "text-gray-500 hover:text-[#0a0a0a] dark:text-gray-400 dark:hover:text-white"
-                      }`}
-                    >
-                      {mode}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 border border-black/10 bg-white/70 p-5 dark:border-white/10 dark:bg-white/[0.03]">
-              <p className="mb-3 text-sm font-semibold text-[#0a0a0a] dark:text-white">Before you begin</p>
-              <ul className="space-y-2 text-sm leading-5 text-gray-600 dark:text-gray-400">
+            <div className="mt-7 border border-black/10 bg-white/85 p-5 dark:border-white/10 dark:bg-white/[0.035]">
+              <p className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[#0a0a0a] dark:text-white">
+                Before You Begin
+              </p>
+              <ul className="space-y-2 text-sm leading-5">
                 <InstructionItem>Stay inside the exam app for the full session.</InstructionItem>
                 {settings?.forceFullscreen && (
                   <InstructionItem>The exam opens in fullscreen mode.</InstructionItem>
@@ -162,7 +167,7 @@ export default function PreExamPage() {
           </div>
         </aside>
 
-        <main className="enum-card flex min-h-0 flex-col overflow-hidden p-6 animate-fade-slide-up animate-delay-100">
+        <main className="flex min-h-0 flex-col overflow-hidden bg-white/80 p-6 animate-fade-slide-up animate-delay-100 dark:bg-black/75">
           <div className="mb-4 flex items-center gap-3">
             <span className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
               System Check
@@ -227,17 +232,60 @@ function EnumLogo() {
         alt="Enum logo"
         className="h-7 w-7 shrink-0 object-contain"
       />
-      <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.2em]">
-        ENUM EXAM CLIENT
+      <BrandText />
+    </div>
+  );
+}
+
+function BrandText() {
+  return (
+    <div className="leading-none">
+      <span
+        className="inline-flex select-none items-center text-[20px] font-bold leading-none"
+        style={{ letterSpacing: "-0.085em", transform: "scaleX(0.9)", transformOrigin: "left" }}
+      >
+        <span>E</span>
+        <span className="font-medium italic">N</span>
+        <span>U</span>
+        <span>M</span>
       </span>
+      <p className="mt-1 font-mono text-[8px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+        EXAM CLIENT
+      </p>
+    </div>
+  );
+}
+
+function IconAction({
+  label,
+  icon,
+  onClick,
+}: {
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        onClick={onClick}
+        className="grid h-8 w-8 place-items-center border border-black/10 text-gray-700 transition-colors hover:border-black/30 hover:text-black dark:border-white/10 dark:text-gray-200 dark:hover:border-white/30 dark:hover:text-white"
+        aria-label={label}
+      >
+        {icon}
+      </button>
+      <div className="pointer-events-none absolute right-0 top-10 z-[9999] hidden whitespace-nowrap border border-black bg-black px-2.5 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-white shadow-xl group-hover:block dark:border-white dark:bg-white dark:text-black">
+        {label}
+      </div>
     </div>
   );
 }
 
 function InstructionItem({ children }: { children: ReactNode }) {
   return (
-    <li className="flex items-start gap-2">
-      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-gray-400 dark:bg-gray-500" />
+    <li className="flex items-start gap-2 border border-black/10 bg-black/[0.025] px-3 py-2 text-gray-800 dark:border-white/10 dark:bg-white/[0.045] dark:text-gray-200">
+      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 bg-black dark:bg-white" />
       <span>{children}</span>
     </li>
   );
