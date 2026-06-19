@@ -51,21 +51,31 @@ function getIp(req) {
 // ─── POST /api/v1/auth/login ──────────────────────────────────────────────────
 
 export const login = asyncHandler(async (req, res) => {
-  const { email, username, password } = req.body;
+  const { email, username, password, accountType } = req.body;
   const userAgent = req.get("User-Agent") || "";
   const ipAddress = getIp(req);
 
-  const { user, accessToken, refreshToken, accountType } = await loginWithCredentials({
-    email, username, password, userAgent, ipAddress,
+  const result = await loginWithCredentials({
+    email, username, password, accountType, userAgent, ipAddress,
   });
+
+  if (result.requiresAccountSelection) {
+    return res.status(200).json({
+      message: "Multiple accounts match these credentials. Choose how you want to log in.",
+      requiresAccountSelection: true,
+      accountTypes: result.accountTypes,
+    });
+  }
+
+  const { user, accessToken, refreshToken, accountType: resolvedAccountType } = result;
 
   setRefreshCookie(res, refreshToken);
 
   return res.status(200).json({
-    message: accountType === "admin" ? "Admin logged in." : "Logged in.",
+    message: resolvedAccountType === "admin" ? "Admin logged in." : "Logged in.",
     data: user,
     accessToken,
-    accountType,
+    accountType: resolvedAccountType,
   });
 });
 

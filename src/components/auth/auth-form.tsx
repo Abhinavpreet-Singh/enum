@@ -13,6 +13,12 @@ type AuthMode = "login" | "register";
 type RegisterStep = "form" | "otp";
 type AccountType = "user" | "organization";
 type AuthenticatedAccountType = "student" | "organization" | "admin";
+type LoginPayload = {
+  email?: string;
+  username?: string;
+  password: string;
+  accountType?: AuthenticatedAccountType;
+};
 
 interface AuthFormProps {
   initialMode?: AuthMode;
@@ -35,6 +41,11 @@ export default function AuthForm({
   const [success, setSuccess] = useState<string>("");
   const [otpValue, setOtpValue] = useState("");
   const [otpSentTo, setOtpSentTo] = useState("");
+  const [pendingRoleSelection, setPendingRoleSelection] =
+    useState<LoginPayload | null>(null);
+  const [roleSelectionOptions, setRoleSelectionOptions] = useState<
+    AuthenticatedAccountType[]
+  >([]);
 
   // Login form (shared, no type selector)
   const [loginForm, setLoginForm] = useState({
@@ -234,51 +245,78 @@ export default function AuthForm({
 
   // ── Login (unified – backend auto-detects user vs organization) ─────────────────
 
+  const finishLogin = (detectedType: AuthenticatedAccountType) => {
+    localStorage.removeItem("adminEmail");
+
+    const destination =
+      detectedType === "admin"
+        ? "/dashboard/admin/overview"
+        : returnTo.startsWith("/dashboard/admin")
+          ? "/dashboard"
+          : returnTo;
+    router.push(destination);
+  };
+
+  const submitLoginPayload = async (payload: LoginPayload) => {
+    const authResult = authCtx
+      ? await authCtx.login(payload)
+      : await axios
+          .post(`${proxy}/api/v1/auth/login`, payload, {
+            withCredentials: true,
+          })
+          .then((response) => {
+            if (response.data.requiresAccountSelection) {
+              return {
+                requiresAccountSelection: true as const,
+                accountTypes:
+                  (response.data.accountTypes as AuthenticatedAccountType[]) ?? [],
+              };
+            }
+
+            const token = response.data.accessToken;
+            if (token) setMemoryToken(token);
+            return {
+              user: response.data.data ?? null,
+              accountType:
+                (response.data.accountType as AuthenticatedAccountType) ?? "student",
+              accessToken: token,
+            };
+          });
+
+    if ("requiresAccountSelection" in authResult) {
+      setPendingRoleSelection(payload);
+      setRoleSelectionOptions(authResult.accountTypes);
+      setIsLoading(false);
+      return;
+    }
+
+    setPendingRoleSelection(null);
+    setRoleSelectionOptions([]);
+    finishLogin(authResult.accountType);
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
     setSuccess("");
+    setPendingRoleSelection(null);
+    setRoleSelectionOptions([]);
 
     try {
-      const isEmail = loginForm.identifier.includes("@");
-      const payload = {
+      const identifier = loginForm.identifier.trim();
+      const isEmail = identifier.includes("@");
+      const payload: LoginPayload = {
         ...(isEmail
-          ? { email: loginForm.identifier }
-          : { username: loginForm.identifier.toLowerCase() }),
+          ? { email: identifier }
+          : { username: identifier }),
         password: loginForm.password,
       };
 
-      const authResult = authCtx
-        ? await authCtx.login(payload)
-        : await axios
-            .post(`${proxy}/api/v1/auth/login`, payload, {
-              withCredentials: true,
-            })
-            .then((response) => {
-              const token = response.data.accessToken;
-              if (token) setMemoryToken(token);
-              return {
-                user: response.data.data ?? null,
-                accountType:
-                  (response.data.accountType as AuthenticatedAccountType) ?? "student",
-                accessToken: token,
-              };
-            });
-
-      const detectedType: AuthenticatedAccountType = authResult.accountType;
-      const accountData = authResult.user ?? {};
-      localStorage.removeItem("adminEmail");
-
-      const destination =
-        detectedType === "admin"
-          ? "/dashboard/admin/overview"
-          : returnTo.startsWith("/dashboard/admin")
-            ? "/dashboard"
-            : returnTo;
-      router.push(destination);
+      await submitLoginPayload(payload);
     } catch (err) {
       setIsLoading(false);
+      setRoleSelectionOptions([]);
       if (axios.isAxiosError(err)) {
         const raw =
           err.response?.data?.message ||
@@ -313,6 +351,31 @@ export default function AuthForm({
     }
   };
 
+  const handleRoleSelection = async (selectedAccountType: AuthenticatedAccountType) => {
+    if (!pendingRoleSelection) return;
+
+    setIsLoading(true);
+    setError("");
+    try {
+      await submitLoginPayload({
+        ...pendingRoleSelection,
+        accountType: selectedAccountType,
+      });
+    } catch (err) {
+      setIsLoading(false);
+      setPendingRoleSelection(null);
+      setRoleSelectionOptions([]);
+      if (axios.isAxiosError(err)) {
+        setError(
+          err.response?.data?.message ||
+            "Login failed. Please check your credentials and try again.",
+        );
+      } else {
+        setError("An unexpected error occurred. Please try again later.");
+      }
+    }
+  };
+
   const handleSubmit =
     mode === "login"
       ? handleLogin
@@ -338,6 +401,8 @@ export default function AuthForm({
   const showOAuth =
     signupEnabled &&
     (mode === "login" || (mode === "register" && accountType === "user"));
+  const roleChoiceButtonCls =
+    "flex-1 border border-black dark:border-white px-3 py-2 font-mono text-[11px] tracking-wider text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors disabled:opacity-60";
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -872,6 +937,36 @@ export default function AuthForm({
           </Link>
         </div>
       </div>
+
+      {pendingRoleSelection && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-sm border border-black dark:border-white bg-white dark:bg-neutral-950 p-5 shadow-xl">
+            <h2 className="font-mono text-sm tracking-wider text-black dark:text-white">
+              CHOOSE LOGIN TYPE
+            </h2>
+            <p className="mt-2 text-xs leading-relaxed text-gray-600 dark:text-neutral-400">
+              These credentials match more than one account. Choose how you want
+              to continue.
+            </p>
+            <div className="mt-4 flex gap-2">
+              {(roleSelectionOptions.length
+                ? roleSelectionOptions
+                : (["student", "organization"] as AuthenticatedAccountType[])
+              ).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => handleRoleSelection(type)}
+                  disabled={isLoading}
+                  className={roleChoiceButtonCls}
+                >
+                  {type === "student" ? "STUDENT" : type.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
