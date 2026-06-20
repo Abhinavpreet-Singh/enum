@@ -6,10 +6,11 @@ import { fetchFileFromCloudinary } from "../utils/cloudinary.js";
 import { executeCompilerCode } from "../services/compilerService.js";
 
 /**
- * Bundle simulation files into a single ESM bootstrap script.
+ * Bundle simulation files into a single CommonJS bootstrap script.
  *
- * The generated code.js runs as ESM (the compiler's package.json has
- * "type":"module"). Simulation files use CJS require(). The bootstrap:
+ * The generated /app/code.js is executed by the Docker runner with plain
+ * `node code.js`, so the bootstrap itself must be CommonJS. The simulation
+ * files also use CJS require(). The bootstrap:
  *
  *   1. Writes all files to /tmp/enum-sim/ with a package.json forcing CJS.
  *   2. Symlinks node_modules from known locations so require("express") etc.
@@ -18,9 +19,9 @@ import { executeCompilerCode } from "../services/compilerService.js";
  */
 function bundleFiles(files, entryFile) {
     return [
-        `import fs from "fs";`,
-        `import path from "path";`,
-        `import { execSync } from "child_process";`,
+        `const fs = require("fs");`,
+        `const path = require("path");`,
+        `const { execSync } = require("child_process");`,
         ``,
         `const SIM_DIR = "/tmp/enum-sim";`,
         ``,

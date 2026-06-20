@@ -285,7 +285,7 @@ export default function AuthForm({
 
     if ("requiresAccountSelection" in authResult) {
       setPendingRoleSelection(payload);
-      setRoleSelectionOptions(authResult.accountTypes);
+      setRoleSelectionOptions(authResult.accountTypes ?? []);
       setIsLoading(false);
       return;
     }
