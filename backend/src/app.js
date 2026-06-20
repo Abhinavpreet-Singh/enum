@@ -56,7 +56,7 @@ app.get("/health", (req, res) => {
 console.log("[app] Passport initialized");
 
 app.get("/", (req, res) => {
-	res.send("Hello from the Enum server!")
+	res.send("<h1 style='text-align: center; font-size: 24px; font-weight: bold;'>Hello from the Enum server!</h1>")
 })
 
 import userRouter from "./routes/user.route.js"

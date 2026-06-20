@@ -17,6 +17,13 @@ const DOCKER_COMMAND =
     ? WINDOWS_DOCKER_CLI
     : "docker");
 const OUTPUT_BUFFER_BYTES = 1024 * 1024;
+const DIRECT_RUNNER_COMMANDS = {
+  python: { command: "python3" },
+  node: { command: "node" },
+  bash: { command: "bash" },
+  sh: { command: "bash" },
+  shell: { command: "bash" },
+};
 
 const LANGUAGE_FILES = {
   python: "code.py",
@@ -58,9 +65,101 @@ function isDockerInfrastructureError(error) {
   return (
     error?.code === "ENOENT" ||
     message.includes("Cannot connect to the Docker daemon") ||
+    message.includes("failed to connect to the docker API") ||
     message.includes("docker daemon") ||
     message.includes("pull access denied") ||
     message.includes("Unable to find image")
+  );
+}
+
+function getDirectRunnerEnv() {
+  const nodePaths = [
+    process.env.NODE_PATH,
+    path.resolve(process.cwd(), "node_modules"),
+  ].filter(Boolean);
+
+  return {
+    ...process.env,
+    NODE_PATH: nodePaths.join(path.delimiter),
+  };
+}
+
+async function runDirectly({ runnerLanguage, filename, workdir }) {
+  if (runnerLanguage === "cpp") {
+    await execFileAsync("g++", [filename, "-o", "output"], {
+      cwd: workdir,
+      timeout: COMPILER_TIMEOUT_MS,
+      maxBuffer: OUTPUT_BUFFER_BYTES,
+    });
+    return execFileAsync(path.join(workdir, "output"), [], {
+      cwd: workdir,
+      env: getDirectRunnerEnv(),
+      timeout: COMPILER_TIMEOUT_MS,
+      maxBuffer: OUTPUT_BUFFER_BYTES,
+    });
+  }
+
+  if (runnerLanguage === "c") {
+    await execFileAsync("gcc", [filename, "-o", "output"], {
+      cwd: workdir,
+      timeout: COMPILER_TIMEOUT_MS,
+      maxBuffer: OUTPUT_BUFFER_BYTES,
+    });
+    return execFileAsync(path.join(workdir, "output"), [], {
+      cwd: workdir,
+      env: getDirectRunnerEnv(),
+      timeout: COMPILER_TIMEOUT_MS,
+      maxBuffer: OUTPUT_BUFFER_BYTES,
+    });
+  }
+
+  if (runnerLanguage === "java") {
+    await execFileAsync("javac", [filename], {
+      cwd: workdir,
+      timeout: COMPILER_TIMEOUT_MS,
+      maxBuffer: OUTPUT_BUFFER_BYTES,
+    });
+    return execFileAsync("java", [path.basename(filename, ".java")], {
+      cwd: workdir,
+      env: getDirectRunnerEnv(),
+      timeout: COMPILER_TIMEOUT_MS,
+      maxBuffer: OUTPUT_BUFFER_BYTES,
+    });
+  }
+
+  const runner = DIRECT_RUNNER_COMMANDS[runnerLanguage];
+  if (!runner) {
+    throw new ApiError(400, `Unsupported language: ${runnerLanguage}`);
+  }
+
+  return execFileAsync(runner.command, [filename], {
+    cwd: workdir,
+    env: getDirectRunnerEnv(),
+    timeout: COMPILER_TIMEOUT_MS,
+    maxBuffer: OUTPUT_BUFFER_BYTES,
+  });
+}
+
+async function executeInDocker({ runnerLanguage, filename, workdir }) {
+  return execFileAsync(
+    DOCKER_COMMAND,
+    [
+      "run",
+      "--rm",
+      "--network",
+      "none",
+      "--memory=256m",
+      "--cpus=0.5",
+      "-v",
+      `${workdir}:/app`,
+      DOCKER_IMAGE,
+      runnerLanguage,
+      filename,
+    ],
+    {
+      timeout: COMPILER_TIMEOUT_MS,
+      maxBuffer: OUTPUT_BUFFER_BYTES,
+    },
   );
 }
 
@@ -87,36 +186,25 @@ export async function executeCompilerCode({ language, code }) {
 
     fs.writeFileSync(filePath, code, "utf-8");
 
-    const { stdout, stderr } = await execFileAsync(
-      DOCKER_COMMAND,
-      [
-        "run",
-        "--rm",
-        "--network",
-        "none",
-        "--memory=256m",
-        "--cpus=0.5",
-        "-v",
-        `${workdir}:/app`,
-        DOCKER_IMAGE,
+    let stdout;
+    let stderr;
+    try {
+      ({ stdout, stderr } = await executeInDocker({
         runnerLanguage,
         filename,
-      ],
-      {
-        timeout: COMPILER_TIMEOUT_MS,
-        maxBuffer: OUTPUT_BUFFER_BYTES,
-      },
-    );
+        workdir,
+      }));
+    } catch (error) {
+      if (!isDockerInfrastructureError(error)) throw error;
+      ({ stdout, stderr } = await runDirectly({
+        runnerLanguage,
+        filename,
+        workdir,
+      }));
+    }
 
     return { output: stdout || stderr };
   } catch (error) {
-    if (isDockerInfrastructureError(error)) {
-      throw new ApiError(
-        503,
-        `Compiler runtime unavailable. Ensure Docker is installed, running, and the ${DOCKER_IMAGE} image is built.`,
-      );
-    }
-
     if (error?.killed || error?.signal === "SIGTERM") {
       throw new ApiError(504, "Execution timed out");
     }

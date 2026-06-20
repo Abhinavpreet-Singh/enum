@@ -24,6 +24,7 @@ function bundleFiles(files, entryFile) {
         `const { execSync } = require("child_process");`,
         ``,
         `const SIM_DIR = "/tmp/enum-sim";`,
+        `const SIM_PORT = String(31000 + Math.floor(Math.random() * 1000));`,
         ``,
         `// Clean previous run`,
         `try {`,
@@ -44,6 +45,53 @@ function bundleFiles(files, entryFile) {
         `  try { fs.symlinkSync(nmTarget, path.join(SIM_DIR, "node_modules"), "dir"); } catch(e) {}`,
         `}`,
         ``,
+        `// In non-Docker deployments, port 3000 may belong to the real backend/proxy.`,
+        `// Preload this shim so simulation servers and their self-tests use an isolated port.`,
+        `fs.writeFileSync(path.join(SIM_DIR, "enum-prelude.js"), ${JSON.stringify(`
+const http = require("http");
+const SIM_PORT = Number(process.env.ENUM_SIM_PORT || 0);
+
+function shouldRemapPort(port) {
+  return SIM_PORT && String(port) === "3000";
+}
+
+const originalListen = http.Server.prototype.listen;
+http.Server.prototype.listen = function patchedListen(...args) {
+  if (shouldRemapPort(args[0])) {
+    args[0] = SIM_PORT;
+  } else if (args[0] && typeof args[0] === "object" && shouldRemapPort(args[0].port)) {
+    args[0] = { ...args[0], port: SIM_PORT };
+  }
+  return originalListen.apply(this, args);
+};
+
+function remapRequestTarget(target) {
+  if (!SIM_PORT) return target;
+  if (typeof target === "string") {
+    return target.replace(/^(https?:\\/\\/(?:localhost|127\\.0\\.0\\.1)):3000(?=\\/|$)/, "$1:" + SIM_PORT);
+  }
+  if (target instanceof URL && /^(localhost|127\\.0\\.0\\.1)$/.test(target.hostname) && target.port === "3000") {
+    const next = new URL(target.toString());
+    next.port = String(SIM_PORT);
+    return next;
+  }
+  if (target && typeof target === "object" && /^(localhost|127\\.0\\.0\\.1)$/.test(target.hostname || target.host || "") && shouldRemapPort(target.port)) {
+    return { ...target, port: SIM_PORT };
+  }
+  return target;
+}
+
+const originalRequest = http.request;
+http.request = function patchedRequest(target, ...args) {
+  return originalRequest.call(this, remapRequestTarget(target), ...args);
+};
+
+const originalGet = http.get;
+http.get = function patchedGet(target, ...args) {
+  return originalGet.call(this, remapRequestTarget(target), ...args);
+};
+`)}, "utf-8");`,
+        ``,
         `const simFiles = ${JSON.stringify(files)};`,
         ``,
         `for (const [name, content] of Object.entries(simFiles)) {`,
@@ -63,11 +111,11 @@ function bundleFiles(files, entryFile) {
         `// Run entry file as a separate CJS Node process.`,
         `// stdio:"inherit" streams output to the parent so the compiler captures it.`,
         `try {`,
-        `  execSync("node " + ${JSON.stringify(entryFile)}, {`,
+        `  execSync("node -r ./enum-prelude.js " + ${JSON.stringify(entryFile)}, {`,
         `    cwd: SIM_DIR,`,
         `    stdio: "inherit",`,
         `    timeout: 8000,`,
-        `    env: { ...process.env, NODE_PATH: nmTarget || "" }`,
+        `    env: { ...process.env, ENUM_SIM_PORT: SIM_PORT, NODE_PATH: nmTarget || process.env.NODE_PATH || "" }`,
         `  });`,
         `} catch(e) {`,
         `  // execSync throws on non-zero exit — output is already streamed via inherit`,
