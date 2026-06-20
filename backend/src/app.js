@@ -123,6 +123,17 @@ app.use("/api/v1/maintenance", maintenanceRouter);
 app.get("/api/v1/platform/settings", getPublicSettings);
 app.get("/api/v1/platform/announcements", getPublicAnnouncements);
 
+// Return JSON for unknown API routes instead of Express' default HTML page.
+app.use((req, res, next) => {
+    if (req.path.startsWith("/api/")) {
+        return res.status(404).json({
+            success: false,
+            statusCode: 404,
+            message: `Route not found: ${req.method} ${req.originalUrl}`,
+        });
+    }
+    return next();
+});
 
 // ── Global error handler ─────────────────────────────────────────────────────
 // Must be last — converts ApiError (and any other thrown error) to a JSON

@@ -339,7 +339,15 @@ export default function SimulationContainer({
         }),
       });
 
-      const json = await response.json();
+      const rawResponse = await response.text();
+      let json: Record<string, unknown>;
+      try {
+        json = rawResponse ? JSON.parse(rawResponse) : {};
+      } catch {
+        throw new Error(
+          `Simulation engine returned a non-JSON response (${response.status}). Check that the API backend is running and the simulation-engine route is mounted.`,
+        );
+      }
 
       // Backend response: { message, data: { passedTests, totalTests, logs, score } }
       // Next proxy response: { success: true, passedTests, totalTests, logs, score }
