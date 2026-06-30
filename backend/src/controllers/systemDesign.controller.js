@@ -16,6 +16,50 @@ import {
   logUserActivity,
   outcomeFromSystemDesign,
 } from "../services/activityLogService.js";
+import {
+  getTrackProductMap,
+  getUserAccessSummary,
+  hasTrackAccessFromSummary,
+  TRACK_KEYS,
+} from "../services/entitlement.service.js";
+
+const enrichSystemDesignAccess = async (simulations, userId) => {
+  const [productsByTrack, accessSummary] = await Promise.all([
+    getTrackProductMap(),
+    getUserAccessSummary(userId),
+  ]);
+  const product = productsByTrack[TRACK_KEYS.SYSTEM_DESIGN];
+  const freeItemQuota = product?.freeItemQuota ?? 0;
+  const hasAccess =
+    !product || hasTrackAccessFromSummary(accessSummary, TRACK_KEYS.SYSTEM_DESIGN);
+
+  return simulations.map((sim, index) => {
+    const freeIndex = index + 1;
+    const isFree = freeIndex <= freeItemQuota;
+    const locked = !hasAccess && !isFree;
+    return {
+      ...sim,
+      access: {
+        locked,
+        isFree,
+        freeIndex,
+        freeItemQuota,
+        trackKey: TRACK_KEYS.SYSTEM_DESIGN,
+        productSlug: product?.slug || "",
+        reason: locked ? "Upgrade to unlock this system design simulation." : "",
+      },
+    };
+  });
+};
+
+const canAccessSystemDesign = async (simulationId, userId) => {
+  const simulations = await prisma.systemDesignSimulation.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+  const enriched = await enrichSystemDesignAccess(simulations, userId);
+  const simulation = enriched.find((sim) => sim.id === simulationId);
+  return { allowed: Boolean(simulation && !simulation.access?.locked), simulation };
+};
 
 // ── Submit a system design ──────────────────────────────────────────────────
 
@@ -26,6 +70,11 @@ export const submitSystemDesign = asyncHandler(async (req, res) => {
   const { simulationId, nodes, edges, explanation, replayEvents } = req.body;
 
   if (!simulationId) throw new ApiError(400, "simulationId is required");
+  const { allowed } = await canAccessSystemDesign(simulationId, userId);
+  if (!allowed) {
+    throw new ApiError(403, "Upgrade to unlock this system design simulation.");
+  }
+
   if (!Array.isArray(nodes) || nodes.length === 0) {
     throw new ApiError(400, "At least one node is required");
   }
@@ -290,7 +339,7 @@ export const getSystemDesignSimulations = asyncHandler(async (req, res) => {
   }
 
   // Enrich simulations with user progress
-  const enrichedSimulations = simulations.map((sim) => ({
+  const enrichedSimulations = await enrichSystemDesignAccess(simulations.map((sim) => ({
     ...sim,
     status:
       userId && userProgress[sim.id]
@@ -303,7 +352,7 @@ export const getSystemDesignSimulations = asyncHandler(async (req, res) => {
             bestScore: 0,
             bestScorePercent: 0,
           },
-  }));
+  })), userId);
 
   return res.status(200).json({
     success: true,
@@ -323,6 +372,11 @@ export const getSystemDesignSimulationById = asyncHandler(async (req, res) => {
 
   if (!simulation)
     throw new ApiError(404, "System design simulation not found");
+
+  const { allowed } = await canAccessSystemDesign(id, req.user?.id);
+  if (!allowed) {
+    throw new ApiError(403, "Upgrade to unlock this system design simulation.");
+  }
 
   return res.status(200).json({
     success: true,

@@ -28,6 +28,8 @@ import {
   Mail,
   FileText,
   Flame,
+  Crown,
+  Check,
 } from "lucide-react";
 
 interface ProfileData {
@@ -56,10 +58,22 @@ interface UserStats {
   globalRank: number | null;
 }
 
+interface PremiumProfile {
+  isPro: boolean;
+  tracks: string[];
+}
+
 interface LeaderboardEntry {
   username: string;
   problemsSolved: number;
   simulationsSolved: number;
+}
+
+interface RecentSubmission {
+  createdAt?: string;
+  verdict?: string;
+  question?: { _id?: string };
+  _id?: string;
 }
 
 // Returns "YYYY-MM-DD" in the user's LOCAL timezone (not UTC)
@@ -220,6 +234,10 @@ export default function ProfileContent() {
     (typeof authUser?.username === "string" && authUser.username) || "guest";
 
   const [fetchedEmail, setFetchedEmail] = useState<string>("");
+  const [premium, setPremium] = useState<PremiumProfile>({
+    isPro: false,
+    tracks: [],
+  });
 
   useEffect(() => {
     const token = getMemoryToken();
@@ -232,6 +250,10 @@ export default function ProfileContent() {
         const data = res?.data?.data;
         if (!data) return;
         if (data.email) setFetchedEmail(data.email);
+        setPremium({
+          isPro: Boolean(data.premium?.isPro),
+          tracks: Array.isArray(data.premium?.tracks) ? data.premium.tracks : [],
+        });
         setProfile((p) => ({
           ...p,
           name:
@@ -388,7 +410,7 @@ export default function ProfileContent() {
       // -- Submissions ? two maps -----------------------------------------
       // allSubmissionsMap  ? ALL submissions per day  (drives heatmap color)
       // activityMap        ? days with ACCEPTED submissions (drives streak)
-      const submissions: any[] = subData?.data ?? [];
+      const submissions: RecentSubmission[] = subData?.data ?? [];
       const allSubmissionsMap = new Map<string, number>();
       const acceptedByDate = new Map<string, Set<string>>();
 
@@ -400,7 +422,7 @@ export default function ProfileContent() {
         // Accepted-only for streak
         const isAccepted = sub.verdict?.toLowerCase() === "accepted";
         const uniqueKey = sub.question?._id || sub._id;
-        if (isAccepted) {
+        if (isAccepted && uniqueKey) {
           if (!acceptedByDate.has(date)) acceptedByDate.set(date, new Set());
           acceptedByDate.get(date)!.add(uniqueKey);
         }
@@ -726,6 +748,45 @@ export default function ProfileContent() {
                       </span>
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* PREMIUM STATUS */}
+              <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-white/8">
+                <div className="flex items-center justify-between">
+                  <p className="font-mono text-[10px] tracking-widest text-gray-400">
+                    PREMIUM
+                  </p>
+                  <Crown className="w-3.5 h-3.5 text-amber-500" />
+                </div>
+                <div className="border border-gray-100 dark:border-white/8 p-3 bg-gray-50 dark:bg-white/[0.03]">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-mono text-xs font-semibold text-black dark:text-white">
+                        {premium.isPro
+                          ? "Enum Pro"
+                          : premium.tracks.length
+                            ? "Track Access"
+                            : "Free Plan"}
+                      </p>
+                      <p className="font-mono text-[10px] text-gray-400">
+                        {premium.isPro
+                          ? "All premium tracks unlocked"
+                          : premium.tracks.length
+                            ? `${premium.tracks.length} track${premium.tracks.length === 1 ? "" : "s"} unlocked`
+                            : "Two premium items per track are free"}
+                      </p>
+                    </div>
+                    {(premium.isPro || premium.tracks.length > 0) && (
+                      <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                    )}
+                  </div>
+                  <Link
+                    href="/dashboard/pro"
+                    className="mt-3 inline-flex w-full items-center justify-center border border-black px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-black transition-colors hover:bg-black hover:text-white dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black"
+                  >
+                    {premium.isPro ? "Manage Pro" : "Upgrade"}
+                  </Link>
                 </div>
               </div>
 

@@ -16,6 +16,7 @@ import { createSession, storeAccessToken } from "../auth/services/session.servic
 import { tryAwardXp, AWARD_TYPES, buildAwardKey } from "../services/xpService.js";
 import { logUserActivity } from "../services/activityLogService.js";
 import { confirmPasswordReset } from "../services/passwordReset.service.js";
+import { getUserAccessSummary } from "../services/entitlement.service.js";
 
 const buildStreakUpdate = (user, now) => {
   const lastActivity = user?.lastActivityDate;
@@ -295,9 +296,33 @@ const getProfile = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
 
+  const accessSummary = await getUserAccessSummary(req.user.id);
+
   return res.status(200).json({
     message: "Profile fetched",
-    data: user,
+    data: {
+      ...user,
+      premium: {
+        isPro: accessSummary.isPro,
+        tracks: accessSummary.tracks,
+        entitlements: accessSummary.entitlements.map((entry) => ({
+          id: entry.id,
+          scope: entry.scope,
+          trackKey: entry.trackKey,
+          source: entry.source,
+          startsAt: entry.startsAt,
+          expiresAt: entry.expiresAt,
+          product: entry.product
+            ? {
+                slug: entry.product.slug,
+                title: entry.product.title,
+                kind: entry.product.kind,
+                trackKey: entry.product.trackKey,
+              }
+            : null,
+        })),
+      },
+    },
   });
 });
 

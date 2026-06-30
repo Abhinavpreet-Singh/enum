@@ -3,6 +3,15 @@ import { ApiError } from "../utils/apiError.js";
 import { linuxQuestionModel } from "../models/LinuxQuestion.js";
 import { executeCompilerCode } from "../services/compilerService.js";
 
+const freeLinuxAccess = {
+  locked: false,
+  isFree: true,
+  freeItemQuota: 9999,
+  trackKey: "linux",
+  productSlug: "",
+  reason: "",
+};
+
 function normalizeOutput(value) {
   return String(value ?? "").replace(/\r\n/g, "\n").trim();
 }
@@ -19,7 +28,10 @@ export const getLinuxQuestions = asyncHandler(async (_req, res) => {
 
   return res.status(200).json({
     message: "Linux questions fetched successfully",
-    data: questions,
+    data: questions.map((question, index) => ({
+      ...question,
+      access: { ...freeLinuxAccess, freeIndex: index + 1 },
+    })),
   });
 });
 
@@ -38,7 +50,7 @@ export const getLinuxQuestionById = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     message: "Linux question fetched successfully",
-    data: question,
+    data: { ...question, access: { ...freeLinuxAccess, freeIndex: 1 } },
   });
 });
 

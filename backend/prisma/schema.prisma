@@ -55,6 +55,9 @@ model User {
   xpAwards               UserXpAward[]
   candidateAttempts      CandidateAttempt[]
   sessions               Session[]
+  entitlements           UserEntitlement[]
+  paymentOrders          PaymentOrder[]
+  paymentEvents          PaymentEvent[]
 
   @@map("users")
 }
@@ -765,6 +768,102 @@ model PlatformSetting {
   updatedAt DateTime @updatedAt
 
   @@map("platformsettings")
+}
+
+// ─── Premium billing and entitlement access ──────────────────────────────────
+
+model PremiumProduct {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  slug           String   @unique
+  title          String
+  description    String   @default("")
+  kind           String   @default("track") /// "full_pro" | "track"
+  trackKey       String   @default("")
+  active         Boolean  @default(true)
+  priceInrPaise  Int      @default(0)
+  priceUsdCents  Int      @default(0)
+  freeItemQuota  Int      @default(0)
+  displayOrder   Int      @default(0)
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  entitlements UserEntitlement[]
+  orders       PaymentOrder[]
+
+  @@index([active, displayOrder])
+  @@index([kind])
+  @@index([trackKey])
+  @@map("premiumproducts")
+}
+
+model UserEntitlement {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String    @db.ObjectId
+  productId   String?   @db.ObjectId
+  scope       String    @default("track") /// "full_pro" | "track"
+  trackKey    String    @default("")
+  source      String    @default("purchase") /// "purchase" | "admin_grant"
+  active      Boolean   @default(true)
+  startsAt    DateTime  @default(now())
+  expiresAt   DateTime?
+  paymentOrderId String? @db.ObjectId
+  notes       String    @default("")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product      PremiumProduct? @relation(fields: [productId], references: [id])
+  paymentOrder PaymentOrder?   @relation(fields: [paymentOrderId], references: [id])
+
+  @@index([userId, active])
+  @@index([trackKey, active])
+  @@unique([userId, scope, trackKey])
+  @@map("userentitlements")
+}
+
+model PaymentOrder {
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String    @db.ObjectId
+  productId         String    @db.ObjectId
+  razorpayOrderId   String    @unique
+  razorpayPaymentId String    @default("")
+  razorpaySignature String    @default("")
+  receipt           String    @unique
+  currency          String
+  amount            Int
+  status            String    @default("created") /// "created" | "paid" | "failed"
+  metadata          Json      @default("{}")
+  paidAt            DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product      PremiumProduct    @relation(fields: [productId], references: [id])
+  entitlements UserEntitlement[]
+  events       PaymentEvent[]
+
+  @@index([userId, status])
+  @@index([productId])
+  @@index([createdAt])
+  @@map("paymentorders")
+}
+
+model PaymentEvent {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String?  @db.ObjectId
+  paymentOrderId  String?  @db.ObjectId
+  provider        String   @default("razorpay")
+  eventType       String
+  payload         Json     @default("{}")
+  createdAt       DateTime @default(now())
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  paymentOrder PaymentOrder? @relation(fields: [paymentOrderId], references: [id], onDelete: SetNull)
+
+  @@index([eventType, createdAt])
+  @@index([paymentOrderId])
+  @@map("paymentevents")
 }
 
 // ─── Announcements ───────────────────────────────────────────────────────────

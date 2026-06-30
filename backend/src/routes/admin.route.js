@@ -22,6 +22,13 @@ import {
   updateMaintenancePage,
   deleteMaintenancePage,
 } from "../controllers/maintenance.controller.js";
+import {
+  createPremiumProduct,
+  getAdminBilling,
+  grantUserPremium,
+  revokeUserPremium,
+  updatePremiumProduct,
+} from "../controllers/admin-billing.controller.js";
 
 const router = Router();
 
@@ -58,6 +65,13 @@ router.get("/analytics", getAnalytics);
 // Settings
 router.get("/settings", getSettings);
 router.patch("/settings/:key", updateSetting);
+
+// Billing / premium access
+router.get("/billing", getAdminBilling);
+router.post("/billing/products", createPremiumProduct);
+router.patch("/billing/products/:id", updatePremiumProduct);
+router.post("/billing/entitlements", grantUserPremium);
+router.patch("/billing/entitlements/:id/revoke", revokeUserPremium);
 
 // Announcements
 router.get("/announcements", getAnnouncements);

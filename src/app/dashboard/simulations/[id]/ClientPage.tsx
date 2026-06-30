@@ -6,7 +6,7 @@ import SimulationWorkspace from "@/components/simulations/simulation-workspace";
 import SimulationContainer from "@/components/simulations/SimulationContainer";
 import BrowserSandboxWorkspace from "@/components/simulations/browser/BrowserSandboxWorkspace";
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Lock } from "lucide-react";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
 import type { Simulation } from "@/data/simulations";
@@ -30,6 +30,7 @@ export default function SimulationDetailClientPage() {
   const [simulation, setSimulation] = useState<Simulation | null>(null);
   const [loading, setLoading] = useState(!browserSim); // skip loading if local
   const [error, setError] = useState(false);
+  const [locked, setLocked] = useState(false);
 
   useEffect(() => {
     // If it's a local browser simulation, nothing to fetch
@@ -85,6 +86,9 @@ export default function SimulationDetailClientPage() {
         setSimulation(sim);
       } catch (err) {
         console.error("Error fetching simulation:", err);
+        if (axios.isAxiosError(err) && err.response?.status === 403) {
+          setLocked(true);
+        }
         setError(true);
       } finally {
         setLoading(false);
@@ -113,6 +117,38 @@ export default function SimulationDetailClientPage() {
           <span className="text-gray-500 font-mono text-sm">
             Loading simulation...
           </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (locked) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="max-w-md border border-gray-200 bg-white p-8 text-center dark:border-white/10 dark:bg-[#111]">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border border-gray-200 dark:border-white/10">
+            <Lock className="h-5 w-5 text-gray-400" />
+          </div>
+          <h1 className="text-2xl font-bold text-black dark:text-white mb-2">
+            Premium Simulation
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-5">
+            Upgrade to Enum Pro or unlock this track to continue.
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            <Link
+              href="/dashboard/pro"
+              className="inline-flex items-center gap-2 border border-black bg-black px-4 py-2 font-mono text-xs uppercase tracking-widest text-white transition-colors hover:bg-gray-800 dark:border-white dark:bg-white dark:text-black"
+            >
+              Unlock Pro
+            </Link>
+            <Link
+              href="/dashboard/simulations"
+              className="inline-flex items-center gap-2 px-4 py-2 font-mono text-xs uppercase tracking-widest text-gray-500 hover:text-black dark:hover:text-white"
+            >
+              Back
+            </Link>
+          </div>
         </div>
       </div>
     );

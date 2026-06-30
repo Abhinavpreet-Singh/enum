@@ -7,7 +7,7 @@ const router = express.Router();
 
 // Public
 router.get("/simulations", optionalAuth, getSystemDesignSimulations);
-router.get("/simulations/:id", getSystemDesignSimulationById);
+router.get("/simulations/:id", optionalAuth, getSystemDesignSimulationById);
 
 // Authenticated
 router.post("/submit", verifyJWT, submitSystemDesign);

@@ -4,6 +4,7 @@ import {
   DashboardPageHeader,
   DashboardPageShell,
 } from "@/components/dashboard/dashboard-page-shell";
+import { useEntitlements } from "@/hooks/useEntitlements";
 import {
   Lock,
   ChevronRight,
@@ -14,6 +15,7 @@ import {
   Database,
   Cloud,
 } from "lucide-react";
+import Link from "next/link";
 
 const TRACKS = [
   {
@@ -22,11 +24,12 @@ const TRACKS = [
     description:
       "Arrays, linked lists, stacks, queues, trees, and graphs from scratch.",
     icon: Cpu,
+    trackKey: "dsa",
+    href: "/dashboard/dsa-arena",
     problems: 42,
     xp: 2100,
     difficulty: "Beginner",
     diffColor: "text-emerald-500",
-    locked: false,
     progress: 0,
     tags: ["Arrays", "Trees", "Graphs", "DP"],
   },
@@ -36,11 +39,12 @@ const TRACKS = [
     description:
       "Design scalable systems — load balancers, caches, message queues, and more.",
     icon: Layers,
+    trackKey: "system-design",
+    href: "/dashboard/simulations",
     problems: 24,
     xp: 3600,
     difficulty: "Advanced",
     diffColor: "text-red-400",
-    locked: false,
     progress: 0,
     tags: ["Caching", "Databases", "Load Balancing", "Queues"],
   },
@@ -50,27 +54,29 @@ const TRACKS = [
     description:
       "REST APIs, auth flows, database modeling, and production-ready Node.js.",
     icon: Database,
+    trackKey: "backend",
+    href: "/dashboard/simulations",
     problems: 30,
     xp: 2700,
     difficulty: "Intermediate",
     diffColor: "text-amber-400",
-    locked: false,
     progress: 0,
     tags: ["REST", "Auth", "PostgreSQL", "Node.js"],
   },
   {
-    id: "devops-ci-cd",
-    title: "DevOps & CI/CD",
+    id: "linux",
+    title: "Linux",
     description:
-      "Containers, pipelines, Kubernetes, and infrastructure as code.",
+      "Shell scripting, command-line workflows, files, pipes, and process basics.",
     icon: GitBranch,
+    trackKey: "linux",
+    href: "/dashboard/simulations",
     problems: 18,
     xp: 2400,
     difficulty: "Intermediate",
     diffColor: "text-amber-400",
-    locked: true,
     progress: 0,
-    tags: ["Docker", "K8s", "GitHub Actions", "Terraform"],
+    tags: ["Bash", "Files", "Pipes", "Processes"],
   },
   {
     id: "frontend-mastery",
@@ -78,31 +84,35 @@ const TRACKS = [
     description:
       "React internals, performance, accessibility, and modern CSS techniques.",
     icon: Globe,
+    trackKey: "frontend",
+    href: "/dashboard/simulations",
     problems: 22,
     xp: 1800,
     difficulty: "Intermediate",
     diffColor: "text-amber-400",
-    locked: true,
     progress: 0,
     tags: ["React", "Performance", "a11y", "CSS"],
   },
   {
-    id: "cloud-architecture",
-    title: "Cloud Architecture",
+    id: "soa-os",
+    title: "SOA & OS",
     description:
-      "AWS / GCP / Azure patterns, serverless, and multi-region deployments.",
+      "Service-oriented architecture, OS concepts, concurrency, and distributed runtime foundations.",
     icon: Cloud,
+    trackKey: "soa-os",
+    href: "/dashboard/pro?product=track-soa-os",
     problems: 16,
     xp: 3200,
     difficulty: "Advanced",
     diffColor: "text-red-400",
-    locked: true,
     progress: 0,
-    tags: ["AWS", "Serverless", "IaC", "Observability"],
+    tags: ["SOA", "Threads", "Scheduling", "IPC"],
   },
 ];
 
 export default function TracksPage() {
+  const { access, hasTrack, productForTrack } = useEntitlements();
+
   return (
     <DashboardPageShell className="space-y-6">
       <DashboardPageHeader
@@ -137,28 +147,47 @@ export default function TracksPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-px bg-gray-100 dark:bg-white/5 border border-gray-100 dark:border-white/5">
           {TRACKS.map((track) => {
             const Icon = track.icon;
+            const product = productForTrack(track.trackKey);
+            const isFreeForNow = track.trackKey === "dsa" || track.trackKey === "linux";
+            const locked =
+              !isFreeForNow &&
+              Boolean(product?.active) &&
+              !access.isPro &&
+              !hasTrack(track.trackKey);
+            const href = locked
+              ? `/dashboard/pro?product=${product?.slug || `track-${track.trackKey}`}`
+              : track.href;
             return (
-              <div
+              <Link
                 key={track.id}
+                href={href}
                 className={`group relative flex flex-col p-5 bg-white dark:bg-[#111] transition-colors overflow-hidden ${
-                  track.locked
-                    ? "opacity-70 pointer-events-none select-none"
+                  locked
+                    ? "opacity-80 hover:bg-gray-50 dark:hover:bg-[#161616]"
                     : "hover:bg-gray-50 dark:hover:bg-[#161616] cursor-pointer"
                 }`}
               >
                 {/* Background lock watermark */}
-                {track.locked && (
+                {locked && (
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
                     <Lock className="w-28 h-28 text-black/10 dark:text-white/10 stroke-[0.75]" />
                   </div>
                 )}
 
                 {/* SOON badge */}
-                {track.locked && (
+                {locked ? (
                   <span className="absolute top-4 right-4 font-mono text-[9px] tracking-widest text-gray-300 dark:text-white/20 z-10">
-                    SOON
+                    PRO
                   </span>
-                )}
+                ) : hasTrack(track.trackKey) || access.isPro ? (
+                  <span className="absolute top-4 right-4 font-mono text-[9px] tracking-widest text-emerald-500 z-10">
+                    UNLOCKED
+                  </span>
+                ) : isFreeForNow ? (
+                  <span className="absolute top-4 right-4 font-mono text-[9px] tracking-widest text-gray-400 z-10">
+                    FREE
+                  </span>
+                ) : null}
 
                 {/* Icon + difficulty */}
                 <div className="relative z-10 flex items-start justify-between mb-4">
@@ -208,18 +237,22 @@ export default function TracksPage() {
                       XP
                     </span>
                   </div>
-                  {!track.locked && (
+                  {!locked ? (
                     <ChevronRight className="w-4 h-4 text-gray-300 dark:text-white/20 group-hover:text-black dark:group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                  ) : (
+                    <span className="font-mono text-[10px] uppercase tracking-widest text-amber-500">
+                      Upgrade
+                    </span>
                   )}
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>
 
         {/* Coming soon note */}
       <p className="pt-2 text-center font-mono text-[10px] tracking-widest text-gray-400 dark:text-gray-600">
-        MORE TRACKS COMING SOON — LOCKED TRACKS UNLOCK AS YOU PROGRESS
+        TWO PREMIUM ITEMS ARE FREE PER TRACK — PRO UNLOCKS THE REST
       </p>
     </DashboardPageShell>
   );

@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   Circle,
   Terminal,
+  Lock,
 } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
@@ -27,6 +28,7 @@ import {
 } from "@/components/dashboard/dashboard-page-shell";
 import { FeatureGate } from "@/components/common/feature-gate";
 import type { LinuxQuestion } from "@/components/linux/QuestionPanel";
+import { useEntitlements } from "@/hooks/useEntitlements";
 
 interface SimulationItem {
   id: string;
@@ -43,6 +45,15 @@ interface SimulationItem {
     attempts?: number;
     bestScore?: number;
     bestScorePercent?: number;
+  };
+  access?: {
+    locked: boolean;
+    isFree: boolean;
+    freeIndex?: number;
+    freeItemQuota?: number;
+    trackKey?: string;
+    productSlug?: string;
+    reason?: string;
   };
 }
 
@@ -84,6 +95,10 @@ function estimateLinuxXp(difficulty: string, constraintCount: number) {
 
 const DIFFICULTIES = ["easy", "medium", "hard"] as const;
 
+type LinuxQuestionWithStatus = LinuxQuestion & {
+  status?: SimulationItem["status"];
+};
+
 const DIFF_TEXT: Record<string, string> = {
   easy: "text-emerald-500",
   medium: "text-amber-400",
@@ -105,6 +120,11 @@ const DIFF_CHIP: Record<string, string> = {
 export default function SimulationsPage() {
   const [simulations, setSimulations] = useState<SimulationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const {
+    loading: entitlementsLoading,
+    hasTrack,
+    productForTrack,
+  } = useEntitlements();
 
   // Filters
   const [search, setSearch] = useState("");
@@ -113,10 +133,18 @@ export default function SimulationsPage() {
   const [sortBy, setSortBy] = useState<"default" | "xp" | "time">("default");
 
   useEffect(() => {
+    if (entitlementsLoading) return;
+
+    const frontendProduct = productForTrack("frontend");
+    const frontendQuota = frontendProduct?.freeItemQuota ?? 2;
+    const frontendUnlocked = !frontendProduct || hasTrack("frontend");
+
     // Seed local browser simulations immediately checking local storage for fast visual load
-    const local: SimulationItem[] = browserSimulations.map((s) => {
+    const local: SimulationItem[] = browserSimulations.map((s, index) => {
       const storageKey = `enum_browser_xp_awarded_${s.id}`;
       const solvedLocal = typeof window !== "undefined" && localStorage.getItem(storageKey) === "1";
+      const isFree = index < frontendQuota;
+      const locked = !frontendUnlocked && !isFree;
       return {
         id: s.id,
         title: s.title,
@@ -130,6 +158,15 @@ export default function SimulationsPage() {
           attempted: solvedLocal,
           solved: solvedLocal,
           attempts: solvedLocal ? 1 : 0,
+        },
+        access: {
+          locked,
+          isFree,
+          freeIndex: index + 1,
+          freeItemQuota: frontendQuota,
+          trackKey: "frontend",
+          productSlug: frontendProduct?.slug || "track-frontend",
+          reason: locked ? "Upgrade to unlock this frontend simulation." : "",
         },
       };
     });
@@ -174,7 +211,11 @@ export default function SimulationsPage() {
             status: (() => {
               const storageKey = `enum_linux_xp_awarded_${question.id}`;
               const solvedLocal = typeof window !== "undefined" && localStorage.getItem(storageKey) === "1";
-              const qStatus = (question as any).status || { attempted: false, solved: false, attempts: 0 };
+              const qStatus = (question as LinuxQuestionWithStatus).status || {
+                attempted: false,
+                solved: false,
+                attempts: 0,
+              };
               const isSolved = solvedLocal || qStatus.solved;
               return {
                 attempted: isSolved || qStatus.attempted,
@@ -245,7 +286,7 @@ export default function SimulationsPage() {
         setSimulations(merged.filter((s) => s.category !== "devops"));
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [entitlementsLoading, hasTrack, productForTrack]);
 
   const categories = Object.keys(
     CATEGORY_META,
@@ -494,21 +535,25 @@ export default function SimulationsPage() {
               label: sim.category,
               Icon: Boxes,
             };
-            return (
-              <Link
-                key={sim.id}
-                href={
-                  sim.category === "system-design"
-                    ? `/dashboard/simulations/system-design/${sim.id}`
-                    : sim.category === "fullstack"
-                      ? `/dashboard/simulations/linux?id=${sim.id}`
-                      : `/dashboard/simulations/${sim.id}`
-                }
-                className="group flex items-start gap-5 p-5 border border-gray-100 dark:border-white/8 hover:border-gray-300 dark:hover:border-white/30 bg-white dark:bg-[#111] hover:bg-gray-50 dark:hover:bg-[#161616] transition-all duration-200"
-              >
+            const locked = Boolean(sim.access?.locked);
+            const href =
+              sim.category === "system-design"
+                ? `/dashboard/simulations/system-design/${sim.id}`
+                : sim.category === "fullstack"
+                  ? `/dashboard/simulations/linux?id=${sim.id}`
+                  : `/dashboard/simulations/${sim.id}`;
+            const cardClass = `group flex items-start gap-5 p-5 border border-gray-100 dark:border-white/8 bg-white dark:bg-[#111] transition-all duration-200 ${
+              locked
+                ? "opacity-75"
+                : "hover:border-gray-300 dark:hover:border-white/30 hover:bg-gray-50 dark:hover:bg-[#161616]"
+            }`;
+            const card = (
+              <>
                 {/* Status + Index */}
                 <div className="flex flex-col items-center gap-2 shrink-0 pt-0.5">
-                  {sim.status?.solved ? (
+                  {locked ? (
+                    <Lock className="w-4 h-4 text-gray-300 dark:text-white/20" />
+                  ) : sim.status?.solved ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                   ) : sim.status?.attempted ? (
                     <Circle className="w-4 h-4 text-amber-400" />
@@ -525,13 +570,27 @@ export default function SimulationsPage() {
                   <div className="flex items-start justify-between gap-4 mb-1.5">
                     <h3 className="font-bold text-black dark:text-white text-sm md:text-base leading-snug group-hover:underline underline-offset-2">
                       {sim.title}
+                      {locked && (
+                        <span className="ml-2 align-middle font-mono text-[9px] font-normal uppercase tracking-widest text-amber-500">
+                          Pro
+                        </span>
+                      )}
                       {(sim.status?.attempts ?? 0) > 1 && (
                         <span className="ml-2 font-mono text-[10px] font-normal text-gray-400">
                           {sim.status?.attempts}×
                         </span>
                       )}
                     </h3>
-                    <ChevronRight className="w-4 h-4 text-gray-300 dark:text-white/20 group-hover:text-black dark:group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" />
+                    {locked ? (
+                      <Link
+                        href={`/dashboard/pro?product=${sim.access?.productSlug || ""}`}
+                        className="shrink-0 border border-black px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-black transition-colors hover:bg-black hover:text-white dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black"
+                      >
+                        Unlock
+                      </Link>
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-gray-300 dark:text-white/20 group-hover:text-black dark:group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" />
+                    )}
                   </div>
 
                   <p className="text-gray-500 dark:text-gray-400 text-xs leading-relaxed mb-3 line-clamp-2">
@@ -580,6 +639,16 @@ export default function SimulationsPage() {
                     )}
                   </div>
                 </div>
+              </>
+            );
+
+            return locked ? (
+              <div key={sim.id} className={cardClass}>
+                {card}
+              </div>
+            ) : (
+              <Link key={sim.id} href={href} className={cardClass}>
+                {card}
               </Link>
             );
           })}

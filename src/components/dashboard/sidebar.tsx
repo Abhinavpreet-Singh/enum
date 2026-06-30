@@ -31,16 +31,19 @@ import {
   ShieldAlert,
   LineChart,
   ClipboardList,
+  Crown,
 } from "lucide-react";
 import { useTheme } from "@/providers/theme-provider";
 import useAccountType, { useAccountSession } from "@/hooks/useAccountType";
 import { AuthContext } from "@/providers/AuthProvider";
+import { useEntitlements } from "@/hooks/useEntitlements";
 
 const STUDENT_NAV = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard", matchExact: true },
   { icon: Code, label: "Simulations", href: "/dashboard/simulations", matchExact: false },
   { icon: AlertTriangle, label: "Incidents", href: "/dashboard/incidents", matchExact: false },
   { icon: Target, label: "DSA Arena", href: "/dashboard/dsa-arena", matchExact: false },
+  { icon: Crown, label: "Get Pro", href: "/dashboard/pro", matchExact: false },
   { icon: Trophy, label: "Leaderboard", href: "/dashboard/leaderboard", matchExact: false },
   { icon: HandshakeIcon, label: "Collaboration", href: "/dashboard/collab", matchExact: false },
   { icon: History, label: "Activity", href: "/dashboard/activity", matchExact: false },
@@ -61,6 +64,7 @@ const ADMIN_NAV = [
   { icon: Users,         label: "Users",       href: "/dashboard/admin/users/",       matchExact: false },
   { icon: Building2,     label: "Companies",   href: "/dashboard/admin/companies/",   matchExact: false },
   { icon: Layers,        label: "Content",     href: "/dashboard/admin/content/",     matchExact: false },
+  { icon: Crown,         label: "Billing",     href: "/dashboard/admin/billing/",     matchExact: false },
   { icon: Activity,      label: "Activity",    href: "/dashboard/admin/activity/",    matchExact: false },
   { icon: ShieldAlert,   label: "Violations",  href: "/dashboard/admin/violations/",  matchExact: false },
   { icon: LineChart,     label: "Analytics",   href: "/dashboard/admin/analytics/",   matchExact: false },
@@ -91,11 +95,21 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
   const { accountType: resolvedType, verified } = useAccountSession();
   const isAdmin = verified && accountType === "admin";
   const [navItems, setNavItems] = useState(() => getNavForRole(accountType));
+  const { access } = useEntitlements();
 
   // Update nav when role changes
   useEffect(() => {
-    setNavItems(getNavForRole(accountType));
-  }, [accountType]);
+    const items = getNavForRole(accountType);
+    if (accountType === "student" && access.isPro) {
+      setNavItems(
+        items.map((item) =>
+          item.href === "/dashboard/pro" ? { ...item, label: "Pro" } : item,
+        ),
+      );
+      return;
+    }
+    setNavItems(items);
+  }, [accountType, access.isPro]);
   const [hovered, setHovered] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { theme, toggleTheme } = useTheme();

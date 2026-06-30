@@ -6,6 +6,52 @@ import {
   deleteSimulationFolder,
   fetchFileFromCloudinary,
 } from "../utils/cloudinary.js";
+import {
+  getTrackProductMap,
+  getUserAccessSummary,
+  hasTrackAccessFromSummary,
+  simulationCategoryToTrackKey,
+} from "../services/entitlement.service.js";
+
+const enrichSimulationAccess = async (simulations, userId) => {
+  const [productsByTrack, accessSummary] = await Promise.all([
+    getTrackProductMap(),
+    getUserAccessSummary(userId),
+  ]);
+  const counters = {};
+
+  return simulations.map((sim) => {
+    const trackKey = simulationCategoryToTrackKey(sim.category);
+    counters[trackKey] = (counters[trackKey] || 0) + 1;
+    const product = productsByTrack[trackKey];
+    const freeItemQuota = product?.freeItemQuota ?? 0;
+    const hasAccess = !product || hasTrackAccessFromSummary(accessSummary, trackKey);
+    const isFree = counters[trackKey] <= freeItemQuota;
+    const locked = !hasAccess && !isFree;
+
+    return {
+      ...sim,
+      access: {
+        locked,
+        isFree,
+        freeIndex: counters[trackKey],
+        freeItemQuota,
+        trackKey,
+        productSlug: product?.slug || "",
+        reason: locked ? "Upgrade to unlock this premium simulation." : "",
+      },
+    };
+  });
+};
+
+const canAccessSimulation = async (simulationId, userId) => {
+  const simulations = await prisma.simulation.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+  const enriched = await enrichSimulationAccess(simulations, userId);
+  const simulation = enriched.find((sim) => sim.id === simulationId);
+  return { allowed: Boolean(simulation && !simulation.access?.locked), simulation };
+};
 
 const getSimulations = asyncHandler(async (req, res) => {
   const allSimulations = await prisma.simulation.findMany({
@@ -59,13 +105,13 @@ const getSimulations = asyncHandler(async (req, res) => {
   }
 
   // Enrich simulations with user progress
-  const enrichedSimulations = allSimulations.map((sim) => ({
+  const enrichedSimulations = await enrichSimulationAccess(allSimulations.map((sim) => ({
     ...sim,
     status:
       userId && userProgress[sim.id]
         ? userProgress[sim.id]
         : { attempted: false, solved: false, attempts: 0 },
-  }));
+  })), userId);
 
   return res.status(200).json({
     message: "Simulations fetched!",
@@ -85,6 +131,11 @@ const getSimulationById = asyncHandler(async (req, res) => {
 
   if (!simulation) {
     throw new ApiError(404, "Simulation not found");
+  }
+
+  const { allowed } = await canAccessSimulation(id, req.user?.id);
+  if (!allowed) {
+    throw new ApiError(403, "Upgrade to unlock this premium simulation.");
   }
 
   return res.status(200).json({
@@ -288,6 +339,11 @@ const getSimulationFileContents = asyncHandler(async (req, res) => {
 
   const simulation = await prisma.simulation.findUnique({ where: { id } });
   if (!simulation) throw new ApiError(404, "Simulation not found");
+
+  const { allowed } = await canAccessSimulation(id, req.user?.id);
+  if (!allowed) {
+    throw new ApiError(403, "Upgrade to unlock this premium simulation.");
+  }
 
   const fileMap = {};
 

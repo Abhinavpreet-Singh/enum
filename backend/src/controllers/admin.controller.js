@@ -1,6 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import prisma from "../db/index.js";
+import { summarizeEntitlements } from "../services/entitlement.service.js";
 
 const isValidObjectId = (value) => /^[a-f\d]{24}$/i.test(String(value || ""));
 
@@ -107,6 +108,10 @@ export const getAllUsers = asyncHandler(async (req, res) => {
       select: {
         id: true, username: true, email: true, displayName: true,
         role: true, bio: true, avatar: true,
+        entitlements: {
+          where: { active: true },
+          include: { product: true },
+        },
         _count: { select: { candidateAttempts: true, incidentSessions: true } },
       },
     }),
@@ -114,19 +119,26 @@ export const getAllUsers = asyncHandler(async (req, res) => {
   ]);
 
   const normalizedUsers = users.map((user) => ({
-    id: user.id,
-    username: user.username,
-    email: user.email,
-    fullName: user.displayName || "",
-    accountRole: user.role || "user",
-    isVerified: true,
-    createdAt: null,
-    updatedAt: null,
-    bio: user.bio || "",
-    avatarUrl: user.avatar || "",
-    githubId: null,
-    googleId: null,
-    _count: user._count,
+    ...(() => {
+      const access = summarizeEntitlements(user.entitlements || []);
+      return {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        fullName: user.displayName || "",
+        accountRole: user.role || "user",
+        isVerified: true,
+        isPro: access.isPro,
+        premiumTracks: access.tracks,
+        createdAt: null,
+        updatedAt: null,
+        bio: user.bio || "",
+        avatarUrl: user.avatar || "",
+        githubId: null,
+        googleId: null,
+        _count: user._count,
+      };
+    })(),
   }));
 
   return res.status(200).json({ message: "Users fetched.", data: normalizedUsers, total, page: parseInt(page), limit: parseInt(limit) });
@@ -150,11 +162,16 @@ export const getUserById = asyncHandler(async (req, res) => {
         orderBy: { createdAt: "desc" }, take: 10,
         select: { id: true, totalScore: true, isCompleted: true, createdAt: true },
       },
+      entitlements: {
+        where: { active: true },
+        include: { product: true },
+      },
       _count: { select: { candidateAttempts: true, incidentSessions: true } },
     },
   });
   if (!user) throw new ApiError(404, "User not found.");
 
+  const access = summarizeEntitlements(user.entitlements || []);
   const normalizedUser = {
     id: user.id,
     username: user.username,
@@ -162,6 +179,17 @@ export const getUserById = asyncHandler(async (req, res) => {
     fullName: user.displayName || "",
     accountRole: user.role || "user",
     isVerified: true,
+    isPro: access.isPro,
+    premiumTracks: access.tracks,
+    entitlements: access.entitlements.map((entry) => ({
+      id: entry.id,
+      scope: entry.scope,
+      trackKey: entry.trackKey,
+      source: entry.source,
+      product: entry.product
+        ? { id: entry.product.id, slug: entry.product.slug, title: entry.product.title }
+        : null,
+    })),
     createdAt: null,
     updatedAt: null,
     bio: user.bio || "",

@@ -23,6 +23,9 @@ export const env = {
   BACKEND_URL: process.env.BACKEND_URL,
   FRONTEND_URL: process.env.FRONTEND_URL,
   FRONTEND_URLS: parseList("FRONTEND_URLS"),
+  RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID,
+  RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
+  RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
   FRONTEND_URL_FALLBACK:
     process.env.FRONTEND_URL || parseList("FRONTEND_URLS")[0] || "http://localhost:3000",
 };

@@ -17,8 +17,8 @@ const simGate = featureGate("simulations_enabled");
 
 // Public routes
 router.get("/getSimulations", simGate, optionalAuth, getSimulations);
-router.get("/getSimulation/:id", getSimulationById);
-router.get("/getSimulationFiles/:id", getSimulationFileContents);
+router.get("/getSimulation/:id", optionalAuth, getSimulationById);
+router.get("/getSimulationFiles/:id", optionalAuth, getSimulationFileContents);
 
 // Admin routes
 router.post("/adminPostSimulation", adminPostSimulation);
