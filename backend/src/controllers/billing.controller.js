@@ -24,6 +24,14 @@ const getRazorpay = () => {
   });
 };
 
+const describeRazorpayConfig = () => {
+  const keyId = env.RAZORPAY_KEY_ID || "";
+  return {
+    configured: Boolean(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET),
+    mode: keyId.startsWith("rzp_test_") ? "test" : keyId.startsWith("rzp_live_") ? "live" : "unknown",
+  };
+};
+
 const publicProduct = (product, currency = "INR", accessSummary = null) => {
   const selectedCurrency = normalizeCurrency(currency);
   const unlocked =
@@ -64,6 +72,7 @@ export const getBillingProducts = asyncHandler(async (req, res) => {
     data: {
       currency,
       razorpayKeyId: env.RAZORPAY_KEY_ID || "",
+      razorpay: describeRazorpayConfig(),
       access: {
         isPro: accessSummary.isPro,
         tracks: accessSummary.tracks,
@@ -130,15 +139,30 @@ export const createBillingOrder = asyncHandler(async (req, res) => {
 
   const receipt = `enum_${Date.now().toString(36)}_${req.user.id.slice(-6)}`;
   const razorpay = getRazorpay();
-  const order = await razorpay.orders.create({
-    amount,
-    currency,
-    receipt,
-    notes: {
-      productSlug: product.slug,
-      userId: req.user.id,
-    },
-  });
+  let order;
+  try {
+    order = await razorpay.orders.create({
+      amount,
+      currency,
+      receipt,
+      notes: {
+        productSlug: product.slug,
+        userId: req.user.id,
+      },
+    });
+  } catch (error) {
+    const description =
+      error?.error?.description ||
+      error?.message ||
+      "Razorpay order creation failed.";
+    const isCredentialError = /key|secret|auth|credential|expired/i.test(description);
+    throw new ApiError(
+      isCredentialError ? 500 : 400,
+      isCredentialError
+        ? "Razorpay test credentials are invalid or expired. Update RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET with a fresh matching test key pair, then restart the backend."
+        : description,
+    );
+  }
 
   const paymentOrder = await prisma.paymentOrder.create({
     data: {

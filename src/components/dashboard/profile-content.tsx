@@ -7,6 +7,7 @@ import { proxy } from "@/app/proxy";
 import Link from "next/link";
 import useAuth from "@/hooks/useAuth";
 import { AuthContext } from "@/providers/AuthProvider";
+import { useEntitlements } from "@/hooks/useEntitlements";
 import {
   Edit3,
   Github,
@@ -30,7 +31,31 @@ import {
   Flame,
   Crown,
   Check,
+  Terminal,
+  Cpu,
+  Layout,
+  Server,
+  Hash,
+  Beaker,
 } from "lucide-react";
+
+const TRACK_LABELS: Record<string, string> = {
+  "system-design": "System Design",
+  frontend: "Frontend",
+  backend: "Backend",
+  linux: "Linux",
+  dsa: "DSA",
+  "enum-test": "Enum Test",
+};
+
+const TRACK_ICONS: Record<string, React.ComponentType<any>> = {
+  "system-design": Cpu,
+  frontend: Layout,
+  backend: Server,
+  linux: Terminal,
+  dsa: Hash,
+  "enum-test": Beaker,
+};
 
 interface ProfileData {
   name: string;
@@ -224,6 +249,7 @@ export default function ProfileContent() {
   const isAuthenticated = useAuth();
   const authCtx = useContext(AuthContext);
   const authUser = authCtx?.user;
+  const { access: premiumAccess } = useEntitlements();
   const fileInputRef = useRef<HTMLInputElement>(null);
   // null = no section editing; string = which section is being edited
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -238,6 +264,13 @@ export default function ProfileContent() {
     isPro: false,
     tracks: [],
   });
+
+  useEffect(() => {
+    setPremium({
+      isPro: premiumAccess.isPro,
+      tracks: premiumAccess.tracks,
+    });
+  }, [premiumAccess.isPro, premiumAccess.tracks]);
 
   useEffect(() => {
     const token = getMemoryToken();
@@ -748,6 +781,29 @@ export default function ProfileContent() {
                       </span>
                     </div>
                   )}
+
+                  {/* Track Badge Logos */}
+                  {(premium.isPro || premium.tracks.length > 0) && (
+                    <div className="flex items-center justify-center gap-1.5 mt-3 flex-wrap">
+                      {premium.isPro ? (
+                        <div className="group relative flex items-center justify-center w-6 h-6 border border-amber-500/30 bg-amber-500/10 text-amber-500" title="Enum Pro">
+                          <Crown className="w-3.5 h-3.5" />
+                          <span className="absolute bottom-full mb-1 scale-0 transition-all rounded bg-[#111] px-2 py-1 text-[9px] font-mono text-white group-hover:scale-100 whitespace-nowrap z-50">Enum Pro</span>
+                        </div>
+                      ) : (
+                        premium.tracks.map(trackKey => {
+                          const Icon = TRACK_ICONS[trackKey] || Check;
+                          const name = TRACK_LABELS[trackKey] || trackKey;
+                          return (
+                            <div key={trackKey} className="group relative flex items-center justify-center w-6 h-6 border border-gray-200 dark:border-white/10 bg-white dark:bg-[#151515] text-black dark:text-white" title={name}>
+                              <Icon className="w-3 h-3" />
+                              <span className="absolute bottom-full mb-1 scale-0 transition-all rounded bg-[#111] px-2 py-1 text-[9px] font-mono text-white group-hover:scale-100 whitespace-nowrap z-50">{name}</span>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -766,14 +822,14 @@ export default function ProfileContent() {
                         {premium.isPro
                           ? "Enum Pro"
                           : premium.tracks.length
-                            ? "Track Access"
+                            ? `${premium.tracks.map((t) => TRACK_LABELS[t] || t).join(" & ")} Track${premium.tracks.length > 1 ? "s" : ""}`
                             : "Free Plan"}
                       </p>
                       <p className="font-mono text-[10px] text-gray-400">
                         {premium.isPro
                           ? "All premium tracks unlocked"
                           : premium.tracks.length
-                            ? `${premium.tracks.length} track${premium.tracks.length === 1 ? "" : "s"} unlocked`
+                            ? `${premium.tracks.length} track${premium.tracks.length === 1 ? "" : "s"} active`
                             : "Two premium items per track are free"}
                       </p>
                     </div>

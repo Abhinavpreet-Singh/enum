@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Crown, Loader2, Lock, Sparkles, WalletCards } from "lucide-react";
+import { Check, Crown, Loader2, Lock, Sparkles, WalletCards, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import {
   DashboardPageHeader,
   DashboardPageShell,
@@ -29,12 +30,16 @@ type RazorpayOptions = {
   order_id: string;
   prefill?: { name?: string; email?: string };
   theme?: { color: string };
+  modal?: { ondismiss?: () => void };
   handler: (response: RazorpayResponse) => void;
 };
 
 declare global {
   interface Window {
-    Razorpay?: new (options: RazorpayOptions) => { open: () => void };
+    Razorpay?: new (options: RazorpayOptions) => {
+      open: () => void;
+      on?: (event: "payment.failed", callback: (response: unknown) => void) => void;
+    };
   }
 }
 
@@ -56,6 +61,7 @@ const TRACK_LABELS: Record<string, string> = {
   "soa-os": "SOA & OS",
   dsa: "DSA",
   linux: "Linux",
+  "enum-test": "Enum Test",
 };
 
 function ProductCard({
@@ -70,6 +76,9 @@ function ProductCard({
   onBuy: (product: PremiumProduct) => void;
 }) {
   const isFullPro = product.kind === "full_pro";
+  const unlockedLabel = isFullPro
+    ? "You already have Enum Pro"
+    : "You already got this pack";
 
   return (
     <div
@@ -79,24 +88,44 @@ function ProductCard({
           : "border-gray-100 dark:border-white/8"
       }`}
     >
-      {product.unlocked && (
-        <span className="absolute right-4 top-4 inline-flex items-center gap-1 border border-emerald-500/30 bg-emerald-50 px-2 py-1 font-mono text-[9px] uppercase tracking-widest text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400">
-          <Check className="h-3 w-3" /> Unlocked
-        </span>
-      )}
+      <span
+        className={`absolute right-4 top-4 inline-flex items-center gap-1.5 border px-2 py-1 font-mono text-[9px] uppercase tracking-widest ${
+          product.unlocked
+            ? "border-emerald-500/30 bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400"
+            : "border-gray-200 bg-white text-gray-400 dark:border-white/10 dark:bg-black"
+        }`}
+      >
+        {product.unlocked ? (
+          <>
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+            </span>
+            Ongoing
+          </>
+        ) : (
+          "Lifetime"
+        )}
+      </span>
 
       <div className="mb-5 flex h-10 w-10 items-center justify-center border border-gray-200 text-black dark:border-white/10 dark:text-white">
         {isFullPro ? <Crown className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
       </div>
-      <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-gray-400">
-        {isFullPro ? "Full Access" : TRACK_LABELS[product.trackKey] || "Track"}
-      </p>
-      <h2 className="mt-1 text-xl font-bold text-black dark:text-white">{product.title}</h2>
-      <p className="mt-2 min-h-12 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+
+      <div className="mb-2">
+        <p className="font-mono text-[10px] uppercase tracking-widest text-gray-400">
+          {isFullPro ? "Full Access" : TRACK_LABELS[product.trackKey] || "Track"}
+        </p>
+        <h3 className="text-lg font-bold text-black dark:text-white">
+          {product.title}
+        </h3>
+      </div>
+
+      <p className="mb-5 flex-1 text-xs text-gray-500 dark:text-gray-400">
         {product.description}
       </p>
 
-      <div className="my-5 border-t border-gray-100 pt-5 dark:border-white/8">
+      <div className="mb-5 border-t border-gray-100 pt-5 dark:border-white/8">
         <span className="text-3xl font-bold text-black dark:text-white">
           {formatPremiumAmount(product.selectedAmount, currency)}
         </span>
@@ -106,29 +135,46 @@ function ProductCard({
       </div>
 
       <div className="mb-5 space-y-2 text-xs text-gray-500 dark:text-gray-400">
+        {product.unlocked && (
+          <p className="flex items-center gap-2 font-semibold text-emerald-600 dark:text-emerald-400">
+            <Check className="h-3.5 w-3.5" />
+            {unlockedLabel}
+          </p>
+        )}
         <p className="flex items-center gap-2">
           <Check className="h-3.5 w-3.5 text-emerald-500" />
           {isFullPro ? "Unlock all premium tracks" : `Unlock ${TRACK_LABELS[product.trackKey] || product.title}`}
         </p>
         <p className="flex items-center gap-2">
           <Check className="h-3.5 w-3.5 text-emerald-500" />
-          First {product.freeItemQuota || 0} items stay free for everyone
+          {isFullPro ? "First 0 items stay free for everyone" : `First ${product.freeItemQuota} items stay free for everyone`}
         </p>
       </div>
 
-      <button
-        type="button"
-        disabled={buying || product.unlocked || product.selectedAmount <= 0}
-        onClick={() => onBuy(product)}
-        className={`mt-auto inline-flex items-center justify-center gap-2 border px-4 py-3 font-mono text-xs uppercase tracking-widest transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-          isFullPro
-            ? "border-black bg-black text-white hover:bg-gray-800 dark:border-white dark:bg-white dark:text-black"
-            : "border-gray-200 text-black hover:border-black dark:border-white/10 dark:text-white dark:hover:border-white"
-        }`}
-      >
-        {buying ? <Loader2 className="h-4 w-4 animate-spin" /> : <WalletCards className="h-4 w-4" />}
-        {product.unlocked ? "Already Unlocked" : "Checkout"}
-      </button>
+      {product.unlocked ? (
+        <Link
+          href={
+            product.kind === "full_pro"
+              ? "/dashboard/simulations"
+              : product.trackKey === "dsa"
+                ? "/dashboard/dsa-arena"
+                : "/dashboard/simulations"
+          }
+          className="flex w-full items-center justify-center gap-2 border border-black bg-black text-white hover:bg-white hover:text-black dark:border-white dark:bg-white dark:text-black dark:hover:bg-black dark:hover:text-white px-4 py-2 font-mono text-[10px] uppercase tracking-widest transition-all"
+        >
+          Study Track <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+        </Link>
+      ) : (
+        <button
+          type="button"
+          disabled={buying}
+          onClick={() => onBuy(product)}
+          className="flex w-full items-center justify-center gap-2 border border-black bg-black text-white hover:bg-white hover:text-black dark:border-white dark:bg-white dark:text-black dark:hover:bg-black dark:hover:text-white px-4 py-2 font-mono text-[10px] uppercase tracking-widest transition-all"
+        >
+          {buying ? <Loader2 className="h-4 w-4 animate-spin" /> : <WalletCards className="h-4 w-4" />}
+          Checkout
+        </button>
+      )}
     </div>
   );
 }
@@ -139,7 +185,22 @@ export default function ProPage() {
   const [message, setMessage] = useState("");
   const { access, products, loading, refresh } = useEntitlements(currency);
 
+  const announcePremiumChange = async () => {
+    await refresh();
+    window.dispatchEvent(new Event("premiumAccessChanged"));
+    localStorage.setItem("premiumAccessChangedAt", String(Date.now()));
+  };
+
   const buyProduct = async (product: PremiumProduct) => {
+    if (product.unlocked) {
+      setMessage(
+        product.kind === "full_pro"
+          ? "You already have Enum Pro."
+          : "You already got this pack.",
+      );
+      return;
+    }
+
     setMessage("");
     setBuyingSlug(product.slug);
     try {
@@ -164,23 +225,50 @@ export default function ProPage() {
         order_id: order.orderId,
         prefill: order.user,
         theme: { color: "#000000" },
+        modal: {
+          ondismiss: () => {
+            setMessage("Checkout closed. No payment was captured.");
+            setBuyingSlug("");
+          },
+        },
         handler: async (response) => {
           await api.post("/api/v1/billing/verify", response);
           setMessage("Payment verified. Premium access is unlocked.");
-          await refresh();
+          await announcePremiumChange();
         },
+      });
+
+      checkout.on?.("payment.failed", (failure) => {
+        const description =
+          typeof failure === "object" &&
+          failure !== null &&
+          "error" in failure &&
+          typeof (failure as { error?: { description?: string } }).error?.description === "string"
+            ? (failure as { error: { description: string } }).error.description
+            : "";
+        const isKeyIssue = /key|expired|authentication|credential/i.test(description);
+        setMessage(
+          isKeyIssue
+            ? "Razorpay test key is invalid or expired. Update RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in backend/.env with a fresh matching test key pair, then restart the backend."
+            : description || "Payment failed. Please retry from checkout.",
+        );
+        setBuyingSlug("");
       });
 
       checkout.open();
     } catch (error) {
       const fallback = "Checkout failed. Please try again.";
-      setMessage(
+      const backendMessage =
         typeof error === "object" &&
-          error !== null &&
-          "response" in error &&
-          typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === "string"
+        error !== null &&
+        "response" in error &&
+        typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === "string"
           ? (error as { response: { data: { message: string } } }).response.data.message
-          : fallback,
+          : "";
+      setMessage(
+        /razorpay|key|expired|authentication|credential/i.test(backendMessage)
+          ? `${backendMessage} Check that RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are a fresh matching test key pair in backend/.env.`
+          : backendMessage || fallback,
       );
     } finally {
       setBuyingSlug("");
@@ -206,9 +294,9 @@ export default function ProPage() {
             </p>
             <p className="text-sm font-semibold text-black dark:text-white">
               {access.isPro
-                ? "Full Pro active"
+                ? "Full Pro Active"
                 : access.tracks.length
-                  ? `${access.tracks.length} premium track unlocked`
+                  ? `${access.tracks.map((t) => TRACK_LABELS[t] || t).join(" & ")} Track${access.tracks.length > 1 ? "s" : ""} Unlocked`
                   : "Free plan"}
             </p>
           </div>

@@ -8,6 +8,7 @@ export const TRACK_KEYS = {
   LINUX: "linux",
   DSA: "dsa",
   SOA_OS: "soa-os",
+  ENUM_TEST: "enum-test",
 };
 
 export const DEFAULT_PREMIUM_PRODUCTS = [
@@ -65,6 +66,7 @@ export const DEFAULT_PREMIUM_PRODUCTS = [
     description: "Premium SOA, operating systems, and distributed systems content.",
     kind: "track",
     trackKey: TRACK_KEYS.SOA_OS,
+    active: false,
     priceInrPaise: 19900,
     priceUsdCents: 400,
     freeItemQuota: 2,
@@ -74,28 +76,41 @@ export const DEFAULT_PREMIUM_PRODUCTS = [
   {
     slug: "track-dsa",
     title: "DSA Arena",
-    description: "Currently free. Pricing can be enabled from admin later.",
+    description: "Unlock advanced DSA arena, dynamic programming, trees, and graphs.",
     kind: "track",
     trackKey: TRACK_KEYS.DSA,
-    active: false,
-    priceInrPaise: 0,
-    priceUsdCents: 0,
-    freeItemQuota: 9999,
+    active: true,
+    priceInrPaise: 19900,
+    priceUsdCents: 400,
+    freeItemQuota: 0,
     displayOrder: 50,
-    metadata: { freeForNow: true },
+    metadata: {},
   },
   {
     slug: "track-linux",
     title: "Linux Track",
-    description: "Currently free. Pricing can be enabled from admin later.",
+    description: "Unlock process basics, shell scripting, process sandboxing, and Linux labs.",
     kind: "track",
     trackKey: TRACK_KEYS.LINUX,
-    active: false,
-    priceInrPaise: 0,
-    priceUsdCents: 0,
-    freeItemQuota: 9999,
+    active: true,
+    priceInrPaise: 19900,
+    priceUsdCents: 400,
+    freeItemQuota: 0,
     displayOrder: 60,
-    metadata: { freeForNow: true },
+    metadata: {},
+  },
+  {
+    slug: "track-enum-test",
+    title: "Enum Test",
+    description: "Test track priced at 1 Rupee.",
+    kind: "track",
+    trackKey: TRACK_KEYS.ENUM_TEST,
+    active: true,
+    priceInrPaise: 100,
+    priceUsdCents: 10,
+    freeItemQuota: 0,
+    displayOrder: 70,
+    metadata: {},
   },
 ];
 
@@ -103,7 +118,9 @@ export const ACTIVE_TRACK_KEYS = [
   TRACK_KEYS.SYSTEM_DESIGN,
   TRACK_KEYS.FRONTEND,
   TRACK_KEYS.BACKEND,
-  TRACK_KEYS.SOA_OS,
+  TRACK_KEYS.LINUX,
+  TRACK_KEYS.DSA,
+  TRACK_KEYS.ENUM_TEST,
 ];
 
 const now = () => new Date();
@@ -134,11 +151,20 @@ export async function ensureDefaultPremiumProducts() {
       prisma.premiumProduct.upsert({
         where: { slug: product.slug },
         create: {
-          active: true,
+          active: product.active ?? true,
           ...product,
           metadata: product.metadata || {},
         },
-        update: {},
+        update: {
+          title: product.title,
+          description: product.description,
+          priceInrPaise: product.priceInrPaise,
+          priceUsdCents: product.priceUsdCents,
+          trackKey: product.trackKey,
+          displayOrder: product.displayOrder,
+          active: product.active ?? true,
+          metadata: product.metadata || {},
+        },
       }),
     ),
   );

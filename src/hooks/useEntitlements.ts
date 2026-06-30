@@ -64,6 +64,19 @@ export function useEntitlements(currency: BillingCurrency = "INR") {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const handlePremiumChange = () => {
+      void refresh();
+    };
+
+    window.addEventListener("premiumAccessChanged", handlePremiumChange);
+    window.addEventListener("storage", handlePremiumChange);
+    return () => {
+      window.removeEventListener("premiumAccessChanged", handlePremiumChange);
+      window.removeEventListener("storage", handlePremiumChange);
+    };
+  }, [refresh]);
+
   const hasTrack = useCallback(
     (trackKey: string) => access.isPro || access.tracks.includes(trackKey),
     [access],
