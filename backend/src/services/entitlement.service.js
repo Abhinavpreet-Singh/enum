@@ -105,7 +105,7 @@ export const DEFAULT_PREMIUM_PRODUCTS = [
     description: "Test track priced at 1 Rupee.",
     kind: "track",
     trackKey: TRACK_KEYS.ENUM_TEST,
-    active: true,
+    active: false,
     priceInrPaise: 100,
     priceUsdCents: 10,
     freeItemQuota: 0,
@@ -120,7 +120,6 @@ export const ACTIVE_TRACK_KEYS = [
   TRACK_KEYS.BACKEND,
   TRACK_KEYS.LINUX,
   TRACK_KEYS.DSA,
-  TRACK_KEYS.ENUM_TEST,
 ];
 
 const now = () => new Date();

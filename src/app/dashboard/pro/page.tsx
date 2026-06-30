@@ -61,7 +61,6 @@ const TRACK_LABELS: Record<string, string> = {
   "soa-os": "SOA & OS",
   dsa: "DSA",
   linux: "Linux",
-  "enum-test": "Enum Test",
 };
 
 function ProductCard({
@@ -307,7 +306,7 @@ export default function ProPage() {
               key={option}
               type="button"
               onClick={() => setCurrency(option)}
-              className={`px-4 py-2 font-mono text-xs uppercase tracking-widest ${
+              className={`px-4 py-2 font-mono text-xs uppercase tracking-widest cursor-pointer ${
                 currency === option
                   ? "bg-black text-white dark:bg-white dark:text-black"
                   : "text-gray-500 hover:text-black dark:hover:text-white"

@@ -45,7 +45,6 @@ const TRACK_LABELS: Record<string, string> = {
   backend: "Backend",
   linux: "Linux",
   dsa: "DSA",
-  "enum-test": "Enum Test",
 };
 
 const TRACK_ICONS: Record<string, React.ComponentType<any>> = {
@@ -54,7 +53,6 @@ const TRACK_ICONS: Record<string, React.ComponentType<any>> = {
   backend: Server,
   linux: Terminal,
   dsa: Hash,
-  "enum-test": Beaker,
 };
 
 interface ProfileData {

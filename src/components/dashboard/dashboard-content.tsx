@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Handshake,
   Target,
+  Crown,
 } from "lucide-react";
 import {
   CollabLivePreview,
@@ -45,6 +46,7 @@ const progressFill =
 import { useContext, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import useAuth from "@/hooks/useAuth";
+import { useEntitlements } from "@/hooks/useEntitlements";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
 import { browserSimulations } from "@/data/browser-simulations";
@@ -102,6 +104,16 @@ interface DailyChallengeSimulation {
 
 export default function DashboardContent({ userName }: DashboardContentProps) {
   const isAuthenticated = useAuth();
+  const { access: premium } = useEntitlements();
+
+  const TRACK_LABELS: Record<string, string> = {
+    "system-design": "System Design",
+    frontend: "Frontend",
+    backend: "Backend",
+    linux: "Linux",
+    dsa: "DSA",
+  };
+
   const authCtx = useContext(AuthContext);
   const authUser = authCtx?.user;
   const backendDisplayName =
@@ -373,9 +385,21 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
       {/* ── Header ─────────────────────────────────────── */}
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white md:text-3xl">
-            {greeting} {displayName}.
-          </h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white md:text-3xl">
+              {greeting} {displayName}.
+            </h1>
+            {premium.isPro ? (
+              <span className="flex items-center gap-1 border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2.5 py-0.5 font-mono text-[9px] uppercase tracking-widest font-semibold rounded-none">
+                <Crown className="w-3 h-3 text-amber-500 shrink-0" />
+                Enum Pro
+              </span>
+            ) : premium.tracks.length > 0 ? (
+              <span className="flex items-center gap-1 border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2.5 py-0.5 font-mono text-[9px] uppercase tracking-widest font-semibold rounded-none">
+                {premium.tracks.map((t) => TRACK_LABELS[t] || t).join(" & ")} Track{premium.tracks.length > 1 ? "s" : ""}
+              </span>
+            ) : null}
+          </div>
           <p className="mt-1 font-mono text-xs text-gray-500 dark:text-gray-400">
             Your workspace to practice, simulate, and collaborate.
           </p>
