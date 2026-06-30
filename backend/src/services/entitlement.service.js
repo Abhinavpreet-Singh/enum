@@ -95,7 +95,7 @@ export const DEFAULT_PREMIUM_PRODUCTS = [
     active: true,
     priceInrPaise: 19900,
     priceUsdCents: 400,
-    freeItemQuota: 0,
+    freeItemQuota: 2,
     displayOrder: 60,
     metadata: {},
   },
@@ -160,6 +160,7 @@ export async function ensureDefaultPremiumProducts() {
           priceInrPaise: product.priceInrPaise,
           priceUsdCents: product.priceUsdCents,
           trackKey: product.trackKey,
+          freeItemQuota: product.freeItemQuota,
           displayOrder: product.displayOrder,
           active: product.active ?? true,
           metadata: product.metadata || {},
@@ -186,7 +187,7 @@ export async function getProductBySlug(slug, { includeInactive = false } = {}) {
 
 export async function getUserEntitlements(userId) {
   if (!userId) return [];
-  return prisma.userEntitlement.findMany({
+  const entries = await prisma.userEntitlement.findMany({
     where: {
       userId,
       active: true,
@@ -195,6 +196,9 @@ export async function getUserEntitlements(userId) {
     include: { product: true },
     orderBy: { createdAt: "desc" },
   });
+  return entries.filter(
+    (e) => e.trackKey !== "enum-test" && e.product?.slug !== "track-enum-test"
+  );
 }
 
 export function summarizeEntitlements(entitlements = []) {
@@ -226,7 +230,7 @@ export async function getUserAccessSummary(userId) {
 
 export function hasTrackAccessFromSummary(summary, trackKey) {
   if (!trackKey) return true;
-  if (trackKey === TRACK_KEYS.DSA || trackKey === TRACK_KEYS.LINUX) return true;
+  if (trackKey === TRACK_KEYS.DSA) return true;
   return Boolean(summary?.isPro || summary?.tracks?.includes(trackKey));
 }
 

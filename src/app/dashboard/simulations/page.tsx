@@ -223,6 +223,7 @@ export default function SimulationsPage() {
                 attempts: qStatus.attempts || (isSolved ? 1 : 0),
               };
             })(),
+            access: (question as any).access,
           }),
         );
         const sdRaw: Array<{
@@ -249,6 +250,7 @@ export default function SimulationsPage() {
           xpReward: (s.maxScore ?? 10) * 10,
           tags: s.tags || [],
           status: s.status,
+          access: (s as any).access,
         }));
         const merged = [
           ...local.map((s) => {
