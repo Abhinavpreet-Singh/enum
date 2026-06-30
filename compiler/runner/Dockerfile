@@ -32,6 +32,6 @@ RUN echo '{"name":"enum-runner-deps","version":"1.0.0"}' > /package.json && \
 WORKDIR /app
 
 COPY runner.sh /runner.sh
-RUN chmod +x /runner.sh
+RUN sed -i 's/\r$//' /runner.sh && chmod +x /runner.sh
 
 ENTRYPOINT ["/runner.sh"]

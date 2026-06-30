@@ -47,6 +47,8 @@ const STUDENT_NAV = [
   { icon: Trophy, label: "Leaderboard", href: "/dashboard/leaderboard", matchExact: false },
   { icon: HandshakeIcon, label: "Collaboration", href: "/dashboard/collab", matchExact: false },
   { icon: History, label: "Activity", href: "/dashboard/activity", matchExact: false },
+  // { icon: Settings, label: "Settings", href: "/dashboard/settings", matchExact: false },
+
 ];
 
 const ORGANIZATION_NAV = [
@@ -172,22 +174,6 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
       .catch(() => {});
   }, [accountType, resolvedType, verified, isAdmin]);
 
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      await axios.post(
-        `${proxy}/api/v1/auth/logout`,
-        {},
-        { withCredentials: true },
-      );
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      localStorage.clear();
-      window.location.href = "/login";
-    }
-  };
-
   const normalizePath = (path: string) =>
     path.endsWith("/") ? path : `${path}/`;
 
@@ -295,74 +281,102 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
           {/* Separator */}
           <div className="mx-4 border-t border-gray-100 dark:border-gray-900" />
 
-          {/* User profile / admin identity */}
-          {isAdmin ? (
-            <div className="px-4 py-3 rounded-lg border border-amber-400/30 bg-amber-50/50 dark:bg-amber-950/10">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center border border-amber-400/40 bg-amber-100 dark:bg-amber-950/30">
-                  <Shield className="w-4 h-4 text-amber-700 dark:text-amber-400" />
-                </div>
-                <div
-                  className={`min-w-0 transition-opacity duration-300 ${
-                    expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
-                  }`}
-                >
-                  <p className="font-semibold text-gray-900 dark:text-white text-sm truncate whitespace-nowrap">
-                    Admin
-                  </p>
-                  <p className="font-mono text-[10px] text-amber-700 dark:text-amber-400 truncate whitespace-nowrap">
-                    {userName || "Platform Admin"}
-                  </p>
+          <div className="px-3 py-3 space-y-1">
+            {/* User profile / admin identity */}
+            {isAdmin ? (
+              <div className="px-4 py-3 rounded-lg border border-amber-400/30 bg-amber-50/50 dark:bg-amber-950/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center border border-amber-400/40 bg-amber-100 dark:bg-amber-950/30">
+                    <Shield className="w-4 h-4 text-amber-700 dark:text-amber-400" />
+                  </div>
+                  <div
+                    className={`min-w-0 transition-opacity duration-300 ${
+                      expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
+                    }`}
+                  >
+                    <p className="font-semibold text-gray-900 dark:text-white text-sm truncate whitespace-nowrap">
+                      Admin
+                    </p>
+                    <p className="font-mono text-[10px] text-amber-700 dark:text-amber-400 truncate whitespace-nowrap">
+                      {userName || "Platform Admin"}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
+            ) : (
+              <>
+                <Link
+                  href="/dashboard/profile"
+                  className="block px-4 py-3 hover:bg-gray-50 dark:hover:bg-transparent rounded-lg transition-all duration-200 border border-transparent hover:border-gray-200 dark:hover:border-white"
+                  title="View Profile"
+                  onClick={() => {
+                    if (!pinned) setHovered(false);
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full shrink-0 overflow-hidden bg-linear-to-br from-gray-700 to-gray-900 flex items-center justify-center">
+                      {sidebarAvatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={sidebarAvatar}
+                          alt="avatar"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-white text-xs font-bold tracking-wide select-none">
+                          {(userName || "G")
+                            .split(" ")
+                            .slice(0, 2)
+                            .map((w) => w[0]?.toUpperCase())
+                            .join("")}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      className={`min-w-0 transition-opacity duration-300 ${
+                        expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
+                      }`}
+                    >
+                      <p className="font-semibold text-gray-900 dark:text-white text-sm truncate whitespace-nowrap">
+                        Profile
+                      </p>
+                      <p className="font-mono text-[10px] text-gray-400 dark:text-gray-500 truncate whitespace-nowrap">
+                        {userName || "Guest"}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              </>
+            )}
+
             <Link
-              href="/dashboard/profile"
-              className="block px-4 py-3 hover:bg-gray-50 dark:hover:bg-transparent rounded-lg transition-all duration-200 border border-transparent hover:border-gray-200 dark:hover:border-white"
-              title="View Profile"
+              href={isAdmin ? "/dashboard/admin/settings/" : "/dashboard/settings"}
+              title="Settings"
               onClick={() => {
                 if (!pinned) setHovered(false);
               }}
+              className={`group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-lg font-mono text-sm tracking-wide transition-all duration-200 whitespace-nowrap border ${
+                pathname.startsWith(
+                  isAdmin ? "/dashboard/admin/settings" : "/dashboard/settings",
+                )
+                  ? "border-gray-200 bg-gray-50 dark:border-white dark:bg-transparent text-black dark:text-white font-medium"
+                  : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-transparent hover:border-gray-200 dark:hover:border-white hover:text-gray-800 dark:hover:text-white"
+              }`}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full shrink-0 overflow-hidden bg-linear-to-br from-gray-700 to-gray-900 flex items-center justify-center">
-                  {sidebarAvatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={sidebarAvatar}
-                      alt="avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-white text-xs font-bold tracking-wide select-none">
-                      {(userName || "G")
-                        .split(" ")
-                        .slice(0, 2)
-                        .map((w) => w[0]?.toUpperCase())
-                        .join("")}
-                    </span>
-                  )}
-                </div>
-                <div
-                  className={`min-w-0 transition-opacity duration-300 ${
-                    expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
-                  }`}
-                >
-                  <p className="font-semibold text-gray-900 dark:text-white text-sm truncate whitespace-nowrap">
-                    Profile
-                  </p>
-                  <p className="font-mono text-[10px] text-gray-400 dark:text-gray-500 truncate whitespace-nowrap">
-                    {userName || "Guest"}
-                  </p>
-                </div>
-              </div>
+              <Settings className="w-4.5 h-4.5 shrink-0" />
+              <span
+                className={`transition-opacity duration-300 ${
+                  expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
+                }`}
+              >
+                Settings
+              </span>
             </Link>
-          )}
+          </div>
 
           {/* Bottom Actions */}
           <div className="px-3 pb-4 space-y-0.5">
-            <button
+            {/* <button
               onClick={toggleTheme}
               title={
                 theme === "dark"
@@ -421,7 +435,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
               >
                 {isLoggingOut ? "Logging Out..." : "Sign Out"}
               </span>
-            </button>
+            </button> */}
           </div>
         </div>
       </aside>
