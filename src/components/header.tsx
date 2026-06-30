@@ -85,6 +85,7 @@ export default function Header() {
     { href: "/#how-it-works", label: "HOW IT WORKS" },
     { href: "/#features", label: "FEATURES" },
     { href: "/#simulations", label: "SIMULATIONS" },
+    { href: "/#premium", label: "PREMIUM" },
     { href: "/#benefits", label: "BENEFITS" },
   ];
 
@@ -167,13 +168,13 @@ export default function Header() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-md dark:border-gray-600 dark:bg-black/95 px-4 md:px-6">
+    <header className="fixed top-0 left-0 right-0 z-50 border-b border-black/5 bg-white/95 backdrop-blur-md dark:border-white/5 dark:bg-black/95 px-4 md:px-6">
       <div className="mx-auto max-w-7xl py-3 md:py-4">
-        <div className="grid grid-cols-[1fr_auto] items-center gap-3 md:grid-cols-3">
+        <div className="flex items-center justify-between gap-4">
           <Link
             href="/"
             onClick={closeMobileMenu}
-            className="flex min-w-0 items-center gap-1 text-black transition-opacity hover:opacity-80 dark:text-white"
+            className="flex min-w-0 items-center gap-1 text-black transition-opacity hover:opacity-80 dark:text-white shrink-0"
           >
             <Image
               src="/lgogo.png"
@@ -194,7 +195,7 @@ export default function Header() {
             </span>
           </Link>
 
-          <nav className="hidden items-center justify-center space-x-10 md:flex lg:space-x-12">
+          <nav className="hidden items-center justify-center space-x-6 md:flex lg:space-x-10">
             {navLinks.map(({ href, label }) => (
               <Link
                 key={href}
@@ -207,7 +208,7 @@ export default function Header() {
             ))}
           </nav>
 
-          <div className="flex items-center justify-end gap-2 md:gap-3">
+          <div className="flex items-center justify-end gap-2 md:gap-3 shrink-0">
             <ThemeButton />
 
             {!isAuthenticated ? (

@@ -13,11 +13,12 @@ export default function Footer() {
   const collabHref = isAuthenticated ? "/dashboard/collab" : "/login";
 
   return (
-    <footer className="border-t border-white dark:border-white bg-gray-50 dark:bg-black px-4 md:px-6">
+    <footer className="border-t border-gray-100 dark:border-white/5 bg-gray-50 dark:bg-black px-4 md:px-6">
       <div className="max-w-7xl mx-auto py-12 md:py-16">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-12">
-          {/* Brand column */}
-          <div className="md:col-span-1">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 md:gap-12">
+          
+          {/* Brand column - spans 2 columns to shift others towards the right */}
+          <div className="md:col-span-2">
             <Link
               href="/"
               className="flex min-w-0 items-center gap-1 text-black transition-opacity hover:opacity-80 dark:text-white mb-4"
@@ -39,10 +40,8 @@ export default function Footer() {
                 <span>M</span>
               </span>
             </Link>
-            <p className="text-xs md:text-sm text-gray-700 dark:text-gray-400 leading-relaxed">
-              The flight simulator for software engineers.
-              <br />
-              Practice production, not puzzles.
+            <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 leading-relaxed max-w-xs text-justify">
+              Interactive simulation training for software engineers. Practice production troubleshooting, systems operations, and real codebase debugging.
             </p>
           </div>
 

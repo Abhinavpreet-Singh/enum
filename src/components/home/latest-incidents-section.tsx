@@ -142,7 +142,7 @@ export default function LatestIncidentsSection() {
               <div className="font-mono text-sm text-gray-500">Loading simulations...</div>
             </div>
           ) : simulationsList.length === 0 ? (
-            <div className="col-span-full rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black p-8 text-center">
+            <div className="col-span-full rounded-none border border-gray-200 dark:border-white/10 bg-white dark:bg-black p-8 text-center">
               <p className="text-gray-700 dark:text-gray-300">No simulations found.</p>
             </div>
           ) : (
@@ -150,12 +150,12 @@ export default function LatestIncidentsSection() {
               <Link
                 key={sim.id}
                 href={sim.href}
-                className="group bg-white dark:bg-black border border-gray-200 dark:border-transparent p-4 md:p-6 rounded-lg hover:border-black dark:hover:border-white transition-all flex flex-col justify-between"
+                className="group bg-white dark:bg-[#0c0c0c] border border-gray-200 dark:border-white/10 p-4 md:p-6 rounded-none hover:border-black dark:hover:border-white transition-all flex flex-col justify-between"
               >
                 <div>
                   {/* Category and Difficulty */}
                   <div className="flex items-center justify-between mb-3 md:mb-4 gap-2 flex-wrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-transparent text-black dark:text-gray-300">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-none text-xs font-mono font-semibold border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-transparent text-black dark:text-gray-300">
                       {sim.category}
                     </span>
                     <span className="flex items-center text-xs text-gray-500 dark:text-gray-500 font-mono whitespace-nowrap">
@@ -169,7 +169,7 @@ export default function LatestIncidentsSection() {
                   </h3>
 
                   {/* Description */}
-                  <p className="text-gray-700 dark:text-gray-400 text-sm leading-relaxed mb-6 line-clamp-3">
+                  <p className="text-gray-700 dark:text-gray-400 text-sm leading-relaxed mb-6 line-clamp-3 text-justify">
                     {sim.description}
                   </p>
                 </div>
