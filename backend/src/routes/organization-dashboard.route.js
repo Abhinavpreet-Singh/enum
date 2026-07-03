@@ -4,6 +4,7 @@ import {
   getDashboardMetrics,
   getRecentActivity,
   getOrganizationProfile,
+  updateOrganizationProfile,
   getAssessmentAttempts,
   getAttemptDetail,
 } from "../controllers/organization-dashboard.controller.js";
@@ -15,6 +16,7 @@ const guard = [verifyJWT, requireRole("organization"), requireApproved];
 router.get("/metrics", ...guard, getDashboardMetrics);
 router.get("/recent-activity", ...guard, getRecentActivity);
 router.get("/profile", ...guard, getOrganizationProfile);
+router.patch("/profile", ...guard, updateOrganizationProfile);
 router.get("/assessments/:assessmentId/attempts", ...guard, getAssessmentAttempts);
 router.get("/attempts/:attemptId", ...guard, getAttemptDetail);
 

@@ -10,8 +10,10 @@ const ORG_PREFIXES = [
   "/dashboard/candidates",
   "/dashboard/analytics",
   "/dashboard/certificates",
-  "/dashboard/settings",
 ];
+
+/** Routes every signed-in account type may use — never role-redirect away from these. */
+const SHARED_PREFIXES = ["/dashboard/settings", "/dashboard/profile"];
 
 const STUDENT_PREFIXES = [
   "/dashboard/simulations",
@@ -40,6 +42,11 @@ function isStudentPath(pathname: string | null) {
   return matchesPrefix(pathname, STUDENT_PREFIXES);
 }
 
+function isSharedPath(pathname: string | null) {
+  if (!pathname) return false;
+  return matchesPrefix(pathname, SHARED_PREFIXES);
+}
+
 export default function OrganizationDashboardGuard({
   children,
 }: {
@@ -51,12 +58,14 @@ export default function OrganizationDashboardGuard({
 
   const blocked =
     verified &&
+    !isSharedPath(pathname) &&
     ((accountType === "organization" && isStudentPath(pathname)) ||
       (accountType === "student" && isOrgPath(pathname)));
 
   useEffect(() => {
     if (isLoading || !verified) return;
     if (accountType === "admin") return;
+    if (isSharedPath(pathname)) return;
     if (accountType === "organization" && isStudentPath(pathname)) {
       router.replace("/dashboard");
     }

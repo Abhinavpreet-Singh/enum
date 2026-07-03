@@ -124,6 +124,30 @@ export const ACTIVE_TRACK_KEYS = [
 
 const now = () => new Date();
 
+const hasPremiumProductModel = () => Boolean(prisma.premiumProduct);
+const hasUserEntitlementModel = () => Boolean(prisma.userEntitlement);
+
+function fallbackPremiumProducts({ includeInactive = false } = {}) {
+  return DEFAULT_PREMIUM_PRODUCTS.filter(
+    (product) => includeInactive || (product.active ?? true),
+  ).map((product) => ({
+    id: product.slug,
+    slug: product.slug,
+    title: product.title,
+    description: product.description,
+    kind: product.kind,
+    trackKey: product.trackKey,
+    active: product.active ?? true,
+    priceInrPaise: product.priceInrPaise,
+    priceUsdCents: product.priceUsdCents,
+    freeItemQuota: product.freeItemQuota,
+    displayOrder: product.displayOrder,
+    metadata: product.metadata || {},
+    createdAt: now(),
+    updatedAt: now(),
+  }));
+}
+
 export function normalizeCurrency(value) {
   const currency = String(value || "INR").trim().toUpperCase();
   return currency === "USD" ? "USD" : "INR";
@@ -145,6 +169,8 @@ export function simulationCategoryToTrackKey(category) {
 }
 
 export async function ensureDefaultPremiumProducts() {
+  if (!hasPremiumProductModel()) return;
+
   await Promise.all(
     DEFAULT_PREMIUM_PRODUCTS.map((product) =>
       prisma.premiumProduct.upsert({
@@ -171,6 +197,10 @@ export async function ensureDefaultPremiumProducts() {
 }
 
 export async function listPremiumProducts({ includeInactive = false } = {}) {
+  if (!hasPremiumProductModel()) {
+    return fallbackPremiumProducts({ includeInactive });
+  }
+
   await ensureDefaultPremiumProducts();
   return prisma.premiumProduct.findMany({
     where: includeInactive ? {} : { active: true },
@@ -179,6 +209,14 @@ export async function listPremiumProducts({ includeInactive = false } = {}) {
 }
 
 export async function getProductBySlug(slug, { includeInactive = false } = {}) {
+  if (!hasPremiumProductModel()) {
+    return (
+      fallbackPremiumProducts({ includeInactive: true }).find(
+        (product) => product.slug === slug,
+      ) || null
+    );
+  }
+
   await ensureDefaultPremiumProducts();
   const product = await prisma.premiumProduct.findUnique({ where: { slug } });
   if (!product || (!includeInactive && !product.active)) return null;
@@ -186,7 +224,7 @@ export async function getProductBySlug(slug, { includeInactive = false } = {}) {
 }
 
 export async function getUserEntitlements(userId) {
-  if (!userId) return [];
+  if (!userId || !hasUserEntitlementModel()) return [];
   const entries = await prisma.userEntitlement.findMany({
     where: {
       userId,

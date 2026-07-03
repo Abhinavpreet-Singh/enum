@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useContext, useState, useEffect } from "react";
 import axios from "axios";
 import { proxy } from "@/app/proxy";
@@ -34,7 +34,10 @@ import {
   Crown,
 } from "lucide-react";
 import { useTheme } from "@/providers/theme-provider";
-import useAccountType, { useAccountSession } from "@/hooks/useAccountType";
+import useAccountType, {
+  useAccountSession,
+  type AccountType,
+} from "@/hooks/useAccountType";
 import { AuthContext } from "@/providers/AuthProvider";
 import { useEntitlements } from "@/hooks/useEntitlements";
 
@@ -55,8 +58,18 @@ const ORGANIZATION_NAV = [
   { icon: Users, label: "Candidates", href: "/dashboard/candidates", matchExact: false },
   { icon: BarChart3, label: "Analytics", href: "/dashboard/analytics", matchExact: false },
   { icon: Award, label: "Certificates", href: "/dashboard/certificates", matchExact: false },
-  { icon: Settings, label: "Settings", href: "/dashboard/settings", matchExact: false },
+  { icon: Settings, label: "Settings", href: "/dashboard/settings/", matchExact: false },
 ];
+
+function getSettingsHref(accountType: AccountType): string {
+  if (accountType === "admin") return "/dashboard/admin/settings/";
+  return "/dashboard/settings/";
+}
+
+function isSettingsPath(pathname: string, accountType: AccountType): boolean {
+  const target = getSettingsHref(accountType);
+  return pathname === target || pathname.startsWith(`${target.replace(/\/$/, "")}/`);
+}
 
 const ADMIN_NAV = [
   { icon: BarChart3,     label: "Overview",    href: "/dashboard/admin/overview/",    matchExact: true },
@@ -89,12 +102,18 @@ interface SidebarProps {
 
 export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const authCtx = useContext(AuthContext);
   const accountType = useAccountType();
   const { accountType: resolvedType, verified } = useAccountSession();
   const isAdmin = verified && accountType === "admin";
   const [navItems, setNavItems] = useState(() => getNavForRole(accountType));
   const { access } = useEntitlements();
+<<<<<<< Updated upstream
+=======
+  const settingsHref = getSettingsHref(accountType);
+  const hasSettingsInNav = navItems.some((item) => item.label === "Settings");
+>>>>>>> Stashed changes
 
   // Update nav when role changes
   useEffect(() => {
@@ -234,7 +253,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
         </div>
 
         {/* ── Body: nav + profile + actions ── */}
-        <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
           {/* Navigation */}
           <nav className="flex-1 px-3 py-4 space-y-1">
             {navItems.map((item) => {
@@ -242,11 +261,15 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
               const isActive = isActiveRoute(item);
               return (
                 <Link
-                  key={item.href}
+                  key={`${item.href}-${item.label}`}
                   href={item.href}
                   title={item.label}
-                  onClick={() => {
+                  onClick={(e) => {
                     if (!pinned) setHovered(false);
+                    if (item.label === "Settings" && !isActive) {
+                      e.preventDefault();
+                      router.push(item.href);
+                    }
                   }}
                   className={`group relative flex items-center ${
                     expanded ? "gap-3 pl-4 pr-3" : "justify-center px-0"
@@ -308,6 +331,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
               </Link>
             )}
 
+<<<<<<< Updated upstream
             {/* Settings */}
             <Link
               href={isAdmin ? "/dashboard/admin/settings/" : "/dashboard/settings"}
@@ -334,6 +358,38 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
                 Settings
               </span>
             </Link>
+=======
+            {/* Settings in footer when not already in the main nav (e.g. students) */}
+            {!hasSettingsInNav && (
+              <Link
+                href={settingsHref}
+                title="Settings"
+                onClick={(e) => {
+                  if (!pinned) setHovered(false);
+                  if (!isSettingsPath(pathname, accountType)) {
+                    e.preventDefault();
+                    router.push(settingsHref);
+                  }
+                }}
+                className={`group relative flex items-center ${
+                  expanded ? "gap-3 pl-4 pr-3" : "justify-center px-0"
+                } py-2.5 rounded-lg font-mono text-sm tracking-wide transition-all duration-200 whitespace-nowrap border ${
+                  isSettingsPath(pathname, accountType)
+                    ? "border-gray-200 bg-gray-50 dark:border-white dark:bg-transparent text-black dark:text-white font-medium"
+                    : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-transparent hover:border-gray-200 dark:hover:border-white hover:text-gray-800 dark:hover:text-white"
+                }`}
+              >
+                <Settings className="w-4.5 h-4.5 shrink-0" />
+                <span
+                  className={`transition-opacity duration-300 ${
+                    expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
+                  }`}
+                >
+                  Settings
+                </span>
+              </Link>
+            )}
+>>>>>>> Stashed changes
 
             {/* User profile / admin identity */}
             {isAdmin ? (
@@ -479,8 +535,14 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
             const isActive = isActiveRoute(item);
             return (
               <Link
-                key={item.href}
+                key={`${item.href}-${item.label}`}
                 href={item.href}
+                onClick={(e) => {
+                  if (item.label === "Settings" && !isActive) {
+                    e.preventDefault();
+                    router.push(item.href);
+                  }
+                }}
                 className={`relative flex flex-col items-center gap-1 px-3 py-1 rounded-md transition-colors ${
                   isActive
                     ? "text-black dark:text-white"

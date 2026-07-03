@@ -296,7 +296,12 @@ const getProfile = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
 
-  const accessSummary = await getUserAccessSummary(req.user.id);
+  let accessSummary = { isPro: false, tracks: [], entitlements: [] };
+  try {
+    accessSummary = await getUserAccessSummary(req.user.id);
+  } catch {
+    // Billing tables may be unavailable until Prisma client is regenerated.
+  }
 
   return res.status(200).json({
     message: "Profile fetched",

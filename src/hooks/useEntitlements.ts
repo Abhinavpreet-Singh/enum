@@ -55,6 +55,13 @@ export function useEntitlements(currency: BillingCurrency = "INR") {
       setAccess(data?.access || { isPro: false, tracks: [] });
       setProducts(data?.products || []);
       setRazorpayKeyId(data?.razorpayKeyId || "");
+<<<<<<< Updated upstream
+=======
+    } catch {
+      setAccess({ isPro: false, tracks: [] });
+      setProducts([]);
+      setRazorpayKeyId("");
+>>>>>>> Stashed changes
     } finally {
       setLoading(false);
     }

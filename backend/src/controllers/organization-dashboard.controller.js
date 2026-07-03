@@ -102,9 +102,49 @@ export const getRecentActivity = asyncHandler(async (req, res) => {
 });
 
 export const getOrganizationProfile = asyncHandler(async (req, res) => {
+  const { password, refreshToken, ...safe } = req.organization;
   return res.status(200).json({
     message: "Organization profile fetched.",
-    data: req.organization,
+    data: safe,
+  });
+});
+
+export const updateOrganizationProfile = asyncHandler(async (req, res) => {
+  const allowedFields = [
+    "name",
+    "website",
+    "industry",
+    "size",
+    "location",
+    "description",
+    "contactName",
+    "contactEmail",
+  ];
+  const updateFields = {};
+
+  for (const field of allowedFields) {
+    if (req.body[field] !== undefined) {
+      updateFields[field] = req.body[field];
+    }
+  }
+
+  if (Object.keys(updateFields).length === 0) {
+    return res.status(200).json({
+      message: "No changes to save.",
+      data: req.organization,
+    });
+  }
+
+  const org = await prisma.organization.update({
+    where: { id: req.organization.id },
+    data: updateFields,
+  });
+
+  const { password, refreshToken, ...safe } = org;
+
+  return res.status(200).json({
+    message: "Organization profile updated.",
+    data: safe,
   });
 });
 
