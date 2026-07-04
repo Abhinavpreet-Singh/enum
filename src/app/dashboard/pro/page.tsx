@@ -182,7 +182,7 @@ export default function ProPage() {
   const [currency, setCurrency] = useState<BillingCurrency>("INR");
   const [buyingSlug, setBuyingSlug] = useState("");
   const [message, setMessage] = useState("");
-  const { access, products, loading, refresh } = useEntitlements(currency);
+  const { access, products, loading, refresh, applyAccess } = useEntitlements(currency);
 
   const announcePremiumChange = async () => {
     await refresh();
@@ -231,9 +231,30 @@ export default function ProPage() {
           },
         },
         handler: async (response) => {
-          await api.post("/api/v1/billing/verify", response);
-          setMessage("Payment verified. Premium access is unlocked.");
-          await announcePremiumChange();
+          try {
+            const verifyResponse = await api.post("/api/v1/billing/verify", response);
+            const verifiedAccess = verifyResponse.data?.data?.access;
+            if (verifiedAccess) {
+              applyAccess({
+                isPro: Boolean(verifiedAccess.isPro),
+                tracks: Array.isArray(verifiedAccess.tracks) ? verifiedAccess.tracks : [],
+              });
+            }
+            setMessage("Payment verified. Premium access is unlocked.");
+            await announcePremiumChange();
+          } catch (error) {
+            const backendMessage =
+              typeof error === "object" &&
+              error !== null &&
+              "response" in error &&
+              typeof (error as { response?: { data?: { message?: string } } }).response?.data
+                ?.message === "string"
+                ? (error as { response: { data: { message: string } } }).response.data.message
+                : "";
+            setMessage(backendMessage || "Payment verification failed. Please contact support.");
+          } finally {
+            setBuyingSlug("");
+          }
         },
       });
 

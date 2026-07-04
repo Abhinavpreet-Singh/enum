@@ -303,6 +303,7 @@ export const handleRazorpayWebhook = asyncHandler(async (req, res) => {
   const event = req.body || {};
   const orderId = event?.payload?.payment?.entity?.order_id;
   const eventType = event?.event || "razorpay.webhook";
+  const paymentEntity = event?.payload?.payment?.entity;
 
   const order = orderId
     ? await prisma.paymentOrder.findUnique({
@@ -319,6 +320,34 @@ export const handleRazorpayWebhook = asyncHandler(async (req, res) => {
       payload: event,
     },
   });
+
+  const shouldGrantAccess =
+    order &&
+    order.product &&
+    order.status !== "paid" &&
+    (eventType === "payment.captured" || eventType === "order.paid");
+
+  if (shouldGrantAccess) {
+    await prisma.$transaction(async (tx) => {
+      await tx.paymentOrder.update({
+        where: { id: order.id },
+        data: {
+          status: "paid",
+          razorpayPaymentId: paymentEntity?.id || "",
+          paidAt: new Date(),
+        },
+      });
+
+      await grantProductEntitlement({
+        userId: order.userId,
+        product: order.product,
+        source: "purchase",
+        paymentOrderId: order.id,
+        notes: `Razorpay webhook ${eventType}`,
+        client: tx,
+      });
+    });
+  }
 
   return res.status(200).json({ success: true });
 });

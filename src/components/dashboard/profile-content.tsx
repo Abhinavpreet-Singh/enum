@@ -271,53 +271,58 @@ export default function ProfileContent() {
   }, [premiumAccess.isPro, premiumAccess.tracks]);
 
   useEffect(() => {
-    const token = getMemoryToken();
-    if (!token) return;
-    axios
-      .get(`${proxy}/api/v1/users/profile`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((res) => {
-        const data = res?.data?.data;
-        if (!data) return;
-        if (data.email) setFetchedEmail(data.email);
-        setPremium({
-          isPro: Boolean(data.premium?.isPro),
-          tracks: Array.isArray(data.premium?.tracks) ? data.premium.tracks : [],
-        });
-        setProfile((p) => ({
-          ...p,
-          name:
-            data.displayName ||
-            data.username ||
-            "Guest",
-          bio: data.bio || "",
-          role: data.role || "Student",
-          location: data.location || "",
-          resume: data.resume || "",
-          skills: data.skills || [],
-          links: {
-            github: data.links?.github || "",
-            linkedin: data.links?.linkedin || "",
-            website: data.links?.website || "",
-          },
-          // Use Cloudinary URL if present, fall back to localStorage cache
-          avatar: data.avatar || localStorage.getItem("userAvatar") || null,
-        }));
-        if (data.displayName) {
-          window.dispatchEvent(
-            new CustomEvent("userNameChanged", { detail: data.displayName }),
-          );
-        }
-        if (data.avatar) {
-          localStorage.setItem("userAvatar", data.avatar);
-          window.dispatchEvent(new Event("userAvatarChanged"));
-        }
-        if (data.certs && data.certs.length > 0) {
-          setCerts(data.certs);
-        }
-      })
-      .catch(() => {});
+    const fetchProfile = () => {
+      const token = getMemoryToken();
+      if (!token) return;
+      axios
+        .get(`${proxy}/api/v1/users/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        .then((res) => {
+          const data = res?.data?.data;
+          if (!data) return;
+          if (data.email) setFetchedEmail(data.email);
+          setPremium({
+            isPro: Boolean(data.premium?.isPro),
+            tracks: Array.isArray(data.premium?.tracks) ? data.premium.tracks : [],
+          });
+          setProfile((p) => ({
+            ...p,
+            name:
+              data.displayName ||
+              data.username ||
+              "Guest",
+            bio: data.bio || "",
+            role: data.role || "Student",
+            location: data.location || "",
+            resume: data.resume || "",
+            skills: data.skills || [],
+            links: {
+              github: data.links?.github || "",
+              linkedin: data.links?.linkedin || "",
+              website: data.links?.website || "",
+            },
+            avatar: data.avatar || localStorage.getItem("userAvatar") || null,
+          }));
+          if (data.displayName) {
+            window.dispatchEvent(
+              new CustomEvent("userNameChanged", { detail: data.displayName }),
+            );
+          }
+          if (data.avatar) {
+            localStorage.setItem("userAvatar", data.avatar);
+            window.dispatchEvent(new Event("userAvatarChanged"));
+          }
+          if (data.certs && data.certs.length > 0) {
+            setCerts(data.certs);
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchProfile();
+    window.addEventListener("premiumAccessChanged", fetchProfile);
+    return () => window.removeEventListener("premiumAccessChanged", fetchProfile);
   }, []);
 
   const [profile, setProfile] = useState<ProfileData>(() => ({

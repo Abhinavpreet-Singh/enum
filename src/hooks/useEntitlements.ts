@@ -55,17 +55,27 @@ export function useEntitlements(currency: BillingCurrency = "INR") {
       setAccess(data?.access || { isPro: false, tracks: [] });
       setProducts(data?.products || []);
       setRazorpayKeyId(data?.razorpayKeyId || "");
-<<<<<<< Updated upstream
-=======
     } catch {
       setAccess({ isPro: false, tracks: [] });
       setProducts([]);
       setRazorpayKeyId("");
->>>>>>> Stashed changes
     } finally {
       setLoading(false);
     }
   }, [currency]);
+
+  const applyAccess = useCallback((nextAccess: PremiumAccess) => {
+    setAccess(nextAccess);
+    setProducts((prev) =>
+      prev.map((product) => ({
+        ...product,
+        unlocked:
+          product.kind === "full_pro"
+            ? nextAccess.isPro
+            : nextAccess.isPro || nextAccess.tracks.includes(product.trackKey),
+      })),
+    );
+  }, []);
 
   useEffect(() => {
     void refresh();
@@ -100,6 +110,7 @@ export function useEntitlements(currency: BillingCurrency = "INR") {
     razorpayKeyId,
     loading,
     refresh,
+    applyAccess,
     hasTrack,
     productForTrack,
   };
