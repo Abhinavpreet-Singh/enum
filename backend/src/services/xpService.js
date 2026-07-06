@@ -108,12 +108,22 @@ export function isSystemDesignFullSuccess(score, maxScore) {
   return maxScore > 0 && score >= maxScore;
 }
 
+function resolveIncidentActions(session, actionsTaken = []) {
+  if (actionsTaken.length) return actionsTaken;
+  if (Array.isArray(session.actions) && session.actions.length) {
+    return session.actions.map((action) => ({
+      actionId: action.actionKey,
+      timestamp: action.timestamp,
+      effective: action.effective,
+    }));
+  }
+  return (session.actionsTaken || []).map((a) =>
+    typeof a === "string" ? JSON.parse(a) : a,
+  );
+}
+
 export function isIncidentFullSuccess(session, actionsTaken = []) {
-  const actions = actionsTaken.length
-    ? actionsTaken
-    : (session.actionsTaken || []).map((a) =>
-        typeof a === "string" ? JSON.parse(a) : a,
-      );
+  const actions = resolveIncidentActions(session, actionsTaken);
   return Boolean(session.correctDiagnosis) && actions.length > 0;
 }
 

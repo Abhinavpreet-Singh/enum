@@ -22,6 +22,14 @@ import {
   hasTrackAccessFromSummary,
   TRACK_KEYS,
 } from "../services/entitlement.service.js";
+import {
+  buildFeedbackItemsCreate,
+  buildSystemDesignRulesCreate,
+  serializeSystemDesignSimulation,
+  serializeSystemDesignSubmission,
+  systemDesignSimulationInclude,
+  systemDesignSubmissionInclude,
+} from "../utils/prismaNormalizers.js";
 
 const enrichSystemDesignAccess = async (simulations, userId) => {
   const [productsByTrack, accessSummary] = await Promise.all([
@@ -82,13 +90,18 @@ export const submitSystemDesign = asyncHandler(async (req, res) => {
   // Fetch the simulation to get evaluation rules + difficulty for XP calc
   const simulation = await prisma.systemDesignSimulation.findUnique({
     where: { id: simulationId },
+    include: systemDesignSimulationInclude,
   });
 
+  const evaluationRules = simulation
+    ? serializeSystemDesignSimulation(simulation).evaluationRules
+    : [];
+
   let evaluation;
-  if (simulation && simulation.evaluationRules?.length > 0) {
+  if (simulation && evaluationRules.length > 0) {
     evaluation = evaluateSystemDesign(
       { nodes, edges },
-      simulation.evaluationRules,
+      evaluationRules,
       simulation.maxScore,
     );
   } else {
@@ -125,8 +138,9 @@ export const submitSystemDesign = asyncHandler(async (req, res) => {
           replayEvents: replayEvents || null,
           score: evaluation.score,
           maxScore: evaluation.maxScore,
-          feedback: evaluation.feedback,
+          ...buildFeedbackItemsCreate(evaluation.feedback),
         },
+        include: systemDesignSubmissionInclude,
       });
 
       const xpResult = await tryAwardXp(tx, {
@@ -211,11 +225,12 @@ export const getSubmissions = asyncHandler(async (req, res) => {
     where: { simulationId, userId },
     orderBy: { createdAt: "desc" },
     take: 20,
+    include: systemDesignSubmissionInclude,
   });
 
   return res.status(200).json({
     success: true,
-    data: submissions,
+    data: submissions.map(serializeSystemDesignSubmission),
   });
 });
 
@@ -256,13 +271,14 @@ export const getSubmissionById = asyncHandler(async (req, res) => {
 
   const submission = await prisma.systemDesignSubmission.findUnique({
     where: { id },
+    include: systemDesignSubmissionInclude,
   });
 
   if (!submission) throw new ApiError(404, "Submission not found");
 
   return res.status(200).json({
     success: true,
-    data: submission,
+    data: serializeSystemDesignSubmission(submission),
   });
 });
 
@@ -271,6 +287,7 @@ export const getSubmissionById = asyncHandler(async (req, res) => {
 export const getSystemDesignSimulations = asyncHandler(async (req, res) => {
   const simulations = await prisma.systemDesignSimulation.findMany({
     orderBy: { createdAt: "desc" },
+    include: systemDesignSimulationInclude,
   });
 
   const userId = req.user?.id;
@@ -340,7 +357,7 @@ export const getSystemDesignSimulations = asyncHandler(async (req, res) => {
 
   // Enrich simulations with user progress
   const enrichedSimulations = await enrichSystemDesignAccess(simulations.map((sim) => ({
-    ...sim,
+    ...serializeSystemDesignSimulation(sim),
     status:
       userId && userProgress[sim.id]
         ? userProgress[sim.id]
@@ -368,6 +385,7 @@ export const getSystemDesignSimulationById = asyncHandler(async (req, res) => {
 
   const simulation = await prisma.systemDesignSimulation.findUnique({
     where: { id },
+    include: systemDesignSimulationInclude,
   });
 
   if (!simulation)
@@ -380,7 +398,7 @@ export const getSystemDesignSimulationById = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     success: true,
-    data: simulation,
+    data: serializeSystemDesignSimulation(simulation),
   });
 });
 
@@ -406,16 +424,17 @@ export const createSystemDesignSimulation = asyncHandler(async (req, res) => {
       title,
       description,
       difficulty: difficulty || "medium",
-      evaluationRules: evaluationRules || [],
       maxScore: maxScore || 10,
       tags: tags || [],
       templateUrl: templateUrl || "",
+      ...buildSystemDesignRulesCreate(evaluationRules || []),
     },
+    include: systemDesignSimulationInclude,
   });
 
   return res.status(201).json({
     success: true,
     message: "System design simulation created",
-    data: simulation,
+    data: serializeSystemDesignSimulation(simulation),
   });
 });

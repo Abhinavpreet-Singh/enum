@@ -1,6 +1,13 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import prisma from "../db/index.js";
+import {
+  bankQuestionInclude,
+  buildBankQuestionNestedCreate,
+  replaceBankQuestionOptions,
+  replaceBankQuestionTestCases,
+  serializeBankQuestion,
+} from "../utils/prismaNormalizers.js";
 
 export const createBankQuestion = asyncHandler(async (req, res) => {
   const { bankId } = req.params;
@@ -22,10 +29,8 @@ export const createBankQuestion = asyncHandler(async (req, res) => {
       title: title.trim(),
       description: description || "",
       difficulty: difficulty || "medium",
-      options: options || null,
       correctAnswer: correctAnswer || null,
       codeTemplate: codeTemplate || null,
-      testCases: testCases || [],
       points: points || 10,
       tags: tags || [],
       technology: technology || "",
@@ -33,10 +38,12 @@ export const createBankQuestion = asyncHandler(async (req, res) => {
       functionName: functionName || null,
       parameterTypes: parameterTypes || [],
       returnType: returnType || null,
+      ...buildBankQuestionNestedCreate({ options, testCases }),
     },
+    include: bankQuestionInclude,
   });
 
-  return res.status(201).json({ message: "Question created.", data: question });
+  return res.status(201).json({ message: "Question created.", data: serializeBankQuestion(question) });
 });
 
 export const getBankQuestions = asyncHandler(async (req, res) => {
@@ -55,9 +62,13 @@ export const getBankQuestions = asyncHandler(async (req, res) => {
   const questions = await prisma.bankQuestion.findMany({
     where,
     orderBy: { createdAt: "desc" },
+    include: bankQuestionInclude,
   });
 
-  return res.status(200).json({ message: "Questions fetched.", data: questions });
+  return res.status(200).json({
+    message: "Questions fetched.",
+    data: questions.map(serializeBankQuestion),
+  });
 });
 
 export const updateBankQuestion = asyncHandler(async (req, res) => {
@@ -78,10 +89,8 @@ export const updateBankQuestion = asyncHandler(async (req, res) => {
   if (title !== undefined) updateData.title = title.trim();
   if (description !== undefined) updateData.description = description;
   if (difficulty !== undefined) updateData.difficulty = difficulty;
-  if (options !== undefined) updateData.options = options;
   if (correctAnswer !== undefined) updateData.correctAnswer = correctAnswer;
   if (codeTemplate !== undefined) updateData.codeTemplate = codeTemplate;
-  if (testCases !== undefined) updateData.testCases = testCases;
   if (points !== undefined) updateData.points = points;
   if (tags !== undefined) updateData.tags = tags;
   if (technology !== undefined) updateData.technology = technology;
@@ -90,12 +99,22 @@ export const updateBankQuestion = asyncHandler(async (req, res) => {
   if (parameterTypes !== undefined) updateData.parameterTypes = parameterTypes;
   if (returnType !== undefined) updateData.returnType = returnType;
 
-  const question = await prisma.bankQuestion.update({
-    where: { id: questionId },
-    data: updateData,
+  const question = await prisma.$transaction(async (tx) => {
+    if (options !== undefined) {
+      await replaceBankQuestionOptions(tx, questionId, options);
+    }
+    if (testCases !== undefined) {
+      await replaceBankQuestionTestCases(tx, questionId, testCases);
+    }
+
+    return tx.bankQuestion.update({
+      where: { id: questionId },
+      data: updateData,
+      include: bankQuestionInclude,
+    });
   });
 
-  return res.status(200).json({ message: "Question updated.", data: question });
+  return res.status(200).json({ message: "Question updated.", data: serializeBankQuestion(question) });
 });
 
 export const deleteBankQuestion = asyncHandler(async (req, res) => {

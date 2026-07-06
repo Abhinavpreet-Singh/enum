@@ -3,69 +3,74 @@ generator client {
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "postgres"
   url      = env("DATABASE_URL")
 }
 
 // ─── User ────────────────────────────────────────────────────────────────────
 
-type UserLinks {
-  github  String @default("")
-  linkedin String @default("")
-  website String @default("")
-}
-
-type UserCert {
-  name   String
-  issuer String
-  date   String
-  done   Boolean @default(false)
-}
-
 model User {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  id           String   @id @default(cuid())
   username     String   @unique
   email        String   @unique
   password     String?
-  refreshToken String?   // legacy — no longer written; kept until fully removed
+  refreshToken String?  // legacy — no longer written; kept until fully removed
   displayName  String?
   bio          String   @default("")
   role         String   @default("Student")
   location     String   @default("")
   resume       String   @default("")
   skills       String[] @default([])
-  links        UserLinks?
-  certs        UserCert[]
-  avatar           String    @default("")
-  provider         String?
-  xp               Int       @default(0)
-  browserXpClaims       String[]  @default([])
-  systemDesignXpClaims  String[]  @default([])
-  incidentXpClaims      String[]  @default([])
-  questionXpClaims      String[]  @default([])
-  simulationXpClaims    String[]  @default([])
-  currentStreak    Int       @default(0)
-  lastActivityDate DateTime?
-  solutions              Solution[]
-  submissions            Submission[]
-  simulationProgress     UserSimulationProgress[]
+  github       String   @default("")
+  linkedin     String   @default("")
+  website      String   @default("")
+  avatar       String   @default("")
+  provider     String?
+  xp           Int      @default(0)
+  browserXpClaims      String[] @default([])
+  systemDesignXpClaims String[] @default([])
+  incidentXpClaims     String[] @default([])
+  questionXpClaims     String[] @default([])
+  simulationXpClaims   String[] @default([])
+  currentStreak        Int      @default(0)
+  lastActivityDate     DateTime?
+
+  certs                   UserCert[]
+  solutions               Solution[]
+  submissions             Submission[]
+  simulationProgress      UserSimulationProgress[]
   systemDesignSubmissions SystemDesignSubmission[]
-  incidentSessions       IncidentSession[]
-  activityLogs           UserActivityLog[]
-  xpAwards               UserXpAward[]
-  candidateAttempts      CandidateAttempt[]
-  sessions               Session[]
-  entitlements           UserEntitlement[]
-  paymentOrders          PaymentOrder[]
-  paymentEvents          PaymentEvent[]
+  incidentSessions        IncidentSession[]
+  activityLogs            UserActivityLog[]
+  xpAwards                UserXpAward[]
+  candidateAttempts       CandidateAttempt[]
+  sessions                Session[]
+  entitlements            UserEntitlement[]
+  paymentOrders           PaymentOrder[]
+  paymentEvents           PaymentEvent[]
 
   @@map("users")
 }
 
+model UserCert {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  issuer    String
+  date      String
+  done      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_certs")
+}
+
 /// One row per resource — prevents duplicate XP even if claim arrays fail to persist
 model UserXpAward {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId
+  id        String   @id @default(cuid())
+  userId    String
   awardKey  String
   xpAmount  Int
   createdAt DateTime @default(now())
@@ -79,10 +84,10 @@ model UserXpAward {
 // ─── User activity log (all submission types) ────────────────────────────────
 
 model UserActivityLog {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId        String   @db.ObjectId
+  id            String   @id @default(cuid())
+  userId        String
   activityType  String   /// dsa | simulation | system_design | incident | browser
-  resourceId    String   @db.ObjectId
+  resourceId    String
   resourceTitle String   @default("")
   outcome       String   /// correct | partial | incorrect
   xpEarned      Int      @default(0)
@@ -100,7 +105,7 @@ model UserActivityLog {
 // ─── OTP Verification ────────────────────────────────────────────────────────
 
 model OtpVerification {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   email     String
   otp       String
   expiresAt DateTime
@@ -109,8 +114,8 @@ model OtpVerification {
 }
 
 model PasswordResetToken {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  accountId   String    @db.ObjectId
+  id          String    @id @default(cuid())
+  accountId   String
   accountType String
   email       String
   tokenHash   String    @unique
@@ -128,14 +133,14 @@ model PasswordResetToken {
 // ─── Organization ────────────────────────────────────────────────────────────
 
 model Organization {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  id             String   @id @default(cuid())
   name           String
   email          String   @unique
   password       String
   refreshToken   String?  // legacy — no longer written; kept until fully removed
   website        String   @default("")
   industry       String   @default("")
-  size           String   @default("")   // "1-10" | "11-50" | "51-200" | "200+"
+  size           String   @default("") // "1-10" | "11-50" | "51-200" | "200+"
   location       String   @default("")
   description    String   @default("")
   logo           String   @default("")
@@ -145,9 +150,9 @@ model Organization {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  assessments    Assessment[]
-  questionBanks  QuestionBank[]
-  sessions       Session[]
+  assessments   Assessment[]
+  questionBanks QuestionBank[]
+  sessions      Session[]
 
   @@map("organizations")
 }
@@ -155,21 +160,21 @@ model Organization {
 // ─── Auth Sessions (production session store) ─────────────────────────────────
 
 model Session {
-  id               String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId           String?   @db.ObjectId
-  organizationId   String?   @db.ObjectId
-  accountType      String    // "student" | "admin" | "organization"
-  refreshTokenHash String    @unique
-  accessTokenHash  String?
+  id                   String    @id @default(cuid())
+  userId               String?
+  organizationId       String?
+  accountType          String // "student" | "admin" | "organization"
+  refreshTokenHash     String    @unique
+  accessTokenHash      String?
   accessTokenExpiresAt DateTime?
-  userAgent        String    @default("")
-  ipAddress        String    @default("")
-  expiresAt        DateTime
-  revoked          Boolean   @default(false)
-  revokedAt        DateTime?
-  lastUsed         DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  userAgent            String    @default("")
+  ipAddress            String    @default("")
+  expiresAt            DateTime
+  revoked              Boolean   @default(false)
+  revokedAt            DateTime?
+  lastUsed             DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -182,7 +187,7 @@ model Session {
 }
 
 model OrganizationOtpVerification {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   email     String
   otp       String
   expiresAt DateTime
@@ -193,106 +198,97 @@ model OrganizationOtpVerification {
 // ─── Assessment Platform ─────────────────────────────────────────────────────
 
 model Assessment {
-  id               String    @id @default(auto()) @map("_id") @db.ObjectId
-  organizationId   String    @db.ObjectId
-  title            String
-  description      String    @default("")
-  duration         Int       @default(60) // minutes
-  startDate        DateTime?
-  endDate          DateTime?
-  maxAttempts      Int       @default(1)
-  passingScore     Int       @default(60) // percentage
-  status           String    @default("draft") // "draft" | "published" | "archived"
-  accessType       String    @default("public") // "public" | "invite_only" | "password"
-  accessPassword   String?
-  testCode         String    @unique
-  totalQuestions   Int       @default(0)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  organizationId String
+  title          String
+  description    String    @default("")
+  duration       Int       @default(60) // minutes
+  startDate      DateTime?
+  endDate        DateTime?
+  maxAttempts    Int       @default(1)
+  passingScore   Int       @default(60) // percentage
+  status         String    @default("draft") // "draft" | "published" | "archived"
+  accessType     String    @default("public") // "public" | "invite_only" | "password"
+  accessPassword String?
+  testCode       String    @unique
+  totalQuestions Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  organization     Organization @relation(fields: [organizationId], references: [id])
-  settings         AssessmentSetting?
-  questions        AssessmentQuestion[]
-  invites          AssessmentInvite[]
-  attempts         CandidateAttempt[]
+  organization Organization         @relation(fields: [organizationId], references: [id])
+  settings     AssessmentSetting?
+  questions    AssessmentQuestion[]
+  invites      AssessmentInvite[]
+  attempts     CandidateAttempt[]
 
   @@index([organizationId])
   @@map("assessments")
 }
 
 model AssessmentSetting {
-  id                    String  @id @default(auto()) @map("_id") @db.ObjectId
-  assessmentId          String  @unique @db.ObjectId
-  // Device restrictions
-  lockScreen            Boolean @default(false)
-  disableAltTab         Boolean @default(false)
-  disableWinKey         Boolean @default(false)
-  disableTaskSwitch     Boolean @default(false)
-  disableMultiMonitor   Boolean @default(false)
-  forceFullscreen       Boolean @default(false)
-  requireDesktopApp     Boolean @default(false)
-  // Screen monitoring
-  requireScreenShare    Boolean @default(false)
-  recordScreen          Boolean @default(false)
-  periodicScreenshots   Boolean @default(false)
-  liveMonitoring        Boolean @default(false)
-  // Webcam
-  requireWebcam         Boolean @default(false)
-  recordWebcam          Boolean @default(false)
-  faceDetection         Boolean @default(false)
-  multipleFaceDetection Boolean @default(false)
-  phoneDetection        Boolean @default(false)
-  eyeTracking           Boolean @default(false)
-  // Audio
-  requireMicrophone     Boolean @default(false)
-  recordAudio           Boolean @default(false)
-  voiceDetection        Boolean @default(false)
-  // Anti-cheating
-  copyPasteDetection    Boolean @default(true)
-  typingPatternAnalysis Boolean @default(false)
-  aiDetection           Boolean @default(false)
-  devToolsDetection     Boolean @default(true)
-  vmDetection           Boolean @default(false)
-  remoteDesktopDetection Boolean @default(false)
-  // Network
-  allowInternet         Boolean @default(false)
-  allowExternalSites    Boolean @default(false)
-  whitelistDomains      String[] @default([])
+  id                     String   @id @default(cuid())
+  assessmentId           String   @unique
+  lockScreen             Boolean  @default(false)
+  disableAltTab          Boolean  @default(false)
+  disableWinKey            Boolean  @default(false)
+  disableTaskSwitch      Boolean  @default(false)
+  disableMultiMonitor    Boolean  @default(false)
+  forceFullscreen        Boolean  @default(false)
+  requireDesktopApp      Boolean  @default(false)
+  requireScreenShare     Boolean  @default(false)
+  recordScreen           Boolean  @default(false)
+  periodicScreenshots    Boolean  @default(false)
+  liveMonitoring         Boolean  @default(false)
+  requireWebcam          Boolean  @default(false)
+  recordWebcam           Boolean  @default(false)
+  faceDetection          Boolean  @default(false)
+  multipleFaceDetection  Boolean  @default(false)
+  phoneDetection         Boolean  @default(false)
+  eyeTracking            Boolean  @default(false)
+  requireMicrophone      Boolean  @default(false)
+  recordAudio            Boolean  @default(false)
+  voiceDetection         Boolean  @default(false)
+  copyPasteDetection     Boolean  @default(true)
+  typingPatternAnalysis  Boolean  @default(false)
+  aiDetection            Boolean  @default(false)
+  devToolsDetection      Boolean  @default(true)
+  vmDetection            Boolean  @default(false)
+  remoteDesktopDetection Boolean  @default(false)
+  allowInternet          Boolean  @default(false)
+  allowExternalSites     Boolean  @default(false)
+  whitelistDomains       String[] @default([])
 
-  assessment            Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
   @@map("assessmentsettings")
 }
 
 model QuestionBank {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  organizationId String   @db.ObjectId
+  id             String   @id @default(cuid())
+  organizationId String
   name           String
-  category       String   // "mcq" | "coding" | "sql" | "linux" | "frontend" | "backend" | "devops" | "system_design" | "incident"
+  category       String // "mcq" | "coding" | "sql" | "linux" | ...
   description    String   @default("")
   tags           String[] @default([])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  questions      BankQuestion[]
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  questions    BankQuestion[]
 
   @@index([organizationId])
   @@map("questionbanks")
 }
 
 model BankQuestion {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  bankId         String   @db.ObjectId
-  type           String   // "mcq" | "msq" | "numerical" | "coding" | "sql" | "linux"
+  id             String   @id @default(cuid())
+  bankId         String
+  type           String
   title          String
   description    String   @default("")
-  difficulty     String   @default("medium") // "easy" | "medium" | "hard"
-  options        Json?    // for MCQ/MSQ: [{ text, isCorrect }]
-  correctAnswer  Json?    // answer data
-  codeTemplate   String?  // for coding questions
-  testCases      Json[]   @default([])
-  // Judge metadata for coding questions
+  difficulty     String   @default("medium")
+  correctAnswer  Json?
+  codeTemplate   String?
   functionName   String?
   parameterTypes String[] @default([])
   returnType     String?
@@ -303,59 +299,90 @@ model BankQuestion {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  bank           QuestionBank @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  bank                QuestionBank           @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  options             BankQuestionOption[]
+  testCases           BankQuestionTestCase[]
+  assessmentQuestions AssessmentQuestion[]
 
   @@index([bankId])
   @@map("bankquestions")
 }
 
+model BankQuestionOption {
+  id         String  @id @default(cuid())
+  questionId String
+  sortOrder  Int     @default(0)
+  text       String
+  isCorrect  Boolean @default(false)
+
+  question BankQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("bank_question_options")
+}
+
+model BankQuestionTestCase {
+  id             String @id @default(cuid())
+  questionId     String
+  sortOrder      Int    @default(0)
+  input          Json?
+  expectedOutput String @default("")
+
+  question BankQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("bank_question_test_cases")
+}
+
 model AssessmentQuestion {
-  id             String  @id @default(auto()) @map("_id") @db.ObjectId
-  assessmentId   String  @db.ObjectId
-  questionType   String  // "bank" | "simulation" | "system_design" | "incident"
-  bankQuestionId String? @db.ObjectId
-  simulationId   String? @db.ObjectId
+  id             String  @id @default(cuid())
+  assessmentId   String
+  questionType   String // "bank" | "simulation" | "system_design" | "incident"
+  bankQuestionId String?
+  simulationId   String?
   order          Int     @default(0)
   points         Int     @default(10)
   required       Boolean @default(true)
 
-  assessment     Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  assessment   Assessment    @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  bankQuestion BankQuestion? @relation(fields: [bankQuestionId], references: [id])
+  simulation   Simulation?   @relation(fields: [simulationId], references: [id])
 
   @@index([assessmentId])
   @@map("assessmentquestions")
 }
 
 model AssessmentInvite {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  assessmentId String   @db.ObjectId
+  id           String   @id @default(cuid())
+  assessmentId String
   email        String
   rollNumber   String?
-  status       String   @default("pending") // "pending" | "accepted" | "completed"
+  status       String   @default("pending")
   sentAt       DateTime @default(now())
 
-  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
   @@index([assessmentId])
   @@map("assessmentinvites")
 }
 
 model CandidateAttempt {
-  id              String    @id @default(auto()) @map("_id") @db.ObjectId
-  assessmentId    String    @db.ObjectId
-  userId          String?   @db.ObjectId
-  email           String
-  rollNumber      String?
-  status          String    @default("in_progress") // "in_progress" | "submitted" | "auto_submitted" | "flagged"
-  startedAt       DateTime  @default(now())
-  submittedAt     DateTime?
-  totalScore      Int       @default(0)
-  maxScore        Int       @default(0)
-  answers         Json[]    @default([])
-  codeSubmissions Json[]    @default([])
-  suspicionLevel  String    @default("low") // "low" | "medium" | "high"
+  id             String    @id @default(cuid())
+  assessmentId   String
+  userId         String?
+  email          String
+  rollNumber     String?
+  status         String    @default("in_progress")
+  startedAt      DateTime  @default(now())
+  submittedAt    DateTime?
+  totalScore     Int       @default(0)
+  maxScore       Int       @default(0)
+  suspicionLevel String    @default("low")
 
-  assessment      Assessment @relation(fields: [assessmentId], references: [id])
-  user            User?      @relation(fields: [userId], references: [id])
+  assessment      Assessment                       @relation(fields: [assessmentId], references: [id])
+  user            User?                            @relation(fields: [userId], references: [id])
+  answers         CandidateAttemptAnswer[]
+  codeSubmissions CandidateAttemptCodeSubmission[]
   violations      Violation[]
 
   @@index([assessmentId])
@@ -363,16 +390,40 @@ model CandidateAttempt {
   @@map("candidateattempts")
 }
 
+model CandidateAttemptAnswer {
+  id        String @id @default(cuid())
+  attemptId String
+  sortOrder Int    @default(0)
+  payload   Json
+
+  attempt CandidateAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId])
+  @@map("candidate_attempt_answers")
+}
+
+model CandidateAttemptCodeSubmission {
+  id        String @id @default(cuid())
+  attemptId String
+  sortOrder Int    @default(0)
+  payload   Json
+
+  attempt CandidateAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId])
+  @@map("candidate_attempt_code_submissions")
+}
+
 model Violation {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  attemptId   String   @db.ObjectId
-  type        String   // "tab_switch" | "fullscreen_exit" | "copy_paste" | "multi_face" | "devtools" | "disconnect"
+  id          String   @id @default(cuid())
+  attemptId   String
+  type        String
   description String   @default("")
   timestamp   DateTime @default(now())
-  severity    String   @default("low") // "low" | "medium" | "high"
+  severity    String   @default("low")
   metadata    Json?
 
-  attempt     CandidateAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  attempt CandidateAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
 
   @@index([attemptId])
   @@map("violations")
@@ -381,35 +432,59 @@ model Violation {
 // ─── Question ────────────────────────────────────────────────────────────────
 
 model Question {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  id             String  @id @default(cuid())
   title          String?
   desc           String?
-  level          String   @default("Easy") // "Easy" | "Medium" | "Hard"
-  testcases      Json[]
+  level          String  @default("Easy")
   constraints    String?
   topic          String?
   functionName   String
   parameterNames String[] @default([])
   parameterTypes String[]
   returnType     String
-  initialCode    Json[]   @default([])
 
-  solutions      Solution[]
-  submissions    Submission[]
-  editorials     Editorial[]
+  testCases   QuestionTestCase[]
+  initialCodes QuestionInitialCode[]
+  solutions   Solution[]
+  submissions Submission[]
+  editorials  Editorial[]
 
   @@map("questions")
+}
+
+model QuestionTestCase {
+  id             String @id @default(cuid())
+  questionId     String
+  sortOrder      Int    @default(0)
+  input          Json
+  expectedOutput String
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("question_test_cases")
+}
+
+model QuestionInitialCode {
+  id         String @id @default(cuid())
+  questionId String
+  language   String
+  code       String @default("")
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, language])
+  @@map("question_initial_codes")
 }
 
 // ─── Linux Question ────────────────────────────────────────────────────────
 
 model LinuxQuestion {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  id             String   @id @default(cuid())
   slug           String   @unique
   title          String
   description    String
   difficulty     String   @default("easy")
-  examples       Json[]   @default([])
   starterCode    String   @default("#!/usr/bin/env bash\n# Write your command here")
   expectedOutput String   @default("")
   constraints    String[] @default([])
@@ -418,15 +493,30 @@ model LinuxQuestion {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  examples LinuxQuestionExample[]
+
   @@map("linuxquestions")
+}
+
+model LinuxQuestionExample {
+  id         String @id @default(cuid())
+  questionId String
+  sortOrder  Int    @default(0)
+  input      String @default("")
+  output     String @default("")
+
+  question LinuxQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("linux_question_examples")
 }
 
 // ─── Solution ────────────────────────────────────────────────────────────────
 
 model Solution {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  questionId String   @db.ObjectId
-  userId     String   @db.ObjectId
+  id         String   @id @default(cuid())
+  questionId String
+  userId     String
   code       String
   language   String   @default("javascript")
   upvotes    Int      @default(0)
@@ -442,12 +532,12 @@ model Solution {
 // ─── Submission ──────────────────────────────────────────────────────────────
 
 model Submission {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  questionId  String   @db.ObjectId
-  userId      String   @db.ObjectId
+  id          String   @id @default(cuid())
+  questionId  String
+  userId      String
   code        String
   language    String   @default("python")
-  verdict     String   @default("wrong_answer") // accepted | wrong_answer | runtime_error | compile_error | error | partial
+  verdict     String   @default("wrong_answer")
   passedCount Int      @default(0)
   totalCount  Int      @default(0)
   runtime     Float?
@@ -463,8 +553,8 @@ model Submission {
 // ─── Editorial ───────────────────────────────────────────────────────────────
 
 model Editorial {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  questionId      String   @unique @db.ObjectId
+  id              String   @id @default(cuid())
+  questionId      String   @unique
   title           String
   intuition       String?
   approach        String?
@@ -482,49 +572,63 @@ model Editorial {
 
 // ─── Simulation ──────────────────────────────────────────────────────────────
 
-type SimulationFile {
-  name              String @default("")
-  path              String @default("")
-  content           String @default("")
-  language          String @default("javascript")
-  cloudinaryUrl     String @default("")
-  cloudinaryPublicId String @default("")
-}
-
-type SimulationStep {
-  description String @default("")
-}
-
 model Simulation {
-  id             String           @id @default(auto()) @map("_id") @db.ObjectId
+  id             String   @id @default(cuid())
   title          String
-  category       String           // "frontend" | "backend" | "fullstack" | "devops"
-  difficulty     String           @default("easy") // "easy" | "medium" | "hard"
+  category       String
+  difficulty     String   @default("easy")
   description    String
   incident       String
-  steps          SimulationStep[]
-  initialFiles   SimulationFile[]
-  solution       Json             @default("{}")
-  hints          String[]         @default([])
-  estimatedTime  Int              @default(15)
-  tags           String[]         @default([])
-  xpReward       Int              @default(50)
-  entryFile      String           @default("index.js")
-  expectedOutput String           @default("")
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  solution       Json     @default("{}")
+  hints          String[] @default([])
+  estimatedTime  Int      @default(15)
+  tags           String[] @default([])
+  xpReward       Int      @default(50)
+  entryFile      String   @default("index.js")
+  expectedOutput String   @default("")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  progress UserSimulationProgress[]
+  steps                SimulationStep[]
+  initialFiles         SimulationFile[]
+  progress             UserSimulationProgress[]
+  assessmentQuestions  AssessmentQuestion[]
 
   @@map("simulations")
 }
 
-// ─── UserSimulationProgress ──────────────────────────────────────────────────
+model SimulationStep {
+  id           String @id @default(cuid())
+  simulationId String
+  sortOrder    Int    @default(0)
+  description  String @default("")
+
+  simulation Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+
+  @@index([simulationId])
+  @@map("simulation_steps")
+}
+
+model SimulationFile {
+  id                 String @id @default(cuid())
+  simulationId       String
+  name               String @default("")
+  path               String @default("")
+  content            String @default("")
+  language           String @default("javascript")
+  cloudinaryUrl      String @default("")
+  cloudinaryPublicId String @default("")
+
+  simulation Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+
+  @@index([simulationId])
+  @@map("simulation_files")
+}
 
 model UserSimulationProgress {
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId        String    @db.ObjectId
-  simulationId  String    @db.ObjectId
+  id            String    @id @default(cuid())
+  userId        String
+  simulationId  String
   solved        Boolean   @default(false)
   attempts      Int       @default(0)
   lastAttemptAt DateTime?
@@ -541,213 +645,279 @@ model UserSimulationProgress {
 
 // ─── System Design ───────────────────────────────────────────────────────────
 
-type EvaluationRule {
-  description String
-  /// Component type that must exist (e.g. "load_balancer")
-  requiredComponent String  @default("")
-  /// "source→target" component id pair (e.g. "client→load_balancer")
-  requiredEdge      String  @default("")
-  points            Int     @default(1)
-}
-
 model SystemDesignSimulation {
-  id              String           @id @default(auto()) @map("_id") @db.ObjectId
-  title           String
-  description     String
-  difficulty      String           @default("medium")
-  evaluationRules EvaluationRule[]
-  maxScore        Int              @default(10)
-  tags            String[]         @default([])
-  templateUrl     String           @default("")
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  difficulty  String   @default("medium")
+  maxScore    Int      @default(10)
+  tags        String[] @default([])
+  templateUrl String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  submissions SystemDesignSubmission[]
+  evaluationRules SystemDesignEvaluationRule[]
+  submissions     SystemDesignSubmission[]
 
   @@map("systemdesignsimulations")
 }
 
-type SDFeedbackItem {
-  rule    String
-  passed  Boolean
-  message String
+model SystemDesignEvaluationRule {
+  id                String @id @default(cuid())
+  simulationId      String
+  sortOrder         Int    @default(0)
+  description       String
+  requiredComponent String @default("")
+  requiredEdge      String @default("")
+  points            Int    @default(1)
+
+  simulation SystemDesignSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+
+  @@index([simulationId])
+  @@map("system_design_evaluation_rules")
 }
 
 model SystemDesignSubmission {
-  id            String         @id @default(auto()) @map("_id") @db.ObjectId
-  simulationId  String         @db.ObjectId
-  userId        String         @db.ObjectId
-  nodes         Json
-  edges         Json
-  explanation   String         @default("")
-  replayEvents  Json?
-  score         Int            @default(0)
-  maxScore      Int            @default(0)
-  feedback      SDFeedbackItem[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id           String   @id @default(cuid())
+  simulationId String
+  userId       String
+  nodes        Json
+  edges        Json
+  explanation  String   @default("")
+  replayEvents Json?
+  score        Int      @default(0)
+  maxScore     Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  simulation SystemDesignSimulation @relation(fields: [simulationId], references: [id])
-  user       User                   @relation(fields: [userId], references: [id])
+  simulation    SystemDesignSimulation     @relation(fields: [simulationId], references: [id])
+  user          User                       @relation(fields: [userId], references: [id])
+  feedbackItems SystemDesignFeedbackItem[]
 
   @@map("systemdesignsubmissions")
 }
 
-// ─── Historical Incident Simulations ─────────────────────────────────────────
+model SystemDesignFeedbackItem {
+  id           String  @id @default(cuid())
+  submissionId String
+  sortOrder    Int     @default(0)
+  rule         String
+  passed       Boolean
+  message      String
 
-/// Represents a service in the incident topology
-type IncidentService {
-  id        String  @default("") /// Unique service ID (e.g., "frontend", "api")
-  name      String  @default("") /// Display name
-  status    String  @default("healthy") /// "healthy" | "degraded" | "critical" | "down"
-  color     String  @default("green") /// Visual indicator color
+  submission SystemDesignSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+  @@map("system_design_feedback_items")
 }
 
-/// Represents a root cause option for diagnosis
-type IncidentRootCauseOption {
-  id          String  @default("") /// Unique ID for this option
-  title       String  @default("") /// e.g., "Regex backtracking in regex engine"
-  description String  @default("") /// Detailed explanation
-  isCorrect   Boolean @default(false) /// Is this the right answer?
-  hint        String  @default("") /// Hint for the user
-}
+// ─── Incident Simulations ────────────────────────────────────────────────────
 
-/// Represents an action the user can take to fix the incident
-type IncidentActionOption {
-  id              String  @default("") /// Unique action ID (e.g., "rollback", "restart", "scale_up")
-  title           String  @default("") /// e.g., "Rollback deployment"
-  description     String  @default("") /// What does this action do?
-  category        String  @default("") /// "rollback" | "restart" | "scale" | "investigate"
-  fixesMetrics    String[] @default([]) /// Which metrics does this fix? ["cpu_usage", "error_rate"]
-  recoveryTime    Int     @default(30) /// Seconds until metrics improve
-  pointsIfCorrect Int     @default(50) /// Points awarded if user took this action
-  pointsIfWrong   Int     @default(0) /// Penalty if this doesn't help
-}
-
-/// Represents a metric value at a specific point in time
-type IncidentMetricSnapshot {
-  timestamp Int     @default(0) /// Time in seconds since simulation start
-  value     Float   @default(0) /// Metric value (percentage, ms, requests/sec, etc.)
-}
-
-/// Represents an event that happens at a specific time in the timeline
 model IncidentTimelineEvent {
-  id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  incidentId        String   @db.ObjectId /// Reference to IncidentSimulation
-  timeSecond        Int      @default(0) /// When event triggers (in seconds)
-  title             String   @default("") /// Event title
-  description       String   @default("") /// Event description
-  affectedServices  String[] @default([]) /// Which services are affected (by ID)
-  metricChanges     Json     @default("{}") /// { metricName: newValue }
-  logMessage        String   @default("") /// Log entry to add
-  priority          String   @default("info") /// "info" | "warning" | "critical"
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               String   @id @default(cuid())
+  incidentId       String
+  timeSecond       Int      @default(0)
+  title            String   @default("")
+  description      String   @default("")
+  affectedServices String[] @default([])
+  metricChanges    Json     @default("{}")
+  logMessage       String   @default("")
+  priority         String   @default("info")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   incident IncidentSimulation @relation(fields: [incidentId], references: [id], onDelete: Cascade)
 
+  @@index([incidentId])
   @@map("incidenttimelineevents")
 }
 
-/// Main incident simulation model
 model IncidentSimulation {
-  id               String                @id @default(auto()) @map("_id") @db.ObjectId
-  title            String                /// e.g., "Regex Catastrophe"
-  description      String                /// Brief incident description
-  difficulty       String                @default("medium") /// "easy" | "medium" | "hard"
-  category         String                @default("incident") /// Always "incident" for this model
-  simulationType   String                @default("production") /// Type of incident
-  durationSeconds  Int                   @default(300) /// Total simulation duration
-  estimatedTime    Int                   @default(15) /// In minutes
-  xpReward         Int                   @default(100)
-  tags             String[]              @default([])
+  id              String   @id @default(cuid())
+  title           String
+  description     String
+  difficulty      String   @default("medium")
+  category        String   @default("incident")
+  simulationType  String   @default("production")
+  durationSeconds Int      @default(300)
+  estimatedTime   Int      @default(15)
+  xpReward        Int      @default(100)
+  tags            String[] @default([])
+  initialLogs     String[] @default([])
+  realIncidentName String  @default("")
+  realIncidentDate String  @default("")
+  realIncidentLink String  @default("")
+  realIncidentDesc String  @default("")
+  revealTitle      String  @default("Based on...")
+  revealText       String  @default("")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  /// Initial state
-  initialServices  IncidentService[]     /// Services at simulation start
-  initialMetrics   Json                  @default("{}") /// { metricName: [IncidentMetricSnapshot] }
-  initialLogs      String[]              @default([]) /// Starting log entries
-
-  /// Real incident inspiration
-  realIncidentName String                @default("") /// e.g., "Cloudflare 2019 Regex Outage"
-  realIncidentDate String                @default("") /// e.g., "July 2, 2019"
-  realIncidentLink String                @default("") /// Documentation link
-  realIncidentDesc String                @default("") /// What actually happened
-
-  /// Reveal screen (shown after user completes or gives up)
-  revealTitle      String                @default("Based on...")
-  revealText       String                @default("") /// Full reveal description
-
-  /// Diagnosis (root cause selection)
-  rootCauseOptions IncidentRootCauseOption[] /// Multiple choice options
-  actionOptions    IncidentActionOption[]    /// Available actions to take
-
-  /// User progress
-  sessions         IncidentSession[]
+  services         IncidentService[]
+  rootCauseOptions IncidentRootCauseOption[]
+  actionOptions    IncidentActionOption[]
+  metricSeries     IncidentMetricSeries[]
   timelineEvents   IncidentTimelineEvent[]
-
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
+  sessions         IncidentSession[]
 
   @@map("incidentsimulations")
 }
 
-/// Represents a user's active session/attempt at an incident
+model IncidentService {
+  id         String @id @default(cuid())
+  incidentId String
+  sortOrder  Int    @default(0)
+  serviceKey String
+  name       String @default("")
+  status     String @default("healthy")
+  color      String @default("green")
+
+  incident IncidentSimulation @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@unique([incidentId, serviceKey])
+  @@index([incidentId])
+  @@map("incident_services")
+}
+
+model IncidentRootCauseOption {
+  id          String  @id @default(cuid())
+  incidentId  String
+  sortOrder   Int     @default(0)
+  optionKey   String
+  title       String  @default("")
+  description String  @default("")
+  isCorrect   Boolean @default(false)
+  hint        String  @default("")
+
+  incident IncidentSimulation @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@unique([incidentId, optionKey])
+  @@index([incidentId])
+  @@map("incident_root_cause_options")
+}
+
+model IncidentActionOption {
+  id              String   @id @default(cuid())
+  incidentId      String
+  sortOrder       Int      @default(0)
+  actionKey       String
+  title           String   @default("")
+  description     String   @default("")
+  category        String   @default("")
+  fixesMetrics    String[] @default([])
+  recoveryTime    Int      @default(30)
+  pointsIfCorrect Int      @default(50)
+  pointsIfWrong   Int      @default(0)
+
+  incident IncidentSimulation @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@unique([incidentId, actionKey])
+  @@index([incidentId])
+  @@map("incident_action_options")
+}
+
+model IncidentMetricSeries {
+  id         String @id @default(cuid())
+  incidentId String
+  metricName String
+
+  incident  IncidentSimulation       @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  snapshots IncidentMetricSnapshot[]
+
+  @@unique([incidentId, metricName])
+  @@index([incidentId])
+  @@map("incident_metric_series")
+}
+
+model IncidentMetricSnapshot {
+  id        String @id @default(cuid())
+  seriesId  String
+  timestamp Int    @default(0)
+  value     Float  @default(0)
+
+  series IncidentMetricSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@index([seriesId, timestamp])
+  @@map("incident_metric_snapshots")
+}
+
 model IncidentSession {
-  id              String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId          String    @db.ObjectId /// User attempting the incident
-  incidentId      String    @db.ObjectId /// Which incident
-  elapsedTime     Int       @default(0) /// Seconds elapsed in this session
-  isActive        Boolean   @default(true) /// Is session still running
-  isCompleted     Boolean   @default(false) /// Did user successfully resolve
-  xpAwarded       Boolean   @default(false) /// XP granted once for this incident
-  attempts        Int       @default(0) /// Number of completed report submissions
-  
-  /// Diagnosis phase
-  selectedRootCauseId String @default("") /// Which root cause did user select
-  diagnosedAt     DateTime? /// When did user make diagnosis
-  correctDiagnosis Boolean @default(false) /// Did they get it right?
-  
-  /// Actions taken
-  actionsTaken    Json[]    @default([]) /// [ { actionId, timestamp, effective } ]
-  
-  /// Scoring
-  diagnosticScore Int       @default(0) /// Points for correct diagnosis
-  actionScore     Int       @default(0) /// Points for effective actions
-  timeBonusScore  Int       @default(0) /// Points for speed
-  totalScore      Int       @default(0) /// Final score
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                  String    @id @default(cuid())
+  userId              String
+  incidentId          String
+  elapsedTime         Int       @default(0)
+  isActive            Boolean   @default(true)
+  isCompleted         Boolean   @default(false)
+  xpAwarded           Boolean   @default(false)
+  attempts            Int       @default(0)
+  selectedRootCauseId String    @default("")
+  diagnosedAt         DateTime?
+  correctDiagnosis    Boolean   @default(false)
+  diagnosticScore     Int       @default(0)
+  actionScore         Int       @default(0)
+  timeBonusScore      Int       @default(0)
+  totalScore          Int       @default(0)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   incident IncidentSimulation   @relation(fields: [incidentId], references: [id], onDelete: Cascade)
   state    IncidentSessionState?
+  actions  IncidentSessionAction[]
 
   @@index([userId, incidentId])
   @@map("incidentsessions")
 }
 
-/// Current runtime state of an active incident session
-model IncidentSessionState {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  sessionId    String   @unique @db.ObjectId /// Links to IncidentSession
-  currentTime  Int      @default(0) /// Current time in simulation (seconds)
-  services     IncidentService[] /// Current service statuses
-  metrics      Json     @default("{}") /// { metricName: currentValue }
-  logs         String[] @default([]) /// All logs accumulated so far
-  activeAlerts String[] @default([]) /// Current alert IDs
-  updatedAt    DateTime @updatedAt
+model IncidentSessionAction {
+  id        String  @id @default(cuid())
+  sessionId String
+  actionKey String
+  timestamp Int     @default(0)
+  effective Boolean @default(false)
 
   session IncidentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("incident_session_actions")
+}
+
+model IncidentSessionState {
+  id          String   @id @default(cuid())
+  sessionId   String   @unique
+  currentTime Int      @default(0)
+  metrics     Json     @default("{}")
+  logs        String[] @default([])
+  activeAlerts String[] @default([])
+  updatedAt   DateTime @updatedAt
+
+  session  IncidentSession          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  services IncidentSessionService[]
 
   @@map("incidentsessionstates")
 }
 
-// ─── Page maintenance (admin-controlled downtime per route) ───────────────────
+model IncidentSessionService {
+  id             String @id @default(cuid())
+  sessionStateId String
+  sortOrder      Int    @default(0)
+  serviceKey     String
+  name           String @default("")
+  status         String @default("healthy")
+  color          String @default("green")
+
+  sessionState IncidentSessionState @relation(fields: [sessionStateId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionStateId, serviceKey])
+  @@index([sessionStateId])
+  @@map("incident_session_services")
+}
+
+// ─── Page maintenance ───────────────────────────────────────────────────────
 
 model MaintenancePage {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  path      String   @unique /// Normalized pathname, e.g. /dashboard/leaderboard
+  id        String   @id @default(cuid())
+  path      String   @unique
   message   String   @default("This page is currently under maintenance. Please check back later.")
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -757,36 +927,36 @@ model MaintenancePage {
   @@map("maintenancepages")
 }
 
-// ─── Platform settings (feature flags, config) ───────────────────────────────
+// ─── Platform settings ───────────────────────────────────────────────────────
 
 model PlatformSetting {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   key       String   @unique
-  value     String   /// JSON-encoded value
+  value     String
   label     String   @default("")
-  group     String   @default("general") /// "general" | "features" | "limits"
+  group     String   @default("general")
   updatedAt DateTime @updatedAt
 
   @@map("platformsettings")
 }
 
-// ─── Premium billing and entitlement access ──────────────────────────────────
+// ─── Premium billing ─────────────────────────────────────────────────────────
 
 model PremiumProduct {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  slug           String   @unique
-  title          String
-  description    String   @default("")
-  kind           String   @default("track") /// "full_pro" | "track"
-  trackKey       String   @default("")
-  active         Boolean  @default(true)
-  priceInrPaise  Int      @default(0)
-  priceUsdCents  Int      @default(0)
-  freeItemQuota  Int      @default(0)
-  displayOrder   Int      @default(0)
-  metadata       Json     @default("{}")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  title         String
+  description   String   @default("")
+  kind          String   @default("track")
+  trackKey      String   @default("")
+  active        Boolean  @default(true)
+  priceInrPaise Int      @default(0)
+  priceUsdCents Int      @default(0)
+  freeItemQuota Int      @default(0)
+  displayOrder  Int      @default(0)
+  metadata      Json     @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   entitlements UserEntitlement[]
   orders       PaymentOrder[]
@@ -798,41 +968,41 @@ model PremiumProduct {
 }
 
 model UserEntitlement {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String    @db.ObjectId
-  productId   String?   @db.ObjectId
-  scope       String    @default("track") /// "full_pro" | "track"
-  trackKey    String    @default("")
-  source      String    @default("purchase") /// "purchase" | "admin_grant"
-  active      Boolean   @default(true)
-  startsAt    DateTime  @default(now())
-  expiresAt   DateTime?
-  paymentOrderId String? @db.ObjectId
-  notes       String    @default("")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  userId         String
+  productId      String?
+  scope          String    @default("track")
+  trackKey       String    @default("")
+  source         String    @default("purchase")
+  active         Boolean   @default(true)
+  startsAt       DateTime  @default(now())
+  expiresAt      DateTime?
+  paymentOrderId String?
+  notes          String    @default("")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   product      PremiumProduct? @relation(fields: [productId], references: [id])
   paymentOrder PaymentOrder?   @relation(fields: [paymentOrderId], references: [id])
 
+  @@unique([userId, scope, trackKey])
   @@index([userId, active])
   @@index([trackKey, active])
-  @@unique([userId, scope, trackKey])
   @@map("userentitlements")
 }
 
 model PaymentOrder {
-  id                String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId            String    @db.ObjectId
-  productId         String    @db.ObjectId
+  id                String    @id @default(cuid())
+  userId            String
+  productId         String
   razorpayOrderId   String    @unique
   razorpayPaymentId String    @default("")
   razorpaySignature String    @default("")
   receipt           String    @unique
   currency          String
   amount            Int
-  status            String    @default("created") /// "created" | "paid" | "failed"
+  status            String    @default("created")
   metadata          Json      @default("{}")
   paidAt            DateTime?
   createdAt         DateTime  @default(now())
@@ -850,13 +1020,13 @@ model PaymentOrder {
 }
 
 model PaymentEvent {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId          String?  @db.ObjectId
-  paymentOrderId  String?  @db.ObjectId
-  provider        String   @default("razorpay")
-  eventType       String
-  payload         Json     @default("{}")
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  userId         String?
+  paymentOrderId String?
+  provider       String   @default("razorpay")
+  eventType      String
+  payload        Json     @default("{}")
+  createdAt      DateTime @default(now())
 
   user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   paymentOrder PaymentOrder? @relation(fields: [paymentOrderId], references: [id], onDelete: SetNull)
@@ -869,11 +1039,11 @@ model PaymentEvent {
 // ─── Announcements ───────────────────────────────────────────────────────────
 
 model Announcement {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   title     String
   body      String
-  type      String   @default("info") /// "info" | "warning" | "critical"
-  audience  String   @default("all") /// "all" | "students" | "organizations"
+  type      String   @default("info")
+  audience  String   @default("all")
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -885,12 +1055,12 @@ model Announcement {
 // ─── Audit log ───────────────────────────────────────────────────────────────
 
 model AuditLog {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  action     String   /// e.g. "user.delete", "org.approve", "setting.update"
-  targetType String   @default("") /// "user" | "organization" | "setting" | "maintenance"
+  id         String   @id @default(cuid())
+  action     String
+  targetType String   @default("")
   targetId   String   @default("")
-  targetName String   @default("") /// human-readable name of the target
-  detail     String   @default("") /// extra context
+  targetName String   @default("")
+  detail     String   @default("")
   adminEmail String   @default("")
   createdAt  DateTime @default(now())
 

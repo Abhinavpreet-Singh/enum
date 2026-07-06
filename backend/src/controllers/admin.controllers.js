@@ -1,6 +1,13 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import prisma from "../db/index.js";
+import {
+  buildQuestionNestedCreate,
+  questionInclude,
+  replaceQuestionInitialCodes,
+  replaceQuestionTestCases,
+  serializeQuestion,
+} from "../utils/prismaNormalizers.js";
 
 const getAdminPrivilege = asyncHandler(async (req, res) => {
     const adminEmails = [
@@ -49,22 +56,22 @@ const adminPostQuestion = asyncHandler(async (req, res) => {
             title,
             desc,
             level,
-            testcases: testcases,
             constraints,
             topic,
             functionName,
             parameterNames: parameterNames || [],
             parameterTypes,
             returnType,
-            initialCode: initialCode || [],
+            ...buildQuestionNestedCreate({ testcases, initialCode }),
         },
+        include: questionInclude,
     });
 
     return res
         .status(201)
         .json({
             message: "Question created",
-            data: createQuestion
+            data: serializeQuestion(createQuestion)
         });
 });
 
@@ -86,23 +93,31 @@ const adminEditQuestion = asyncHandler(async (req, res) => {
     if (title !== undefined) updateData.title = title;
     if (desc !== undefined) updateData.desc = desc;
     if (level !== undefined) updateData.level = level;
-    if (testcases !== undefined) updateData.testcases = testcases;
     if (constraints !== undefined) updateData.constraints = constraints;
     if (topic !== undefined) updateData.topic = topic;
-    if (initialCode !== undefined) updateData.initialCode = initialCode;
     if (functionName !== undefined) updateData.functionName = functionName;
     if (parameterNames !== undefined) updateData.parameterNames = parameterNames;
     if (parameterTypes !== undefined) updateData.parameterTypes = parameterTypes;
     if (returnType !== undefined) updateData.returnType = returnType;
 
-    const updatedQuestion = await prisma.question.update({
-        where: { id },
-        data: updateData,
+    const updatedQuestion = await prisma.$transaction(async (tx) => {
+        if (testcases !== undefined) {
+            await replaceQuestionTestCases(tx, id, testcases);
+        }
+        if (initialCode !== undefined) {
+            await replaceQuestionInitialCodes(tx, id, initialCode);
+        }
+
+        return tx.question.update({
+            where: { id },
+            data: updateData,
+            include: questionInclude,
+        });
     });
 
     return res.status(200).json({
         message: "Question updated successfully",
-        data: updatedQuestion
+        data: serializeQuestion(updatedQuestion)
     });
 });
 

@@ -1,10 +1,11 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import prisma from "../db/index.js";
+import { questionInclude, serializeQuestion } from "../utils/prismaNormalizers.js";
 import { ApiError } from "../utils/apiError.js";
 import { generateAllTemplates } from "../utils/judgeEngine/templateGenerator.js";
 
 const getQuestion = asyncHandler(async (req, res) => {
-  const allData = await prisma.question.findMany();
+  const allData = await prisma.question.findMany({ include: questionInclude });
   const userId = req.user?.id;
 
   // Fetch user's submissions if authenticated
@@ -36,7 +37,7 @@ const getQuestion = asyncHandler(async (req, res) => {
   }
 
   const enrichedData = allData.map((q) => {
-    const questionObj = { ...q };
+    const questionObj = serializeQuestion(q);
 
     if (
       questionObj.functionName &&

@@ -14,6 +14,7 @@
     "seed:linux": "node scripts/seed-linux-questions.js",
     "seed:incidents": "node scripts/seed-incidents.js",
     "seed:incidents:update": "node scripts/update-incident-content.js",
+    "seed:json": "node scripts/seed-json.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:complexity": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathPattern=complexity"
   },

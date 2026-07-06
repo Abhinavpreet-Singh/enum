@@ -1,4 +1,5 @@
 import prisma from "../db/index.js";
+import { questionInclude, serializeQuestion } from "../utils/prismaNormalizers.js";
 import { runJavaJudge } from "../utils/judgeEngine/javaJudge.js";
 import { runCppJudge } from "../utils/judgeEngine/cppJudge.js";
 import { runCJudge } from "../utils/judgeEngine/cJudge.js";
@@ -51,13 +52,14 @@ export const judgeCode = async (req, res) => {
     // ── Legacy DSA flow: load question + test cases from DB ──────────────────
     const question = await prisma.question.findUnique({
       where: { id: questionId },
+      include: questionInclude,
     });
 
     if (!question) {
       return res.status(404).json({ message: "Question not found." });
     }
 
-    testcases = (question.testcases || []).map(normaliseTestCase);
+    testcases = serializeQuestion(question).testcases.map(normaliseTestCase);
     functionName = question.functionName;
     parameterTypes = question.parameterTypes;
     returnType = question.returnType;

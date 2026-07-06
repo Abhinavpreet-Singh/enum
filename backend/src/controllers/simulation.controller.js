@@ -12,6 +12,14 @@ import {
   hasTrackAccessFromSummary,
   simulationCategoryToTrackKey,
 } from "../services/entitlement.service.js";
+import {
+  buildSimulationNestedCreate,
+  replaceSimulationFiles,
+  replaceSimulationSteps,
+  serializeSimulation,
+  serializeSimulationFile,
+  simulationInclude,
+} from "../utils/prismaNormalizers.js";
 
 const enrichSimulationAccess = async (simulations, userId) => {
   const [productsByTrack, accessSummary] = await Promise.all([
@@ -56,6 +64,7 @@ const canAccessSimulation = async (simulationId, userId) => {
 const getSimulations = asyncHandler(async (req, res) => {
   const allSimulations = await prisma.simulation.findMany({
     orderBy: { createdAt: "desc" },
+    include: simulationInclude,
   });
 
   const userId = req.user?.id;
@@ -106,7 +115,7 @@ const getSimulations = asyncHandler(async (req, res) => {
 
   // Enrich simulations with user progress
   const enrichedSimulations = await enrichSimulationAccess(allSimulations.map((sim) => ({
-    ...sim,
+    ...serializeSimulation(sim),
     status:
       userId && userProgress[sim.id]
         ? userProgress[sim.id]
@@ -127,7 +136,10 @@ const getSimulationById = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Simulation ID is required");
   }
 
-  const simulation = await prisma.simulation.findUnique({ where: { id } });
+  const simulation = await prisma.simulation.findUnique({
+    where: { id },
+    include: simulationInclude,
+  });
 
   if (!simulation) {
     throw new ApiError(404, "Simulation not found");
@@ -140,7 +152,7 @@ const getSimulationById = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     message: "Simulation fetched!",
-    data: simulation,
+    data: serializeSimulation(simulation),
   });
 });
 
@@ -187,19 +199,19 @@ const adminPostSimulation = asyncHandler(async (req, res) => {
       difficulty: difficulty || "easy",
       description,
       incident,
-      steps: steps || [],
-      initialFiles: initialFiles || [],
       solution: solution || {},
       hints: hints || [],
       estimatedTime: estimatedTime || 15,
       tags: tags || [],
       xpReward: xpReward || 50,
+      ...buildSimulationNestedCreate({ steps, initialFiles }),
     },
+    include: simulationInclude,
   });
 
   return res.status(201).json({
     message: "Simulation created!",
-    data: simulation,
+    data: serializeSimulation(simulation),
   });
 });
 
@@ -224,7 +236,10 @@ const adminEditSimulation = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Simulation ID is required");
   }
 
-  const simulation = await prisma.simulation.findUnique({ where: { id } });
+  const simulation = await prisma.simulation.findUnique({
+    where: { id },
+    include: simulationInclude,
+  });
 
   if (!simulation) {
     throw new ApiError(404, "Simulation not found");
@@ -236,22 +251,30 @@ const adminEditSimulation = asyncHandler(async (req, res) => {
   if (difficulty !== undefined) updateData.difficulty = difficulty;
   if (description !== undefined) updateData.description = description;
   if (incident !== undefined) updateData.incident = incident;
-  if (steps !== undefined) updateData.steps = steps;
-  if (initialFiles !== undefined) updateData.initialFiles = initialFiles;
   if (solution !== undefined) updateData.solution = solution;
   if (hints !== undefined) updateData.hints = hints;
   if (estimatedTime !== undefined) updateData.estimatedTime = estimatedTime;
   if (tags !== undefined) updateData.tags = tags;
   if (xpReward !== undefined) updateData.xpReward = xpReward;
 
-  const updatedSimulation = await prisma.simulation.update({
-    where: { id },
-    data: updateData,
+  const updatedSimulation = await prisma.$transaction(async (tx) => {
+    if (steps !== undefined) {
+      await replaceSimulationSteps(tx, id, steps);
+    }
+    if (initialFiles !== undefined) {
+      await replaceSimulationFiles(tx, id, initialFiles);
+    }
+
+    return tx.simulation.update({
+      where: { id },
+      data: updateData,
+      include: simulationInclude,
+    });
   });
 
   return res.status(200).json({
     message: "Simulation updated successfully!",
-    data: updatedSimulation,
+    data: serializeSimulation(updatedSimulation),
   });
 });
 
@@ -293,7 +316,10 @@ const uploadSimulationFiles = asyncHandler(async (req, res) => {
     throw new ApiError(400, "files array is required");
   }
 
-  const simulation = await prisma.simulation.findUnique({ where: { id } });
+  const simulation = await prisma.simulation.findUnique({
+    where: { id },
+    include: simulationInclude,
+  });
   if (!simulation) throw new ApiError(404, "Simulation not found");
 
   const uploadedFiles = [];
@@ -321,14 +347,21 @@ const uploadSimulationFiles = asyncHandler(async (req, res) => {
     });
   }
 
-  const updated = await prisma.simulation.update({
-    where: { id },
-    data: { initialFiles: uploadedFiles },
+  const updated = await prisma.$transaction(async (tx) => {
+    const existing = await tx.simulationFile.findMany({ where: { simulationId: id } });
+    await replaceSimulationFiles(tx, id, [
+      ...existing.map(serializeSimulationFile),
+      ...uploadedFiles,
+    ]);
+    return tx.simulation.findUnique({
+      where: { id },
+      include: simulationInclude,
+    });
   });
 
   return res.status(200).json({
     message: "Files uploaded to Cloudinary!",
-    data: updated,
+    data: serializeSimulation(updated),
   });
 });
 
@@ -337,7 +370,10 @@ const getSimulationFileContents = asyncHandler(async (req, res) => {
 
   if (!id) throw new ApiError(400, "Simulation ID is required");
 
-  const simulation = await prisma.simulation.findUnique({ where: { id } });
+  const simulation = await prisma.simulation.findUnique({
+    where: { id },
+    include: simulationInclude,
+  });
   if (!simulation) throw new ApiError(404, "Simulation not found");
 
   const { allowed } = await canAccessSimulation(id, req.user?.id);
@@ -348,7 +384,7 @@ const getSimulationFileContents = asyncHandler(async (req, res) => {
   const fileMap = {};
 
   await Promise.all(
-    simulation.initialFiles.map(async (file) => {
+    (serializeSimulation(simulation).initialFiles || []).map(async (file) => {
       if (file.cloudinaryUrl) {
         try {
           const content = await fetchFileFromCloudinary(file.cloudinaryUrl);
