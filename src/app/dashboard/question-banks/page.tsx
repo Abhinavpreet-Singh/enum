@@ -8,12 +8,13 @@ import { DashboardPageShell, DashboardPageHeader } from "@/components/dashboard/
 import {
   Plus, BookOpen, Trash2, Hash, Tag, ChevronRight, Pencil,
   ChevronLeft, X, Check, Code2, ListOrdered, AlignLeft,
-  FileText, Database, Terminal, Search, Filter,
+  FileText, Database, Terminal, Search, Filter, Download, Sparkles, Network,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type QuestionType = "mcq" | "msq" | "coding" | "fill_blank" | "numerical" | "sql" | "linux";
+type QuestionType = "mcq" | "msq" | "coding" | "fill_blank" | "numerical" | "sql" | "linux" | "system_design";
+type PlatformSource = "dsa" | "linux" | "system_design";
 type Difficulty = "easy" | "medium" | "hard";
 interface Option { text: string; isCorrect: boolean }
 interface BankQuestion {
@@ -28,6 +29,65 @@ interface QuestionBank {
   createdAt: string; questions?: BankQuestion[]; _count: { questions: number };
 }
 
+interface PlatformCatalogItem {
+  id: string;
+  source: PlatformSource;
+  sourceLabel?: string;
+  title: string;
+  description: string;
+  difficulty: string;
+  topic: string;
+}
+
+const PLATFORM_TABS: { id: PlatformSource; label: string; description: string }[] = [
+  { id: "dsa", label: "DSA Arena", description: "Coding problems from the DSA arena" },
+  { id: "linux", label: "Linux Arena", description: "Shell challenges from the Linux arena" },
+  { id: "system_design", label: "System Design", description: "Architecture scenarios from Enum" },
+];
+
+function platformSourceFromTags(tags: string[] = []): string | null {
+  if (tags.includes("dsa")) return "DSA Arena";
+  if (tags.includes("linux")) return "Linux Arena";
+  if (tags.includes("system_design")) return "System Design";
+  return null;
+}
+
+function friendlyCatalogError(message?: string): string {
+  if (!message) return "Could not load questions from the Enum platform. Please try again.";
+  if (message.includes("prisma") || message.includes("Invalid `")) {
+    return "Could not load the question catalog right now. Please refresh or try again in a moment.";
+  }
+  return message;
+}
+
+const TAB_ICONS: Record<PlatformSource, typeof Code2> = {
+  dsa: Code2,
+  linux: Terminal,
+  system_design: Network,
+};
+
+function SourceBadge({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center border border-black/15 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-gray-600 dark:border-white/20 dark:text-gray-300">
+      {label}
+    </span>
+  );
+}
+
+function SelectBox({ checked, disabled }: { checked: boolean; disabled?: boolean }) {
+  return (
+    <span
+      className={`grid h-4 w-4 shrink-0 place-items-center border transition-colors ${
+        checked
+          ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+          : "border-gray-300 bg-white dark:border-neutral-600 dark:bg-black"
+      } ${disabled ? "opacity-40" : ""}`}
+    >
+      {checked ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+    </span>
+  );
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const QUESTION_TYPES: { value: QuestionType; label: string; icon: typeof Code2; desc: string }[] = [
@@ -38,6 +98,7 @@ const QUESTION_TYPES: { value: QuestionType; label: string; icon: typeof Code2; 
   { value: "numerical",  label: "Numerical",     icon: Hash,        desc: "Numeric answer" },
   { value: "sql",        label: "SQL",           icon: Database,    desc: "Database query" },
   { value: "linux",      label: "Linux / Shell", icon: Terminal,    desc: "Shell command" },
+  { value: "system_design", label: "System Design", icon: Network, desc: "Architecture diagram" },
 ];
 const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
 const LANGUAGES = ["javascript", "python", "java", "cpp", "c", "go", "rust", "typescript"];
@@ -51,7 +112,13 @@ const difficultyColor = (d: string) =>
   d === "easy" ? "text-emerald-600 dark:text-emerald-400 border-emerald-400/40"
   : d === "hard" ? "text-red-500 dark:text-red-400 border-red-400/40"
   : "text-amber-600 dark:text-amber-400 border-amber-400/40";
-const typeIcon = (t: QuestionType) => QUESTION_TYPES.find(q => q.value === t)?.icon ?? FileText;
+const typeIcon = (t: string) => QUESTION_TYPES.find(q => q.value === t)?.icon ?? FileText;
+
+const btnGhostCls =
+  `px-3 py-2 font-mono text-[10px] tracking-wider uppercase ${panelBorder} text-gray-600 dark:text-gray-300 hover:border-black dark:hover:border-white hover:text-black dark:hover:text-white transition-colors disabled:opacity-40`;
+
+const btnPrimaryCls =
+  "inline-flex items-center justify-center gap-2 px-4 py-2 bg-black dark:bg-white text-white dark:text-black font-mono text-xs tracking-wider hover:opacity-90 disabled:opacity-50 transition-opacity";
 
 function defaultQuestion(type: QuestionType) {
   return {
@@ -78,6 +145,7 @@ function QuestionBanksInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const bankId = searchParams.get("bankId");
+  const importParam = searchParams.get("import") as PlatformSource | null;
 
   // ── Bank list state ──
   const [banks, setBanks] = useState<QuestionBank[]>([]);
@@ -102,6 +170,22 @@ function QuestionBanksInner() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [qDeleteConfirm, setQDeleteConfirm] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [importSource, setImportSource] = useState<PlatformSource>("dsa");
+  const [catalog, setCatalog] = useState<{
+    dsa: PlatformCatalogItem[];
+    linux: PlatformCatalogItem[];
+    system_design: PlatformCatalogItem[];
+    counts?: { dsa: number; linux: number; system_design: number };
+  }>({ dsa: [], linux: [], system_design: [] });
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [selectedImportIds, setSelectedImportIds] = useState<Set<string>>(new Set());
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [catalogError, setCatalogError] = useState("");
+  const [importSearch, setImportSearch] = useState("");
+  const [seeding, setSeeding] = useState(false);
+  const [seedMessage, setSeedMessage] = useState("");
 
   // ── Fetch bank list ──
   const fetchBanks = useCallback(() => {
@@ -116,6 +200,56 @@ function QuestionBanksInner() {
 
   useEffect(() => { fetchBanks(); }, [fetchBanks]);
 
+  const loadCatalog = useCallback(async () => {
+    setCatalogLoading(true);
+    setCatalogError("");
+    try {
+      const res = await axios.get(`${proxy}/api/v1/question-banks/catalog/platform`);
+      const data = res.data.data || {};
+      setCatalog({
+        dsa: data.dsa || [],
+        linux: data.linux || [],
+        system_design: data.system_design || [],
+        counts: data.counts,
+      });
+    } catch (err) {
+      const raw = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
+      setCatalogError(friendlyCatalogError(raw));
+      setCatalog({ dsa: [], linux: [], system_design: [] });
+    } finally {
+      setCatalogLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!bankId) loadCatalog();
+  }, [bankId, loadCatalog]);
+
+  const openImport = (source: PlatformSource = "dsa") => {
+    setImportSource(source);
+    setShowImport(true);
+    setSelectedImportIds(new Set());
+    setImportError("");
+    setImportSearch("");
+    loadCatalog();
+  };
+
+  function catalogItemsForSource(source: PlatformSource) {
+    const items = catalog[source] || [];
+    const q = importSearch.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(
+      (item) =>
+        item.title.toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q) ||
+        item.topic.toLowerCase().includes(q),
+    );
+  }
+
+  function selectAllVisible() {
+    setSelectedImportIds(new Set(catalogItemsForSource(importSource).map((i) => i.id)));
+  }
+
   // ── Fetch bank detail when bankId param changes ──
   const fetchBank = useCallback(() => {
     if (!bankId) { setBank(null); return; }
@@ -127,6 +261,14 @@ function QuestionBanksInner() {
   }, [bankId]);
 
   useEffect(() => { fetchBank(); }, [fetchBank]);
+
+  useEffect(() => {
+    if (!bankId || !importParam) return;
+    if (!["dsa", "linux", "system_design"].includes(importParam)) return;
+    if (detailLoading || !bank) return;
+    openImport(importParam);
+    router.replace(`/dashboard/question-banks?bankId=${bankId}`);
+  }, [bankId, importParam, detailLoading, bank]);
 
   const openBank = (id: string) => {
     router.push(`/dashboard/question-banks?bankId=${id}`);
@@ -214,6 +356,65 @@ function QuestionBanksInner() {
     } catch { /* silent */ }
   };
 
+  function toggleImportId(id: string) {
+    setSelectedImportIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const handleImport = async () => {
+    if (!bankId || selectedImportIds.size === 0) return;
+    setImporting(true);
+    setImportError("");
+    try {
+      await axios.post(`${proxy}/api/v1/question-banks/${bankId}/import`, {
+        source: importSource,
+        questionIds: Array.from(selectedImportIds),
+      });
+      setShowImport(false);
+      setSelectedImportIds(new Set());
+      fetchBank();
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setImportError(err.response?.data?.message || "Import failed.");
+      } else {
+        setImportError("Import failed.");
+      }
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleSeedSamples = async () => {
+    setSeeding(true);
+    setSeedMessage("");
+    try {
+      const res = await axios.post(`${proxy}/api/v1/question-banks/seed-samples`);
+      const banks = res.data.data || [];
+      const created = banks.filter((b: { skipped?: boolean }) => !b.skipped).length;
+      const skipped = banks.filter((b: { skipped?: boolean }) => b.skipped).length;
+      setSeedMessage(
+        created > 0
+          ? `Created ${created} sample bank${created === 1 ? "" : "s"}${skipped ? ` (${skipped} already existed)` : ""}.`
+          : skipped > 0
+          ? "Sample banks already exist — open them to use MCQs + coding questions."
+          : "Sample banks ready.",
+      );
+      fetchBanks();
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setSeedMessage(err.response?.data?.message || "Could not create sample banks.");
+      } else {
+        setSeedMessage("Could not create sample banks.");
+      }
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   // ─── DETAIL VIEW ──────────────────────────────────────────────────────────
 
   if (bankId) {
@@ -258,7 +459,17 @@ function QuestionBanksInner() {
 
         {/* Add Question type buttons */}
         <div className="mb-5">
-          <p className={`${labelCls} mb-3`}>Add Question</p>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <p className={labelCls}>Add Question</p>
+            <button
+              type="button"
+              onClick={() => openImport("dsa")}
+              className={`inline-flex items-center gap-2 px-3 py-2 ${panelBorder} font-mono text-[10px] tracking-wider text-gray-600 dark:text-gray-300 hover:border-black dark:hover:border-white hover:text-black dark:hover:text-white transition-colors`}
+            >
+              <Download className="w-3.5 h-3.5" />
+              Import from Enum Platform
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {QUESTION_TYPES.map(({ value, label, icon: Icon }) => (
               <button key={value} onClick={() => openCreate(value)}
@@ -300,7 +511,7 @@ function QuestionBanksInner() {
           <div className={`${panelSurface} p-12 text-center`}>
             <FileText className="w-10 h-10 text-gray-300 dark:text-gray-700 mx-auto mb-3" />
             <p className="font-mono text-sm font-bold text-black dark:text-white mb-1">No questions yet</p>
-            <p className="font-mono text-xs text-gray-400">Use the buttons above to add your first question.</p>
+            <p className="font-mono text-xs text-gray-400">Use the buttons above to add questions, or import from the DSA / Linux arenas.</p>
           </div>
         ) : (
           <div className={`${panelSurface} overflow-hidden`}>
@@ -317,6 +528,9 @@ function QuestionBanksInner() {
                     {q.description && <p className="font-mono text-[10px] text-gray-400 line-clamp-1 mb-1.5">{q.description}</p>}
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono text-[9px] tracking-wider uppercase text-gray-400">{q.type.replace("_", " ")}</span>
+                      {platformSourceFromTags(q.tags) && (
+                        <SourceBadge label={platformSourceFromTags(q.tags)!} />
+                      )}
                       <span className={`border px-1.5 py-0.5 font-mono text-[9px] uppercase ${difficultyColor(q.difficulty)}`}>{q.difficulty}</span>
                       <span className="font-mono text-[9px] text-gray-400">{q.points}pts</span>
                       {q.topic && <span className="font-mono text-[9px] text-gray-400">· {q.topic}</span>}
@@ -357,6 +571,27 @@ function QuestionBanksInner() {
           <QuestionModal draft={draft} setDraft={setDraft} editingId={editingId}
             saving={saving} error={formError} onSave={handleSave} onClose={() => setModalOpen(false)} />
         )}
+
+        {showImport && (
+          <PlatformImportModal
+            importSource={importSource}
+            setImportSource={setImportSource}
+            catalog={catalog}
+            catalogLoading={catalogLoading}
+            catalogError={catalogError}
+            importError={importError}
+            importSearch={importSearch}
+            setImportSearch={setImportSearch}
+            selectedImportIds={selectedImportIds}
+            toggleImportId={toggleImportId}
+            selectAllVisible={selectAllVisible}
+            clearSelection={() => setSelectedImportIds(new Set())}
+            catalogItemsForSource={catalogItemsForSource}
+            importing={importing}
+            onClose={() => setShowImport(false)}
+            onImport={handleImport}
+          />
+        )}
       </DashboardPageShell>
     );
   }
@@ -365,11 +600,66 @@ function QuestionBanksInner() {
 
   return (
     <DashboardPageShell maxWidth="full">
-      <DashboardPageHeader breadcrumb="Company" title="Question Banks" description="Click any bank to add and manage questions inside it.">
-        <button onClick={() => setShowCreate(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-black dark:bg-white text-white dark:text-black font-mono text-xs tracking-wider hover:opacity-90 transition-opacity">
-          <Plus className="w-3.5 h-3.5" /> New Bank
-        </button>
+      <DashboardPageHeader breadcrumb="Company" title="Question Banks" description="Manage banks and import existing questions from DSA Arena, Linux Arena, and System Design on enum.live.">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSeedSamples}
+            disabled={seeding}
+            className={`inline-flex items-center gap-2 px-4 py-2 ${panelBorder} font-mono text-xs tracking-wider text-gray-700 dark:text-gray-200 hover:border-black dark:hover:border-white transition-colors disabled:opacity-50`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            {seeding ? "Creating…" : "Create Sample Banks"}
+          </button>
+          <button onClick={() => setShowCreate(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-black dark:bg-white text-white dark:text-black font-mono text-xs tracking-wider hover:opacity-90 transition-opacity">
+            <Plus className="w-3.5 h-3.5" /> New Bank
+          </button>
+        </div>
       </DashboardPageHeader>
+
+      {seedMessage && (
+        <p className="mb-4 font-mono text-xs text-emerald-600 dark:text-emerald-400">{seedMessage}</p>
+      )}
+
+      {/* Enum platform library */}
+      <div className={`${panelSurface} mb-5 overflow-hidden`}>
+        <div className="border-b border-black/10 px-5 py-4 dark:border-white/10">
+          <p className={labelCls}>Enum Platform Library</p>
+          <p className="font-mono text-xs text-gray-500 dark:text-gray-400">
+            Reuse questions already on enum.live. Open a bank below, then import from DSA, Linux, or System Design.
+          </p>
+        </div>
+        <div className="grid sm:grid-cols-3">
+          {PLATFORM_TABS.map((tab, idx) => {
+            const Icon = TAB_ICONS[tab.id];
+            const count = catalogLoading ? "…" : (catalog.counts?.[tab.id] ?? catalog[tab.id].length);
+            return (
+              <div
+                key={tab.id}
+                className={`p-5 ${idx < PLATFORM_TABS.length - 1 ? "border-b sm:border-b-0 sm:border-r border-black/10 dark:border-white/10" : ""}`}
+              >
+                <div className={`mb-3 inline-flex h-8 w-8 items-center justify-center ${panelBorder}`}>
+                  <Icon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                </div>
+                <p className="font-mono text-[10px] uppercase tracking-wider text-gray-400">{tab.label}</p>
+                <p className="mt-1 font-mono text-2xl font-bold text-black dark:text-white">{count}</p>
+                <p className="mt-2 font-mono text-[10px] leading-relaxed text-gray-500">{tab.description}</p>
+                {banks[0] ? (
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/dashboard/question-banks?bankId=${banks[0].id}&import=${tab.id}`)}
+                    className="mt-4 font-mono text-[10px] font-semibold uppercase tracking-wider text-black hover:underline dark:text-white"
+                  >
+                    Import into bank →
+                  </button>
+                ) : (
+                  <p className="mt-4 font-mono text-[10px] text-gray-400">Create a bank first</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Category filter */}
       <div className="flex flex-wrap gap-0 mb-5 overflow-x-auto">
@@ -432,10 +722,15 @@ function QuestionBanksInner() {
         <div className={`${panelSurface} p-12 text-center`}>
           <BookOpen className="w-12 h-12 text-gray-300 dark:text-gray-700 mx-auto mb-3" />
           <h3 className="font-mono text-sm font-bold text-black dark:text-white mb-1">No question banks yet</h3>
-          <p className="font-mono text-xs text-gray-400 mb-4">{categoryFilter !== "all" ? `No ${categoryFilter} banks found.` : "Create your first question bank to start adding questions."}</p>
-          <button onClick={() => setShowCreate(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-black dark:bg-white text-white dark:text-black font-mono text-xs tracking-wider">
-            <Plus className="w-3 h-3" /> New Bank
-          </button>
+          <p className="font-mono text-xs text-gray-400 mb-4">{categoryFilter !== "all" ? `No ${categoryFilter} banks found.` : "Create your first question bank or generate sample banks with MCQs + coding questions."}</p>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button onClick={handleSeedSamples} disabled={seeding} className={`inline-flex items-center gap-2 px-4 py-2 ${panelBorder} font-mono text-xs tracking-wider text-gray-700 dark:text-gray-200`}>
+              <Sparkles className="w-3 h-3" /> {seeding ? "Creating…" : "Create Sample Banks"}
+            </button>
+            <button onClick={() => setShowCreate(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-black dark:bg-white text-white dark:text-black font-mono text-xs tracking-wider">
+              <Plus className="w-3 h-3" /> New Bank
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -472,6 +767,208 @@ function QuestionBanksInner() {
         </div>
       )}
     </DashboardPageShell>
+  );
+}
+
+// ─── Platform Import Modal ────────────────────────────────────────────────────
+
+function PlatformImportModal({
+  importSource,
+  setImportSource,
+  catalog,
+  catalogLoading,
+  catalogError,
+  importError,
+  importSearch,
+  setImportSearch,
+  selectedImportIds,
+  toggleImportId,
+  selectAllVisible,
+  clearSelection,
+  catalogItemsForSource,
+  importing,
+  onClose,
+  onImport,
+}: {
+  importSource: PlatformSource;
+  setImportSource: (s: PlatformSource) => void;
+  catalog: {
+    dsa: PlatformCatalogItem[];
+    linux: PlatformCatalogItem[];
+    system_design: PlatformCatalogItem[];
+    counts?: { dsa: number; linux: number; system_design: number };
+  };
+  catalogLoading: boolean;
+  catalogError: string;
+  importError: string;
+  importSearch: string;
+  setImportSearch: (v: string) => void;
+  selectedImportIds: Set<string>;
+  toggleImportId: (id: string) => void;
+  selectAllVisible: () => void;
+  clearSelection: () => void;
+  catalogItemsForSource: (source: PlatformSource) => PlatformCatalogItem[];
+  importing: boolean;
+  onClose: () => void;
+  onImport: () => void;
+}) {
+  const items = catalogItemsForSource(importSource);
+  const activeTab = PLATFORM_TABS.find((t) => t.id === importSource);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 dark:bg-black/70">
+      <div className={`${panelSurface} flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden bg-white shadow-2xl dark:bg-black`}>
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 border-b border-black/10 px-6 py-5 dark:border-white/10">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-gray-400">Enum Platform</p>
+            <h3 className="mt-1 font-mono text-sm font-bold uppercase tracking-wider text-black dark:text-white">
+              Import Questions
+            </h3>
+            <p className="mt-2 font-mono text-xs text-gray-500 dark:text-gray-400">
+              Select from DSA Arena, Linux Arena, or System Design on enum.live.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 text-gray-400 transition-colors hover:text-black dark:hover:text-white"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Source tabs — matches dashboard category filter style */}
+        <div className="flex flex-wrap gap-0 border-b border-black/10 px-6 py-4 dark:border-white/10">
+          {PLATFORM_TABS.map((tab) => {
+            const Icon = TAB_ICONS[tab.id];
+            const active = importSource === tab.id;
+            const count = catalog.counts?.[tab.id] ?? catalog[tab.id].length;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => { setImportSource(tab.id); clearSelection(); setImportSearch(""); }}
+                className={`flex items-center gap-2 border px-3 py-2 font-mono text-[10px] tracking-wider uppercase transition-colors ${
+                  active
+                    ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                    : "border-gray-300 bg-transparent text-gray-500 hover:border-gray-500 dark:border-neutral-700 dark:text-gray-400 dark:hover:border-neutral-400"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span>{tab.label}</span>
+                <span className={active ? "opacity-70" : "text-gray-400"}>({catalogLoading ? "…" : count})</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-black/10 px-6 py-3 dark:border-white/10">
+          <div className={`flex min-w-[220px] flex-1 items-center gap-2 px-3 py-2 ${panelBorder}`}>
+            <Search className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+            <input
+              type="text"
+              value={importSearch}
+              onChange={(e) => setImportSearch(e.target.value)}
+              placeholder="Search title or topic…"
+              className="w-full bg-transparent font-mono text-xs text-black outline-none placeholder:text-gray-400 dark:text-white"
+            />
+          </div>
+          <button type="button" onClick={selectAllVisible} disabled={items.length === 0} className={btnGhostCls}>
+            Select all
+          </button>
+          <button type="button" onClick={clearSelection} disabled={selectedImportIds.size === 0} className={btnGhostCls}>
+            Clear
+          </button>
+        </div>
+
+        {/* List */}
+        <div className="min-h-[300px] flex-1 overflow-y-auto px-6 py-4">
+          {(catalogError || importError) && (
+            <div className={`mb-4 ${panelBorder} border-red-300 bg-red-50 px-4 py-3 font-mono text-xs text-red-600 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300`}>
+              {catalogError || importError}
+            </div>
+          )}
+
+          {catalogLoading ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="mb-4 h-6 w-6 animate-spin border-2 border-black/10 border-t-black dark:border-white/10 dark:border-t-white" />
+              <p className="font-mono text-xs text-gray-400">Loading {activeTab?.label}…</p>
+            </div>
+          ) : items.length === 0 ? (
+            <div className={`${panelSurface} flex flex-col items-center justify-center px-6 py-16 text-center`}>
+              <FileText className="mb-3 h-10 w-10 text-gray-300 dark:text-gray-700" />
+              <p className="font-mono text-sm font-bold text-black dark:text-white">
+                {importSearch ? "No matches found" : `No ${activeTab?.label} questions`}
+              </p>
+              <p className="mt-2 max-w-sm font-mono text-xs text-gray-400">
+                {catalogError
+                  ? "Resolve the error above and try again."
+                  : "Questions appear here once they exist on the Enum platform."}
+              </p>
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {items.map((item) => {
+                const selected = selectedImportIds.has(item.id);
+                return (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => toggleImportId(item.id)}
+                      className={`flex w-full items-start gap-3 p-4 text-left transition-colors ${panelBorder} ${
+                        selected
+                          ? "border-black bg-black/[0.03] dark:border-white dark:bg-white/[0.04]"
+                          : "hover:border-black/40 dark:hover:border-white/40"
+                      }`}
+                    >
+                      <SelectBox checked={selected} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-black dark:text-white">{item.title}</p>
+                          <SourceBadge label={item.sourceLabel || activeTab?.label || "Enum"} />
+                        </div>
+                        {item.description ? (
+                          <p className="mt-1 line-clamp-2 font-mono text-[10px] leading-relaxed text-gray-500 dark:text-gray-400">
+                            {item.description}
+                          </p>
+                        ) : null}
+                        <p className="mt-2 font-mono text-[9px] uppercase tracking-wider text-gray-400">
+                          {item.difficulty} · {item.topic}
+                        </p>
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-4 border-t border-black/10 px-6 py-4 dark:border-white/10">
+          <p className="font-mono text-xs text-gray-500">
+            <span className="font-bold text-black dark:text-white">{selectedImportIds.size}</span>
+            {" "}of {items.length} selected
+          </p>
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose} className={btnGhostCls}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onImport}
+              disabled={importing || selectedImportIds.size === 0 || Boolean(catalogError)}
+              className={btnPrimaryCls}
+            >
+              {importing ? "Importing…" : `Import ${selectedImportIds.size || ""} question${selectedImportIds.size === 1 ? "" : "s"}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

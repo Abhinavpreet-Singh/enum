@@ -46,7 +46,7 @@ export const getQuestionBankById = asyncHandler(async (req, res) => {
   const bank = await prisma.questionBank.findUnique({
     where: { id },
     include: {
-      questions: { orderBy: { createdAt: "desc" } },
+      questions: { orderBy: { createdAt: "asc" } },
       _count: { select: { questions: true } },
     },
   });

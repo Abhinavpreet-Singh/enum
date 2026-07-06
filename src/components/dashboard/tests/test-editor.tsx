@@ -301,7 +301,7 @@ export default function TestEditor({ mode, assessmentId, initialTab }: TestEdito
             Test Created
           </h2>
           <p className="font-mono text-xs text-gray-400 mb-6">
-            Share this link or code with candidates so they can join via the ENUM desktop app.
+            Share this link or code with candidates so they can join via the ENUM exam client (web or desktop).
           </p>
           <p className="text-sm font-semibold text-black dark:text-white mb-4">
             {created.title}
@@ -488,7 +488,7 @@ export default function TestEditor({ mode, assessmentId, initialTab }: TestEdito
       />
       <SettingRow
         label="Require Desktop App"
-        description="Candidates must use the ENUM desktop client"
+        description="When enabled, candidates must use the ENUM desktop client — the web browser is blocked. Turn off to allow exams in the browser."
         checked={settings.requireDesktopApp}
         onChange={(v) => setSetting("requireDesktopApp", v)}
       />

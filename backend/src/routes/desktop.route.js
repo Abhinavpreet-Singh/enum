@@ -221,6 +221,16 @@ router.post(
     });
     if (!assessment) throw new ApiError(404, "Assessment not found.");
 
+    if (assessment.settings?.requireDesktopApp) {
+      const client = deviceInfo?.client || req.headers["x-enum-client"];
+      if (client !== "desktop") {
+        throw new ApiError(
+          403,
+          "This assessment requires the ENUM Desktop Client. Disable “Require Desktop App” in test security settings to use the web browser.",
+        );
+      }
+    }
+
     // Check if there is an existing in-progress attempt to resume
     const existing = await prisma.candidateAttempt.findFirst({
       where: { assessmentId, userId, status: "in_progress" },

@@ -1,4 +1,5 @@
 import axios from "axios";
+import { isTauri } from "./tauri";
 
 // Backend URL — read from env or fall back to production
 const BACKEND_URL =
@@ -73,10 +74,14 @@ export const desktopApi = {
 
   /** Start or resume a candidate attempt */
   startAttempt: (assessmentId: string, rollNumber?: string) =>
-    api.post<{ data: import("@/types").CandidateAttempt }>("/attempt/start", {
-      assessmentId,
-      rollNumber,
-    }),
+    api.post<{ data: import("@/types").CandidateAttempt }>(
+      "/attempt/start",
+      {
+        assessmentId,
+        rollNumber,
+        deviceInfo: { client: isTauri() ? "desktop" : "web" },
+      },
+    ),
 
   /** Send heartbeat */
   heartbeat: (

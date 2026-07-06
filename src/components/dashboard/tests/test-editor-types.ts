@@ -39,7 +39,7 @@ export const defaultAssessmentSettings = (): AssessmentSettingsForm => ({
   disableTaskSwitch: true,
   disableMultiMonitor: true,
   forceFullscreen: true,
-  requireDesktopApp: true,
+  requireDesktopApp: false,
   requireScreenShare: false,
   recordScreen: false,
   periodicScreenshots: false,
