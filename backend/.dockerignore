@@ -14,3 +14,6 @@ temp
 *.md
 Dockerfile
 .dockerignore
+
+# Keep prisma/ and generated client artifacts in the build context
+# Do NOT add: prisma, node_modules/.prisma, or @prisma
