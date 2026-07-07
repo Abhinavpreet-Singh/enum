@@ -3,6 +3,7 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import { verifyAccessToken, extractIdFromToken } from "../utils/tokens.js";
 import { assertAccessTokenSession } from "../services/access-token.service.js";
 import prisma from "../../db/index.js";
+import { isValidId } from "../../utils/isValidId.js";
 
 function getAccessToken(req) {
   const header = req.header("Authorization") || "";
@@ -35,7 +36,7 @@ export const requireAuth = asyncHandler(async (req, _res, next) => {
   }
 
   const id = extractIdFromToken(decoded);
-  if (!id || !/^[a-f\d]{24}$/i.test(String(id))) {
+  if (!isValidId(id)) {
     throw new ApiError(401, "Invalid access token");
   }
 

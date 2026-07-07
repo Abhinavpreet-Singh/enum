@@ -336,33 +336,6 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
               </Link>
             )}
             
-            {/* Settings */}
-            <Link
-              href={isAdmin ? "/dashboard/admin/settings/" : "/dashboard/settings"}
-              title="Settings"
-              onClick={() => {
-                if (!pinned) setHovered(false);
-              }}
-              className={`group relative flex items-center ${
-                expanded ? "gap-3 pl-4 pr-3" : "justify-center px-0"
-              } py-2.5 rounded-lg font-mono text-sm tracking-wide transition-all duration-200 whitespace-nowrap border ${
-                pathname.startsWith(
-                  isAdmin ? "/dashboard/admin/settings" : "/dashboard/settings",
-                )
-                  ? "border-gray-200 bg-gray-50 dark:border-white dark:bg-transparent text-black dark:text-white font-medium"
-                  : "border-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-transparent hover:border-gray-200 dark:hover:border-white hover:text-gray-800 dark:hover:text-white"
-              }`}
-            >
-              <Settings className="w-4.5 h-4.5 shrink-0" />
-              <span
-                className={`transition-opacity duration-300 ${
-                  expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
-                }`}
-              >
-                Settings
-              </span>
-            </Link>
-
             {/* Settings in footer when not already in the main nav (e.g. students) */}
             {!hasSettingsInNav && (
               <Link
