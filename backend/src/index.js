@@ -30,7 +30,7 @@ async function main() {
         // Attach Socket.IO to the HTTP server
         setupSocket(server, allowedOrigins);
 
-        const port = process.env.PORT || 3000;
+        const port = Number(process.env.PORT) || 8000;
         server.listen(port, () => {
             console.log(`Server is listening on http://localhost:${port}`);
             console.log(`Socket.IO is ready on the same port`);

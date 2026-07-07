@@ -5,7 +5,9 @@ import { io, Socket } from "socket.io-client";
 // call to getSocket() and reused for all subsequent calls.
 
 const SOCKET_URL =
-  process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:4000";
+  process.env.NEXT_PUBLIC_SOCKET_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  "http://localhost:8000";
 
 let socket: Socket | null = null;
 

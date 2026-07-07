@@ -1,9 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Static export for Tauri desktop app
-  // Generates an `out/` directory with pure HTML/JS/CSS files
-  // that Tauri can bundle and serve without a Node.js server.
+  // Standalone output for Docker / Dokploy deployments
+  output: "standalone",
   trailingSlash: true,
   staticPageGenerationTimeout: 120,
   images: {
