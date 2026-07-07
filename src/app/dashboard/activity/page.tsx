@@ -1,9 +1,9 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useCallback, useEffect, useState } from "react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { CheckCircle2, XCircle, MinusCircle, Zap, Loader2 } from "lucide-react";
 import type { ActivityLogEntry } from "@/types/activity";
 import {
@@ -64,8 +64,8 @@ export default function ActivityPage() {
     else setLoading(true);
 
     try {
-      const res = await axios.get(
-        `${proxy}/api/v1/users/activity?limit=${PAGE_SIZE}&skip=${skip}`,
+      const res = await api.get(
+        `/api/v1/users/activity?limit=${PAGE_SIZE}&skip=${skip}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       const payload = res.data?.data;

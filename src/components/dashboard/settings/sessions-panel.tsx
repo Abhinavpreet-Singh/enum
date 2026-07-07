@@ -1,8 +1,8 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { useCallback, useContext, useEffect, useState } from "react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { AuthContext } from "@/providers/AuthProvider";
 import { Monitor, Smartphone, Globe, Trash2, LogOut, RefreshCw } from "lucide-react";
 import { MessageBanner } from "./settings-ui";
@@ -57,7 +57,7 @@ export default function SessionsPanel({ compact = false }: { compact?: boolean }
     setLoading(true);
     setError("");
     try {
-      const res = await axios.get(`${proxy}/api/v1/auth/sessions`, {
+      const res = await api.get("/api/v1/auth/sessions", {
         withCredentials: true,
       });
       setSessions(res.data?.data ?? []);
@@ -75,7 +75,7 @@ export default function SessionsPanel({ compact = false }: { compact?: boolean }
   const revokeSession = async (sessionId: string) => {
     setRevoking(sessionId);
     try {
-      await axios.delete(`${proxy}/api/v1/auth/sessions/${sessionId}`, {
+      await api.delete(`/api/v1/auth/sessions/${sessionId}`, {
         withCredentials: true,
       });
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));

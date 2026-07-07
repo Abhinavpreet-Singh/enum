@@ -1,6 +1,5 @@
-import { proxy } from "@/app/proxy";
-import axios from "axios";
-
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 export interface Question {
   id: string;
   title: string;
@@ -66,7 +65,7 @@ let questions: Question[] = [];
 
 export const fetchQuestions = async (): Promise<Question[]> => {
   try {
-    const response = await axios.get(`${proxy}/api/v1/questions/getQuestion`, {
+    const response = await api.get("/api/v1/questions/getQuestion", {
       withCredentials: true,
     });
     console.log("Questions fetched:", response.data);

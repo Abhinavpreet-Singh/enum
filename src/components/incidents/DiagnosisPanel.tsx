@@ -1,10 +1,10 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState } from "react";
 import { CheckCircle, XCircle } from "lucide-react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import type {
   IncidentSimulation,
   IncidentSession,
@@ -44,8 +44,8 @@ export default function DiagnosisPanel({
       setIsSubmitting(true);
       const token = getMemoryToken();
 
-      const response = await axios.post(
-        `${proxy}/api/v1/incidents/${incident.id}/session/${session.id}/diagnose`,
+      const response = await api.post(
+        `/api/v1/incidents/${incident.id}/session/${session.id}/diagnose`,
         { rootCauseId: selectedId },
         { headers: { Authorization: `Bearer ${token}` } },
       );

@@ -1,11 +1,10 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState } from "react";
 import { Plus, Trash2, FileCode } from "lucide-react";
-import { proxy } from "@/app/proxy";
-import axios from "axios";
-
 interface SimulationFile {
   name: string;
   path: string;
@@ -147,8 +146,8 @@ export default function SimulationForm() {
         hints: hints.filter((h) => h.trim()),
       };
 
-      const response = await axios.post(
-        `${proxy}/api/v1/simulations/adminPostSimulation`,
+      const response = await api.post(
+        "/api/v1/simulations/adminPostSimulation",
         payload,
         {
           headers: {

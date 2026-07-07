@@ -1,9 +1,9 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { Plus, Trash2, BookOpen, Search, Check } from "lucide-react";
 
 const panelBorder = "border border-black/20 dark:border-white/25";
@@ -77,8 +77,8 @@ export default function TestQuestionsTab({ testId }: { testId: string }) {
     const errors: string[] = [];
 
     const [qResult, banksResult] = await Promise.allSettled([
-      axios.get(`${proxy}/api/v1/assessments/${testId}/questions`),
-      axios.get(`${proxy}/api/v1/question-banks`),
+      api.get(`/api/v1/assessments/${testId}/questions`),
+      api.get("/api/v1/question-banks"),
     ]);
 
     if (qResult.status === "fulfilled") {
@@ -112,8 +112,8 @@ export default function TestQuestionsTab({ testId }: { testId: string }) {
       setBankQuestions([]);
       return;
     }
-    axios
-      .get(`${proxy}/api/v1/question-banks/${selectedBankId}`)
+    api
+      .get(`/api/v1/question-banks/${selectedBankId}`)
       .then((r) => {
         const qs: BankQuestion[] = r.data.data?.questions || [];
         const typeOrder: Record<string, number> = {
@@ -167,7 +167,7 @@ export default function TestQuestionsTab({ testId }: { testId: string }) {
     setSaving(true);
     setError("");
     try {
-      await axios.post(`${proxy}/api/v1/assessments/${testId}/questions`, {
+      await api.post(`/api/v1/assessments/${testId}/questions`, {
         bankQuestionIds: Array.from(selectedIds),
       });
       setSelectedIds(new Set());
@@ -185,7 +185,7 @@ export default function TestQuestionsTab({ testId }: { testId: string }) {
   async function handleRemove(questionId: string) {
     setSaving(true);
     try {
-      await axios.delete(`${proxy}/api/v1/assessments/${testId}/questions/${questionId}`);
+      await api.delete(`/api/v1/assessments/${testId}/questions/${questionId}`);
       await load();
     } catch {
       setError("Failed to remove question.");

@@ -1,10 +1,10 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
 import { X, Plus, Trash2, FileCode } from "lucide-react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import type { SimulationListItem } from "./simulations-manager";
 
 interface SimulationFile {
@@ -189,8 +189,8 @@ export default function EditSimulationModal({
         hints: hints.filter((h) => h.trim()),
       };
 
-      await axios.put(
-        `${proxy}/api/v1/simulations/editSimulation/${simulation?._id}`,
+      await api.put(
+        `/api/v1/simulations/editSimulation/${simulation?._id}`,
         payload,
         {
           headers: {

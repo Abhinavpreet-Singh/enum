@@ -1,8 +1,7 @@
+import { apiUrl, API_BASE_URL } from "@/lib/api-config";
 import { NextRequest, NextResponse } from "next/server";
-import { proxy } from "../../proxy";
-
 // Reuse the same backend URL that the rest of the app uses (local / remote)
-const JUDGE_API_URL = `${proxy}/api/v1/judge/run`;
+const JUDGE_API_URL = apiUrl("/api/v1/judge/run");
 
 export async function POST(request: NextRequest) {
   try {

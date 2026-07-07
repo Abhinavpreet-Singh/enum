@@ -1,9 +1,9 @@
 "use client";
+import { apiUrl, API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useContext, useState, useRef, useEffect } from "react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import Link from "next/link";
 import useAuth from "@/hooks/useAuth";
 import { AuthContext } from "@/providers/AuthProvider";
@@ -274,8 +274,8 @@ export default function ProfileContent() {
     const fetchProfile = () => {
       const token = getMemoryToken();
       if (!token) return;
-      axios
-        .get(`${proxy}/api/v1/users/profile`, {
+      api
+        .get("/api/v1/users/profile", {
           headers: { Authorization: `Bearer ${token}` },
         })
         .then((res) => {
@@ -429,9 +429,9 @@ export default function ProfileContent() {
     // with all fields merged - eliminates the race condition where two separate
     // setStats calls overwrite each other's data in localStorage.
     Promise.all([
-      axios.get(`${proxy}/api/v1/users/leaderboard`).catch(() => null),
+      api.get("/api/v1/users/leaderboard").catch(() => null),
       token
-        ? fetch(`${proxy}/api/v1/submissions/recent`, {
+        ? fetch(apiUrl("/api/v1/submissions/recent"), {
             headers: { Authorization: `Bearer ${token}` },
           })
             .then((r) => r.json())
@@ -508,8 +508,8 @@ export default function ProfileContent() {
     const token = getMemoryToken();
     if (!token) return;
     try {
-      await axios.put(
-        `${proxy}/api/v1/users/profile`,
+      await api.put(
+        "/api/v1/users/profile",
         {
           displayName: data.name,
           bio: data.bio,
@@ -530,8 +530,8 @@ export default function ProfileContent() {
     const token = getMemoryToken();
     if (!token) return;
     try {
-      await axios.put(
-        `${proxy}/api/v1/users/profile`,
+      await api.put(
+        "/api/v1/users/profile",
         { certs: updatedCerts },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -560,8 +560,8 @@ export default function ProfileContent() {
     if (!token) return;
     const formData = new FormData();
     formData.append("avatar", file);
-    axios
-      .post(`${proxy}/api/v1/users/avatar`, formData, {
+    api
+      .post("/api/v1/users/avatar", formData, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => {

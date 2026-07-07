@@ -1,11 +1,11 @@
 "use client";
 
+import { apiUrl, API_BASE_URL } from "@/lib/api-config";
 /**
  * Displays active platform announcements from the admin.
  * Fetches from /api/v1/platform/announcements and shows a dismissible banner per announcement.
  */
 import { useEffect, useState } from "react";
-import { proxy } from "@/app/proxy";
 import { X, AlertTriangle, Info, Megaphone } from "lucide-react";
 
 type Announcement = {
@@ -61,7 +61,7 @@ export function AnnouncementsBanner({ audience = "all" }: Props) {
 
   useEffect(() => {
     setDismissed(getDismissed());
-    fetch(`${proxy}/api/v1/platform/announcements?audience=${audience}`, {
+    fetch(apiUrl(`/api/v1/platform/announcements?audience=${audience}`), {
       credentials: "include",
     })
       .then((r) => r.json())

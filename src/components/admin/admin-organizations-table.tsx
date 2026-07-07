@@ -1,9 +1,9 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
-import axios from "axios";
-import { proxy } from "@/app/proxy.js";
 import AdminCompanyDetailModal from "./admin-organization-detail-modal";
 
 interface Company {
@@ -44,7 +44,7 @@ export default function AdminCompaniesTable({ onRefresh }: AdminCompaniesTablePr
     setError("");
     try {
       const token = getMemoryToken();
-      const response = await axios.get(`${proxy}/api/v1/admin/companies`, {
+      const response = await api.get("/api/v1/admin/companies", {
         params: {
           page,
           limit,
@@ -80,7 +80,7 @@ export default function AdminCompaniesTable({ onRefresh }: AdminCompaniesTablePr
     if (!confirm("Are you sure you want to delete this company?")) return;
     try {
       const token = getMemoryToken();
-      await axios.delete(`${proxy}/api/v1/admin/companies/${companyId}`, {
+      await api.delete(`/api/v1/admin/companies/${companyId}`, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
       });
@@ -94,8 +94,8 @@ export default function AdminCompaniesTable({ onRefresh }: AdminCompaniesTablePr
   const handleApprovalChange = async (companyId: string, newStatus: string) => {
     try {
       const token = getMemoryToken();
-      await axios.patch(
-        `${proxy}/api/v1/admin/companies/${companyId}/approval`,
+      await api.patch(
+        `/api/v1/admin/companies/${companyId}/approval`,
         { status: newStatus },
         {
           headers: { Authorization: `Bearer ${token}` },

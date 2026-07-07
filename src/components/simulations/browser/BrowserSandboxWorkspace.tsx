@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl, API_BASE_URL } from "@/lib/api-config";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 /**
@@ -20,7 +21,6 @@ import { useTheme } from "@/providers/theme-provider";
 import Link from "next/link";
 import type { BrowserSimulation } from "@/data/browser-simulations";
 import { evaluateSubmission, type ScoreResult } from "@/utils/cssScorer";
-import { proxy } from "@/app/proxy";
 import {
   ArrowLeft,
   RotateCcw,
@@ -282,7 +282,7 @@ export default function BrowserSandboxWorkspace({ simulation }: Props) {
     try {
       const token = typeof window !== "undefined" ? getMemoryToken() : null;
       if (token) {
-        await fetch(`${proxy}/api/v1/simulation-progress/${simulation.id}`, {
+        await fetch(apiUrl(`/api/v1/simulation-progress/${simulation.id}`), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -317,7 +317,7 @@ export default function BrowserSandboxWorkspace({ simulation }: Props) {
           : null;
       if (!token) return; // not logged in, skip silently
 
-      const res = await fetch(`${proxy}/api/v1/users/award-browser-xp`, {
+      const res = await fetch(apiUrl("/api/v1/users/award-browser-xp"), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

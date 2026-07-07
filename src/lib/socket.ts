@@ -1,13 +1,9 @@
 import { io, Socket } from "socket.io-client";
+import { SOCKET_URL } from "@/lib/api-config";
 
 // ─── Singleton Socket.IO client ─────────────────────────────────────────────
 // Only one connection per browser tab. The socket is created lazily on first
 // call to getSocket() and reused for all subsequent calls.
-
-const SOCKET_URL =
-  process.env.NEXT_PUBLIC_SOCKET_URL ||
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "http://localhost:8000";
 
 let socket: Socket | null = null;
 

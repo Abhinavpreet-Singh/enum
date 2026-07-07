@@ -1,8 +1,8 @@
 "use client";
+import { apiUrl, API_BASE_URL } from "@/lib/api-config";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
-import { proxy } from "@/app/proxy";
 import {
   Play,
   Check,
@@ -55,7 +55,7 @@ const languageOptions = [
 ];
 
 // Call the backend judge endpoint directly (no Next.js server in Tauri .exe)
-const JUDGE_API_URL = `${proxy}/api/v1/judge/run`;
+const JUDGE_API_URL = apiUrl("/api/v1/judge/run");
 
 type Language = "python" | "java" | "c" | "cpp";
 type BottomTab = "testcase" | "result";
@@ -364,7 +364,7 @@ export default function CodeEditor({
     // Save all submissions to backend (accepted AND failed)
     try {
       const token = getMemoryToken();
-      const saveRes = await fetch(`${proxy}/api/v1/submissions/save`, {
+      const saveRes = await fetch(apiUrl("/api/v1/submissions/save"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

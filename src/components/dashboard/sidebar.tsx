@@ -1,11 +1,11 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useContext, useState, useEffect } from "react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import {
   LayoutDashboard,
   Code,
@@ -165,11 +165,11 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
     // Organization accounts use a different profile endpoint
     const profileUrl =
       verified && resolvedType === "organization" && !isAdmin
-        ? `${proxy}/api/v1/organization-dashboard/profile`
-        : `${proxy}/api/v1/users/profile`;
+        ? "/api/v1/organization-dashboard/profile"
+        : "/api/v1/users/profile";
 
-    // Global axios interceptor injects the in-memory access token automatically
-    axios
+    // Global api interceptor injects the in-memory access token automatically
+    api
       .get(profileUrl, { withCredentials: true })
       .then((res) => {
         const data = res?.data?.data;

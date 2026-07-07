@@ -14,9 +14,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# NEXT_PUBLIC_* vars are inlined at build time
-ARG NEXT_PUBLIC_API_BASE_URL
-ARG NEXT_PUBLIC_SOCKET_URL
+# NEXT_PUBLIC_* vars are inlined at build time (runtime env is too late).
+# Dokploy must pass these as Docker build args, or the defaults below apply.
+ARG NEXT_PUBLIC_API_BASE_URL=https://api.enum.live
+ARG NEXT_PUBLIC_SOCKET_URL=https://api.enum.live
 ARG NEXT_PUBLIC_APP_URL
 ARG NEXT_PUBLIC_EXAM_APP_URL
 ARG NEXT_PUBLIC_CONTACT_ENDPOINT

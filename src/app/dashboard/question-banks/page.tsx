@@ -1,9 +1,9 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api, { isAxiosError } from "@/lib/api";
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { DashboardPageShell, DashboardPageHeader } from "@/components/dashboard/dashboard-page-shell";
 import {
   Plus, BookOpen, Trash2, Hash, Tag, ChevronRight, Pencil,
@@ -192,7 +192,7 @@ function QuestionBanksInner() {
     setListLoading(true);
     const params: Record<string, string> = {};
     if (categoryFilter !== "all") params.category = categoryFilter;
-    axios.get(`${proxy}/api/v1/question-banks`, { params })
+    api.get("/api/v1/question-banks", { params })
       .then(r => setBanks(r.data.data || []))
       .catch(() => setBanks([]))
       .finally(() => setListLoading(false));
@@ -204,7 +204,7 @@ function QuestionBanksInner() {
     setCatalogLoading(true);
     setCatalogError("");
     try {
-      const res = await axios.get(`${proxy}/api/v1/question-banks/catalog/platform`);
+      const res = await api.get("/api/v1/question-banks/catalog/platform");
       const data = res.data.data || {};
       setCatalog({
         dsa: data.dsa || [],
@@ -213,7 +213,7 @@ function QuestionBanksInner() {
         counts: data.counts,
       });
     } catch (err) {
-      const raw = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
+      const raw = isAxiosError(err) ? err.response?.data?.message : undefined;
       setCatalogError(friendlyCatalogError(raw));
       setCatalog({ dsa: [], linux: [], system_design: [] });
     } finally {
@@ -254,7 +254,7 @@ function QuestionBanksInner() {
   const fetchBank = useCallback(() => {
     if (!bankId) { setBank(null); return; }
     setDetailLoading(true);
-    axios.get(`${proxy}/api/v1/question-banks/${bankId}`)
+    api.get(`/api/v1/question-banks/${bankId}`)
       .then(r => setBank(r.data.data))
       .catch(() => setBank(null))
       .finally(() => setDetailLoading(false));
@@ -284,7 +284,7 @@ function QuestionBanksInner() {
     if (!newName.trim()) return;
     setCreating(true);
     try {
-      const res = await axios.post(`${proxy}/api/v1/question-banks`, {
+      const res = await api.post("/api/v1/question-banks", {
         name: newName.trim(), category: newCategory, description: newDescription,
       });
       setShowCreate(false);
@@ -297,7 +297,7 @@ function QuestionBanksInner() {
 
   const handleDeleteBank = async (id: string) => {
     try {
-      await axios.delete(`${proxy}/api/v1/question-banks/${id}`);
+      await api.delete(`/api/v1/question-banks/${id}`);
       setDeleteConfirm(null);
       fetchBanks();
     } catch (err) { console.error(err); }
@@ -340,18 +340,18 @@ function QuestionBanksInner() {
     setSaving(true); setFormError("");
     try {
       const payload = buildPayload();
-      if (editingId) await axios.put(`${proxy}/api/v1/question-banks/${bankId}/questions/${editingId}`, payload);
-      else await axios.post(`${proxy}/api/v1/question-banks/${bankId}/questions`, payload);
+      if (editingId) await api.put(`/api/v1/question-banks/${bankId}/questions/${editingId}`, payload);
+      else await api.post(`/api/v1/question-banks/${bankId}/questions`, payload);
       setModalOpen(false); fetchBank();
     } catch (err) {
-      if (axios.isAxiosError(err)) setFormError(err.response?.data?.message || "Failed to save.");
+      if (isAxiosError(err)) setFormError(err.response?.data?.message || "Failed to save.");
       else setFormError("Unexpected error.");
     } finally { setSaving(false); }
   };
 
   const handleDeleteQ = async (id: string) => {
     try {
-      await axios.delete(`${proxy}/api/v1/question-banks/${bankId}/questions/${id}`);
+      await api.delete(`/api/v1/question-banks/${bankId}/questions/${id}`);
       setQDeleteConfirm(null); fetchBank();
     } catch { /* silent */ }
   };
@@ -370,7 +370,7 @@ function QuestionBanksInner() {
     setImporting(true);
     setImportError("");
     try {
-      await axios.post(`${proxy}/api/v1/question-banks/${bankId}/import`, {
+      await api.post(`/api/v1/question-banks/${bankId}/import`, {
         source: importSource,
         questionIds: Array.from(selectedImportIds),
       });
@@ -378,7 +378,7 @@ function QuestionBanksInner() {
       setSelectedImportIds(new Set());
       fetchBank();
     } catch (err) {
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         setImportError(err.response?.data?.message || "Import failed.");
       } else {
         setImportError("Import failed.");
@@ -392,7 +392,7 @@ function QuestionBanksInner() {
     setSeeding(true);
     setSeedMessage("");
     try {
-      const res = await axios.post(`${proxy}/api/v1/question-banks/seed-samples`);
+      const res = await api.post("/api/v1/question-banks/seed-samples");
       const banks = res.data.data || [];
       const created = banks.filter((b: { skipped?: boolean }) => !b.skipped).length;
       const skipped = banks.filter((b: { skipped?: boolean }) => b.skipped).length;
@@ -405,7 +405,7 @@ function QuestionBanksInner() {
       );
       fetchBanks();
     } catch (err) {
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         setSeedMessage(err.response?.data?.message || "Could not create sample banks.");
       } else {
         setSeedMessage("Could not create sample banks.");

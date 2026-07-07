@@ -1,10 +1,9 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
-import axios from "axios";
-import { proxy } from "@/app/proxy.js";
-
 interface CompanyDetail {
   id: string;
   name: string;
@@ -63,8 +62,8 @@ export default function AdminCompanyDetailModal({
     setError("");
     try {
       const token = getMemoryToken();
-      const response = await axios.get(
-        `${proxy}/api/v1/admin/companies/${company.id}`,
+      const response = await api.get(
+        `/api/v1/admin/companies/${company.id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true,
@@ -83,7 +82,7 @@ export default function AdminCompanyDetailModal({
     if (!confirm("Are you sure you want to delete this company?")) return;
     try {
       const token = getMemoryToken();
-      await axios.delete(`${proxy}/api/v1/admin/companies/${company.id}`, {
+      await api.delete(`/api/v1/admin/companies/${company.id}`, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
       });

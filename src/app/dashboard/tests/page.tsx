@@ -1,9 +1,9 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { DashboardPageShell, DashboardPageHeader } from "@/components/dashboard/dashboard-page-shell";
 import { TestLinkCopy } from "@/components/dashboard/organization/test-link-copy";
 import {
@@ -60,8 +60,8 @@ export default function TestsPage() {
     const params: Record<string, string> = {};
     if (statusFilter !== "all") params.status = statusFilter;
     if (search.trim()) params.search = search.trim();
-    axios
-      .get(`${proxy}/api/v1/assessments`, { params })
+    api
+      .get("/api/v1/assessments", { params })
       .then((r) => setTests(r.data.data || []))
       .catch(() => setTests([]))
       .finally(() => setLoading(false));
@@ -75,7 +75,7 @@ export default function TestsPage() {
   async function handlePublish(id: string) {
     setActionLoading(id);
     try {
-      await axios.put(`${proxy}/api/v1/assessments/${id}/publish`);
+      await api.put(`/api/v1/assessments/${id}/publish`);
       fetchTests();
     } catch (err) {
       console.error(err);
@@ -87,7 +87,7 @@ export default function TestsPage() {
   async function handleUnpublish(id: string) {
     setActionLoading(id);
     try {
-      await axios.put(`${proxy}/api/v1/assessments/${id}/unpublish`);
+      await api.put(`/api/v1/assessments/${id}/unpublish`);
       fetchTests();
     } catch (err) {
       console.error(err);
@@ -99,7 +99,7 @@ export default function TestsPage() {
   async function handleArchive(id: string) {
     setActionLoading(id);
     try {
-      await axios.put(`${proxy}/api/v1/assessments/${id}/archive`);
+      await api.put(`/api/v1/assessments/${id}/archive`);
       fetchTests();
     } catch (err) {
       console.error(err);
@@ -111,7 +111,7 @@ export default function TestsPage() {
   async function handleDelete(id: string) {
     setActionLoading(id);
     try {
-      await axios.delete(`${proxy}/api/v1/assessments/${id}`);
+      await api.delete(`/api/v1/assessments/${id}`);
       setDeleteConfirm(null);
       fetchTests();
     } catch (err) {

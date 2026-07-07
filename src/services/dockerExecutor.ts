@@ -1,3 +1,4 @@
+import { apiUrl, API_BASE_URL } from "@/lib/api-config";
 /**
  * Code execution service for simulations.
  *
@@ -8,8 +9,6 @@
  * self-contained script that writes them to /tmp at runtime, then
  * executes the entry file via require().
  */
-
-import { proxy } from "@/app/proxy";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -29,7 +28,7 @@ export interface ExecutionResult {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const COMPILER_URL = `${proxy}/api/v1/compiler/run`;
+const COMPILER_URL = apiUrl("/api/v1/compiler/run");
 const COMPILER_TIMEOUT_MS = 30_000; // 30 s network timeout
 
 // ─── Bundle multi-file simulation into a single Node.js script ──────────────

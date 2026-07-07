@@ -1,11 +1,10 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { proxy } from "@/app/proxy";
-import axios from "axios";
-
 interface Testcase {
   input: string[]; // Array of input values (one per parameter line)
   expectedOutput: string;
@@ -160,8 +159,8 @@ export default function QuestionForm() {
     }
 
     try {
-      const response = await axios.post(
-        `${proxy}/api/v1/admin/adminPostQuestion`,
+      const response = await api.post(
+        "/api/v1/admin/adminPostQuestion",
         {
           title: formData.title,
           desc: formData.desc,

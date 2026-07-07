@@ -6,12 +6,12 @@
  *   HttpOnly refresh cookie) and retries the original request.
  * - Queues concurrent 401 requests so only one refresh call is made.
  */
-import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
-import { proxy } from "@/app/proxy";
+import axios, { AxiosError, isAxiosError, type InternalAxiosRequestConfig } from "axios";
+import { API_BASE_URL } from "@/lib/api-config";
 import { getMemoryToken, setMemoryToken, clearMemoryToken } from "@/lib/tokenStore";
 
 const api = axios.create({
-  baseURL: proxy as string,
+  baseURL: API_BASE_URL,
   withCredentials: true,
 });
 
@@ -28,11 +28,7 @@ function resolveQueue(token: string | null) {
 
 async function doRefresh(): Promise<string | null> {
   try {
-    const res = await axios.post(
-      `${proxy}/api/v1/auth/refresh`,
-      {},
-      { withCredentials: true },
-    );
+    const res = await api.post("/api/v1/auth/refresh", {});
     const newToken: string = res.data?.accessToken;
     setMemoryToken(newToken);
     return newToken;
@@ -90,3 +86,4 @@ api.interceptors.response.use(
 );
 
 export default api;
+export { isAxiosError };

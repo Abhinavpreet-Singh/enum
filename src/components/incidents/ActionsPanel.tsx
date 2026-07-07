@@ -1,4 +1,6 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api, { isAxiosError } from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState } from "react";
@@ -9,8 +11,6 @@ import {
   Search,
   CheckCircle2,
 } from "lucide-react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import type {
   IncidentSimulation,
   IncidentSession,
@@ -56,8 +56,8 @@ export default function ActionsPanel({
       setError(null);
       const token = getMemoryToken();
 
-      await axios.post(
-        `${proxy}/api/v1/incidents/${incident.id}/session/${session.id}/action`,
+      await api.post(
+        `/api/v1/incidents/${incident.id}/session/${session.id}/action`,
         { actionId: action.id },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -65,7 +65,7 @@ export default function ActionsPanel({
       onActionTaken(action.id);
     } catch (err) {
       const message =
-        axios.isAxiosError(err) && err.response?.data?.message
+        isAxiosError(err) && err.response?.data?.message
           ? err.response.data.message
           : "Could not run action";
       setError(message);

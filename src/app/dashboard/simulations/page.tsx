@@ -1,5 +1,7 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { useEffect, useState, useMemo } from "react";
 import {
   Bug,
@@ -19,8 +21,6 @@ import {
   Lock,
 } from "lucide-react";
 import Link from "next/link";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { browserSimulations } from "@/data/browser-simulations";
 import {
   DashboardPageHeader,
@@ -172,13 +172,13 @@ export default function SimulationsPage() {
     });
 
     Promise.all([
-      axios.get(`${proxy}/api/v1/simulations/getSimulations`, {
+      api.get("/api/v1/simulations/getSimulations", {
         withCredentials: true,
       }),
-      axios.get(`${proxy}/api/v1/simulations/linux`, {
+      api.get("/api/v1/simulations/linux", {
         withCredentials: true,
       }),
-      axios.get(`${proxy}/api/v1/system-design/simulations`, {
+      api.get("/api/v1/system-design/simulations", {
         withCredentials: true,
       }),
     ])

@@ -1,11 +1,11 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api, { isAxiosError } from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useEffect, useState } from "react";
 import { Clock, Zap, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import type { IncidentSimulation } from "@/types/incident";
 import {
   formatIncidentCode,
@@ -46,14 +46,14 @@ export default function IncidentsPage() {
       try {
         setIsLoading(true);
         const token = getMemoryToken();
-        const response = await axios.get(`${proxy}/api/v1/incidents`, {
+        const response = await api.get("/api/v1/incidents", {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
 
         setIncidents(response.data.data);
       } catch (err) {
         const message =
-          axios.isAxiosError(err) && err.response?.data?.message
+          isAxiosError(err) && err.response?.data?.message
             ? err.response.data.message
             : "Failed to load incidents";
         setError(message);

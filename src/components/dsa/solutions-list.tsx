@@ -1,11 +1,10 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useEffect, useState } from "react";
 import { ThumbsUp, Calendar, Code2 } from "lucide-react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
-
 interface Solution {
   _id: string;
   code: string;
@@ -37,8 +36,8 @@ export default function SolutionsList({ questionId }: SolutionsListProps) {
   const loadSolutions = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(
-        `${proxy}/api/v1/solutions/question/${questionId}`
+      const response = await api.get(
+        `/api/v1/solutions/question/${questionId}`
       );
       setSolutions(response.data.data || []);
     } catch (error) {
@@ -51,8 +50,8 @@ export default function SolutionsList({ questionId }: SolutionsListProps) {
 
   const handleUpvote = async (solutionId: string) => {
     try {
-      await axios.patch(
-        `${proxy}/api/v1/solutions/upvote/${solutionId}`,
+      await api.patch(
+        `/api/v1/solutions/upvote/${solutionId}`,
         {},
         {
           headers: {

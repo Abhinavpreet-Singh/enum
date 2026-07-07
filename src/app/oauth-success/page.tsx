@@ -1,9 +1,9 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import axios from "axios";
-import { proxy } from "@/app/proxy.js";
 import { setMemoryToken } from "@/lib/tokenStore";
 import { AuthContext } from "@/providers/AuthProvider";
 
@@ -30,7 +30,7 @@ export default function OAuthSuccessPage() {
       try {
         // The backend set an HttpOnly refresh cookie on the OAuth callback redirect.
         // Call /me to get the access token and user object.
-        const res = await axios.get(`${proxy}/api/v1/auth/me`, {
+        const res = await api.get("/api/v1/auth/me", {
           withCredentials: true,
         });
 

@@ -1,10 +1,10 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import useAuth from "@/hooks/useAuth";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { browserSimulations } from "@/data/browser-simulations";
 
 interface DisplaySimulation {
@@ -28,8 +28,8 @@ export default function LatestIncidentsSection() {
       setLoading(true);
       try {
         const [backendRes, systemDesignRes] = await Promise.all([
-          axios.get(`${proxy}/api/v1/simulations/getSimulations`, { withCredentials: true }).catch(() => null),
-          axios.get(`${proxy}/api/v1/system-design/simulations`, { withCredentials: true }).catch(() => null),
+          api.get("/api/v1/simulations/getSimulations", { withCredentials: true }).catch(() => null),
+          api.get("/api/v1/system-design/simulations", { withCredentials: true }).catch(() => null),
         ]);
 
         if (!isMounted) return;

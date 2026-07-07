@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl, API_BASE_URL } from "@/lib/api-config";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
@@ -16,8 +17,6 @@ import Link from "next/link";
 import type { Simulation, SimulationFile } from "@/data/simulations";
 import { useTheme } from "@/providers/theme-provider";
 import LivePreview from "./live-preview";
-import { proxy } from "@/app/proxy";
-
 interface SimulationWorkspaceProps {
   simulation: Simulation;
 }
@@ -125,7 +124,7 @@ export default function SimulationWorkspace({
       // Prepare code to run - combine all files if needed
       const mainFile = files[activeFile.name] || "";
 
-      const response = await fetch(`${proxy}/api/v1/compiler/run`, {
+      const response = await fetch(apiUrl("/api/v1/compiler/run"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -152,7 +151,7 @@ export default function SimulationWorkspace({
         try {
           const token = typeof window !== "undefined" ? getMemoryToken() : null;
           if (token) {
-            await fetch(`${proxy}/api/v1/simulation-progress/${simulation.id}`, {
+            await fetch(apiUrl(`/api/v1/simulation-progress/${simulation.id}`), {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
@@ -220,7 +219,7 @@ export default function SimulationWorkspace({
           : null;
       if (!token) return;
 
-      const res = await fetch(`${proxy}/api/v1/users/award-browser-xp`, {
+      const res = await fetch(apiUrl("/api/v1/users/award-browser-xp"), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

@@ -1,5 +1,6 @@
 "use client";
 
+import { apiUrl, API_BASE_URL } from "@/lib/api-config";
 /**
  * Fetches public platform settings from /api/v1/platform/settings.
  * Returns a stable record of key→value strings.
@@ -7,8 +8,6 @@
  * admin can hard-refresh if needed).
  */
 import { useState, useEffect } from "react";
-import { proxy } from "@/app/proxy";
-
 type Settings = Record<string, string>;
 
 const DEFAULT_SETTINGS: Settings = {
@@ -40,7 +39,7 @@ export function usePlatformSettings() {
       setLoading(false);
       return;
     }
-    fetch(`${proxy}/api/v1/platform/settings`, { credentials: "include" })
+    fetch(apiUrl("/api/v1/platform/settings"), { credentials: "include" })
       .then((r) => r.json())
       .then((json) => {
         const data: Settings = { ...DEFAULT_SETTINGS, ...(json.data ?? {}) };

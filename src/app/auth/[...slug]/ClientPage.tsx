@@ -1,10 +1,8 @@
 "use client";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import axios from "axios";
-import { proxy } from "@/app/proxy.js";
-
 const normalizeToken = (value: string | null) => {
   if (!value) return "";
 
@@ -67,15 +65,15 @@ export default function AuthCatchAllClientPage() {
       if (!params.get("code")) return "";
 
       const callbacks = [
-        `${proxy}/api/auth/google/callback${search}`,
-        `${proxy}/auth/google/callback${search}`,
-        `${proxy}/api/auth/github/callback${search}`,
-        `${proxy}/auth/github/callback${search}`,
+        `/api/auth/google/callback${search}`,
+        `/auth/google/callback${search}`,
+        `/api/auth/github/callback${search}`,
+        `/auth/github/callback${search}`,
       ];
 
       for (const callbackUrl of callbacks) {
         try {
-          const response = await axios.get(callbackUrl, {
+          const response = await api.get(callbackUrl, {
             withCredentials: true,
           });
 
@@ -128,7 +126,7 @@ export default function AuthCatchAllClientPage() {
 
         // Hydrate basic user info so dashboard/sidebar doesn't show Guest.
         try {
-          const profileRes = await axios.get(`${proxy}/api/v1/users/profile`, {
+          const profileRes = await api.get("/api/v1/users/profile", {
             withCredentials: true,
           });
 

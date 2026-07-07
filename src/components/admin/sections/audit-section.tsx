@@ -1,9 +1,9 @@
 "use client";
+import { apiUrl, API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect, useCallback } from "react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { History, Filter } from "lucide-react";
 
 const panelBorder = "border border-black/20 dark:border-white/25";
@@ -51,7 +51,7 @@ export default function AuditSection() {
     const params: Record<string, string> = { page: String(page), limit: "20" };
     if (targetType !== "all") params.targetType = targetType;
 
-    axios.get(`${proxy}/api/v1/admin/audit`, { ...cfg(), params })
+    api.get("/api/v1/admin/audit", { ...cfg(), params })
       .then((r) => {
         setLogs(r.data.data);
         setTotal(r.data.total);

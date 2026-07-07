@@ -1,11 +1,10 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api, { isAxiosError } from "@/lib/api";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import axios from "axios";
-import { proxy } from "@/app/proxy.js";
-
 type PasswordResetMode = "request" | "confirm";
 type AccountType = "user" | "organization";
 
@@ -37,7 +36,7 @@ export default function PasswordResetForm({ mode, token }: PasswordResetFormProp
     setSuccess("");
 
     try {
-      const response = await axios.post(`${proxy}/api/v1/auth/password-reset/request`, {
+      const response = await api.post("/api/v1/auth/password-reset/request", {
         email,
         accountType,
       });
@@ -46,7 +45,7 @@ export default function PasswordResetForm({ mode, token }: PasswordResetFormProp
           "If an account exists for this email, a password reset link has been sent.",
       );
     } catch (err) {
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         setError(
           err.response?.data?.message ||
             err.response?.data?.error ||
@@ -85,7 +84,7 @@ export default function PasswordResetForm({ mode, token }: PasswordResetFormProp
     }
 
     try {
-      const response = await axios.post(`${proxy}/api/v1/auth/password-reset/confirm`, {
+      const response = await api.post("/api/v1/auth/password-reset/confirm", {
         token,
         newPassword,
       });
@@ -97,7 +96,7 @@ export default function PasswordResetForm({ mode, token }: PasswordResetFormProp
         router.push("/login?reset=success");
       }, 1400);
     } catch (err) {
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         setError(
           err.response?.data?.message ||
             err.response?.data?.error ||

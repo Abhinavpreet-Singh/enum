@@ -1,11 +1,10 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState } from "react";
 import { X, Send, CheckCircle2 } from "lucide-react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
-
 interface PublishSolutionModalProps {
   questionId: string;
   code: string;
@@ -43,8 +42,8 @@ export default function PublishSolutionModal({
     setError("");
 
     try {
-      const response = await axios.post(
-        `${proxy}/api/v1/solutions/publish`,
+      const response = await api.post(
+        "/api/v1/solutions/publish",
         { questionId, code, description, language },
         {
           headers: {

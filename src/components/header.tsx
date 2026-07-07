@@ -1,10 +1,10 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import Image from "next/image";
 import Link from "next/link";
 import useAuth from "@/hooks/useAuth";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { useContext, useEffect, useState, type MouseEvent } from "react";
 import { useTheme } from "@/providers/theme-provider";
 import { Menu, Moon, Sun, X } from "lucide-react";
@@ -119,9 +119,9 @@ export default function Header() {
     window.addEventListener("storage", syncAvatar);
     window.addEventListener("userAvatarChanged", syncAvatar);
 
-    // Fetch profile using the global axios instance (interceptor injects token from memory)
-    axios
-      .get(`${proxy}/api/v1/users/profile`, { withCredentials: true })
+    // Fetch profile using the global api instance (interceptor injects token from memory)
+    api
+      .get("/api/v1/users/profile", { withCredentials: true })
       .then((res) => {
         const data = res?.data?.data;
         if (!data) return;
@@ -154,8 +154,8 @@ export default function Header() {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      await axios.post(
-        `${proxy}/api/v1/auth/logout`,
+      await api.post(
+        "/api/v1/auth/logout",
         {},
         { withCredentials: true },
       );

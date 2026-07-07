@@ -1,5 +1,7 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import React, {
   createContext,
   useCallback,
@@ -8,8 +10,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import {
   setMemoryToken,
   clearMemoryToken,
@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const initialize = useCallback(async () => {
     try {
-      const res = await axios.get(`${proxy}/api/v1/auth/me`, {
+      const res = await api.get("/api/v1/auth/me", {
         withCredentials: true,
       });
       if (!mountedRef.current) return;
@@ -144,7 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password: string;
       accountType?: AccountType;
     }) => {
-      const res = await axios.post(`${proxy}/api/v1/auth/login`, credentials, {
+      const res = await api.post("/api/v1/auth/login", credentials, {
         withCredentials: true,
       });
       if (res.data.requiresAccountSelection) {
@@ -181,8 +181,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (refreshingRef.current) return null;
     refreshingRef.current = true;
     try {
-      const res = await axios.post(
-        `${proxy}/api/v1/auth/refresh`,
+      const res = await api.post(
+        "/api/v1/auth/refresh",
         {},
         { withCredentials: true },
       );
@@ -217,7 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      await axios.post(`${proxy}/api/v1/auth/logout`, {}, { withCredentials: true });
+      await api.post("/api/v1/auth/logout", {}, { withCredentials: true });
     } catch { /* Ignore errors — clean up locally regardless */ }
     clearMemoryToken();
     setState({
@@ -232,8 +232,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logoutAll = useCallback(async () => {
     try {
       const token = state.accessToken;
-      await axios.post(
-        `${proxy}/api/v1/auth/logout-all`,
+      await api.post(
+        "/api/v1/auth/logout-all",
         {},
         {
           withCredentials: true,
