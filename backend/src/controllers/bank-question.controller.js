@@ -61,13 +61,9 @@ export const getBankQuestions = asyncHandler(async (req, res) => {
 
   const questions = await prisma.bankQuestion.findMany({
     where,
-<<<<<<< HEAD
     orderBy: { createdAt: "desc" },
     include: bankQuestionInclude,
-=======
-    orderBy: { createdAt: "asc" },
->>>>>>> ee1bfa44d7b8a28128e2ef821bca487cf82c3216
-  });
+  }); 
 
   return res.status(200).json({
     message: "Questions fetched.",

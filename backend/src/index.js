@@ -5,6 +5,8 @@ import prisma from "./db/index.js";
 import { setupSocket } from "./socket/index.js";
 import { env } from "./config/env.js";
 
+// Prisma client targets PostgreSQL (see prisma/schema.prisma).
+
 // ─── CORS origins (reuse the same list the Express app uses) ────────────────
 const normalizeOrigin = (origin) => origin.replace(/\/+$/, "");
 const allowedOrigins = [
@@ -23,7 +25,7 @@ const allowedOrigins = [
 async function main() {
     try {
         await prisma.$connect();
-        console.log("Prisma connected to MongoDB successfully");
+        console.log("Prisma connected to PostgreSQL successfully");
 
         // Create an HTTP server from the Express app so Socket.IO can attach
         const server = createServer(app);

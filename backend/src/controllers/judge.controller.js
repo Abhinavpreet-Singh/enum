@@ -53,13 +53,9 @@ export const judgeCode = async (req, res) => {
       return res.status(404).json({ message: "Question not found." });
     }
 
-<<<<<<< HEAD
-    testcases = serializeQuestion(question).testcases.map(normaliseTestCase);
-=======
     testcases = (question.testcases || []).map((tc) =>
       normaliseTestCase(tc, question.parameterTypes || []),
     );
->>>>>>> ee1bfa44d7b8a28128e2ef821bca487cf82c3216
     functionName = question.functionName;
     parameterTypes = question.parameterTypes;
     returnType = question.returnType;
