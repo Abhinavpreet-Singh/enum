@@ -11,13 +11,15 @@ if (process.env.NODE_ENV === "production") {
 }
 app.disable("x-powered-by")
 
-const normalizeOrigin = (origin) => origin.replace(/\/+$|\/?$/, "");
+const normalizeOrigin = (origin = "") =>
+    String(origin).trim().replace(/\/+$/, "");
 
 const allowedOrigins = [
     "http://localhost:3000",
     "http://localhost:3001",
     "https://enum.live",
     "https://www.enum.live",
+    "https://exam.enum.live",
     "https://enum0.vercel.app",
     env.FRONTEND_URL,
     ...(env.FRONTEND_URLS || []),
@@ -25,23 +27,44 @@ const allowedOrigins = [
     .filter(Boolean)
     .map(normalizeOrigin);
 
+const isAllowedOrigin = (origin) => {
+    if (!origin) return true;
+    return allowedOrigins.includes(normalizeOrigin(origin));
+};
+
 app.use(
     cors({
         origin: function (origin, callback) {
-            if (!origin) return callback(null, true)
-            const normalizedOrigin = normalizeOrigin(origin)
-
-            if (allowedOrigins.indexOf(normalizedOrigin) !== -1) {
-                callback(null, true)
-            } else {
-                callback(new Error("CORS origin not allowed"))
+            // Never throw — a thrown error skips CORS headers and the browser
+            // reports a misleading "No Access-Control-Allow-Origin" failure.
+            if (isAllowedOrigin(origin)) {
+                return callback(null, true);
             }
+            return callback(null, false);
         },
         credentials: true,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization", "Set-Cookie", "X-Enum-Client"],
+        allowedHeaders: [
+            "Content-Type",
+            "Authorization",
+            "Set-Cookie",
+            "X-Enum-Client",
+        ],
+        exposedHeaders: ["Set-Cookie"],
+        optionsSuccessStatus: 204,
     }),
 )
+
+// Ensure API error responses still include CORS headers for allowed browsers.
+app.use((req, res, next) => {
+    const origin = req.get("Origin");
+    if (origin && isAllowedOrigin(origin)) {
+        res.header("Access-Control-Allow-Origin", origin);
+        res.header("Access-Control-Allow-Credentials", "true");
+        res.header("Vary", "Origin");
+    }
+    next();
+})
 
 app.use(express.json({ limit: "1mb" }))
 app.use(express.urlencoded({ extended: true, limit: "1mb" }))

@@ -3,15 +3,10 @@ import java.io.*;
 
 public class Main {
 
-  public int maxProfit(int[] prices) {
-  int minPrice = Integer.MAX_VALUE;
-  int maxProfit = 0;
-  for (int price : prices) {
-    minPrice = Math.min(minPrice, price);
-    maxProfit = Math.max(maxProfit, price - minPrice);
-  }
-  return maxProfit;
+  public int[] twoSum(int[] nums, int target) {
+    return new int[2];
 }
+
 
   public static void main(String[] args) throws Exception {
     
@@ -29,9 +24,12 @@ public class Main {
     int _n0 = Integer.parseInt(_tok[_ti++]);
     int[] param0 = new int[_n0];
     for(int _i=0;_i<_n0;_i++) param0[_i] = Integer.parseInt(_tok[_ti++]);
+    int param1 = Integer.parseInt(_tok[_ti++]);
 
     Main obj = new Main();
-    int result = obj.maxProfit(param0);
-    System.out.print(result);
+    int[] result = obj.twoSum(param0, param1);
+    StringBuilder _out = new StringBuilder();
+    for(int _i=0;_i<result.length;_i++){ if(_i>0) _out.append(' '); _out.append(result[_i]); }
+    System.out.print(_out);
   }
 }

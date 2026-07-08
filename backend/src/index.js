@@ -12,6 +12,7 @@ const allowedOrigins = [
     "http://localhost:3001",
     "https://enum.live",
     "https://www.enum.live",
+    "https://exam.enum.live",
     "https://enum0.vercel.app",
     env.FRONTEND_URL,
     ...(env.FRONTEND_URLS || []),

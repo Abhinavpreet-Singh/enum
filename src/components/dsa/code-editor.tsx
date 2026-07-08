@@ -1,5 +1,5 @@
 "use client";
-import { apiUrl, API_BASE_URL } from "@/lib/api-config";
+import { apiUrl } from "@/lib/api-config";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
@@ -214,9 +214,14 @@ export default function CodeEditor({
     error?: string;
   }> => {
     try {
+      const token = getMemoryToken();
       const response = await fetch(JUDGE_API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           questionId,
           language,
@@ -366,6 +371,7 @@ export default function CodeEditor({
       const token = getMemoryToken();
       const saveRes = await fetch(apiUrl("/api/v1/submissions/save"), {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),

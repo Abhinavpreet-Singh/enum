@@ -67,6 +67,7 @@ export default function ComplexityAnalysisModal({
       // Call the backend directly (no Next.js server in Tauri .exe)
       const response = await fetch(apiUrl("/api/v1/complexity/analyze"), {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),

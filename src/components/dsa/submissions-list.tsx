@@ -77,6 +77,7 @@ export default function SubmissionsList({
       }
 
       const response = await fetch(apiUrl(`/api/v1/submissions/my/${questionId}`), {
+        credentials: "include",
         headers: { Authorization: `Bearer ${token}` },
       });
 
