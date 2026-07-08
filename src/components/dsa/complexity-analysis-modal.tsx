@@ -1,8 +1,8 @@
 "use client";
+import { apiUrl, API_BASE_URL } from "@/lib/api-config";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState } from "react";
-import { proxy } from "@/app/proxy";
 import {
   X,
   Brain,
@@ -65,8 +65,9 @@ export default function ComplexityAnalysisModal({
     try {
       const token = getMemoryToken();
       // Call the backend directly (no Next.js server in Tauri .exe)
-      const response = await fetch(`${proxy}/api/v1/complexity/analyze`, {
+      const response = await fetch(apiUrl("/api/v1/complexity/analyze"), {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),

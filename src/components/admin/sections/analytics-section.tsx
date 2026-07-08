@@ -1,9 +1,9 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { BarChart2, TrendingUp, Users, Activity, Target, Code, AlertTriangle } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -88,7 +88,7 @@ export default function AnalyticsSection() {
 
   useEffect(() => {
     setLoading(true);
-    axios.get(`${proxy}/api/v1/admin/analytics`, { ...cfg(), params: { range } })
+    api.get("/api/v1/admin/analytics", { ...cfg(), params: { range } })
       .then((r) => setData(r.data.data))
       .catch(() => setData(null))
       .finally(() => setLoading(false));

@@ -1,12 +1,11 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
 import { Question } from "@/data/dsa-questions";
 import { X, Plus, Trash2 } from "lucide-react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
-
 interface Testcase {
   input: string[];
   expectedOutput: string;
@@ -226,8 +225,8 @@ export default function EditQuestionModal({
     setLoading(true);
 
     try {
-      const response = await axios.put(
-        `${proxy}/api/v1/admin/editQuestion/${question?.id}`,
+      const response = await api.put(
+        `/api/v1/admin/editQuestion/${question?.id}`,
         {
           title: formData.title,
           desc: formData.desc,

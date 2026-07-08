@@ -1,11 +1,10 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useEffect, useState, useMemo } from "react";
 import { Edit, Trash2, Search, Filter, Bug } from "lucide-react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
-
 export interface SimulationListItem {
   _id: string;
   title: string;
@@ -43,8 +42,8 @@ export default function SimulationsManager({
   const fetchSimulations = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(
-        `${proxy}/api/v1/simulations/getSimulations`,
+      const response = await api.get(
+        "/api/v1/simulations/getSimulations",
       );
       setSimulations(response.data.data || []);
     } catch (error) {
@@ -88,8 +87,8 @@ export default function SimulationsManager({
     if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
 
     try {
-      await axios.delete(
-        `${proxy}/api/v1/simulations/deleteSimulation/${simulationId}`,
+      await api.delete(
+        `/api/v1/simulations/deleteSimulation/${simulationId}`,
         {
           headers: {
             Authorization: `Bearer ${getMemoryToken()}`,

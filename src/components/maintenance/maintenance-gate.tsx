@@ -1,9 +1,9 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { Construction } from "lucide-react";
 import { useAccountSession } from "@/hooks/useAccountType";
 
@@ -73,7 +73,7 @@ export default function MaintenanceGate({ children }: { children: React.ReactNod
 
     const load = async () => {
       try {
-        const res = await axios.get(`${proxy}/api/v1/maintenance/pages`);
+        const res = await api.get("/api/v1/maintenance/pages");
         if (!cancelled) {
           setPages(res.data?.data?.pages ?? []);
         }

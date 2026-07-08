@@ -1,9 +1,9 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { getMemoryToken } from "@/lib/tokenStore";
 import { AuthContext } from "@/providers/AuthProvider";
 import { useTheme } from "@/providers/theme-provider";
@@ -188,7 +188,7 @@ export default function SettingsContent() {
   const loadStudentAccount = useCallback(async () => {
     setLoadingAccount(true);
     try {
-      const res = await axios.get(`${proxy}/api/v1/users/profile`, {
+      const res = await api.get("/api/v1/users/profile", {
         withCredentials: true,
       });
       const data = res.data?.data;
@@ -208,7 +208,7 @@ export default function SettingsContent() {
   const loadCompany = useCallback(async () => {
     setLoadingCompany(true);
     try {
-      const res = await axios.get(`${proxy}/api/v1/organization-dashboard/profile`, {
+      const res = await api.get("/api/v1/organization-dashboard/profile", {
         withCredentials: true,
       });
       const data = res.data?.data;
@@ -246,8 +246,8 @@ export default function SettingsContent() {
     setSavingAccount(true);
     setBanner(null);
     try {
-      await axios.put(
-        `${proxy}/api/v1/users/profile`,
+      await api.put(
+        "/api/v1/users/profile",
         { displayName },
         { withCredentials: true },
       );
@@ -267,7 +267,7 @@ export default function SettingsContent() {
     setBanner(null);
     try {
       const { email: _email, approvalStatus: _status, ...payload } = company;
-      await axios.patch(`${proxy}/api/v1/organization-dashboard/profile`, payload, {
+      await api.patch("/api/v1/organization-dashboard/profile", payload, {
         withCredentials: true,
       });
       setBanner({ tone: "success", text: "Company profile updated successfully." });
@@ -295,8 +295,8 @@ export default function SettingsContent() {
     if (!token) return;
     const formData = new FormData();
     formData.append("avatar", file);
-    axios
-      .post(`${proxy}/api/v1/users/avatar`, formData, {
+    api
+      .post("/api/v1/users/avatar", formData, {
         withCredentials: true,
         headers: { "Content-Type": "multipart/form-data" },
       })
@@ -336,7 +336,7 @@ export default function SettingsContent() {
     setSendingReset(true);
     setBanner(null);
     try {
-      await axios.post(`${proxy}/api/v1/auth/password-reset/request`, {
+      await api.post("/api/v1/auth/password-reset/request", {
         email,
         accountType: isOrganization ? "organization" : "student",
       });

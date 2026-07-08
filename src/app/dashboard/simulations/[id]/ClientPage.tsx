@@ -1,5 +1,7 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api, { isAxiosError } from "@/lib/api";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import SimulationWorkspace from "@/components/simulations/simulation-workspace";
@@ -7,8 +9,6 @@ import SimulationContainer from "@/components/simulations/SimulationContainer";
 import BrowserSandboxWorkspace from "@/components/simulations/browser/BrowserSandboxWorkspace";
 import Link from "next/link";
 import { ArrowLeft, Loader2, Lock } from "lucide-react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import type { Simulation } from "@/data/simulations";
 import {
   browserSimulations,
@@ -38,8 +38,8 @@ export default function SimulationDetailClientPage() {
 
     const fetchSimulation = async () => {
       try {
-        const response = await axios.get(
-          `${proxy}/api/v1/simulations/getSimulation/${id}`,
+        const response = await api.get(
+          `/api/v1/simulations/getSimulation/${id}`,
         );
         const data = response.data.data;
 
@@ -86,7 +86,7 @@ export default function SimulationDetailClientPage() {
         setSimulation(sim);
       } catch (err) {
         console.error("Error fetching simulation:", err);
-        if (axios.isAxiosError(err) && err.response?.status === 403) {
+        if (isAxiosError(err) && err.response?.status === 403) {
           setLocked(true);
         }
         setError(true);

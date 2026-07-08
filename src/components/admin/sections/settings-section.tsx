@@ -1,9 +1,9 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api, { isAxiosError } from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { Settings, Megaphone, Plus, Trash2, Check, X, ChevronDown, ChevronUp, AlertTriangle, Info } from "lucide-react";
 
 const panelBorder = "border border-black/20 dark:border-white/25";
@@ -57,7 +57,7 @@ export default function SettingsSection() {
   const [annError, setAnnError] = useState("");
 
   useEffect(() => {
-    axios.get(`${proxy}/api/v1/admin/settings`, cfg())
+    api.get("/api/v1/admin/settings", cfg())
       .then((r) => {
         setSettings(r.data.data);
         const vals: Record<string, string> = {};
@@ -66,7 +66,7 @@ export default function SettingsSection() {
       })
       .finally(() => setLoadingSettings(false));
 
-    axios.get(`${proxy}/api/v1/admin/announcements`, cfg())
+    api.get("/api/v1/admin/announcements", cfg())
       .then((r) => setAnnouncements(r.data.data))
       .finally(() => setLoadingAnn(false));
   }, []);
@@ -74,7 +74,7 @@ export default function SettingsSection() {
   const saveSetting = async (key: string, value: string) => {
     setSaving(key);
     try {
-      await axios.patch(`${proxy}/api/v1/admin/settings/${key}`, { value }, cfg());
+      await api.patch(`/api/v1/admin/settings/${key}`, { value }, cfg());
       setSettings((prev) => prev.map((s) => (s.key === key ? { ...s, value } : s)));
     } catch {}
     setSaving(null);
@@ -99,12 +99,12 @@ export default function SettingsSection() {
     setCreatingAnn(true);
     setAnnError("");
     try {
-      const r = await axios.post(`${proxy}/api/v1/admin/announcements`, newAnn, cfg());
+      const r = await api.post("/api/v1/admin/announcements", newAnn, cfg());
       setAnnouncements((prev) => [r.data.data, ...prev]);
       setNewAnn({ title: "", body: "", type: "info", audience: "all" });
       setShowAnnForm(false);
     } catch (e: unknown) {
-      setAnnError(axios.isAxiosError(e) ? e.response?.data?.message || "Failed." : "Failed.");
+      setAnnError(isAxiosError(e) ? e.response?.data?.message || "Failed." : "Failed.");
     } finally {
       setCreatingAnn(false);
     }
@@ -112,14 +112,14 @@ export default function SettingsSection() {
 
   const toggleAnnActive = async (ann: Announcement) => {
     try {
-      const r = await axios.patch(`${proxy}/api/v1/admin/announcements/${ann.id}`, { active: !ann.active }, cfg());
+      const r = await api.patch(`/api/v1/admin/announcements/${ann.id}`, { active: !ann.active }, cfg());
       setAnnouncements((prev) => prev.map((a) => (a.id === ann.id ? r.data.data : a)));
     } catch {}
   };
 
   const deleteAnnouncement = async (id: string) => {
     try {
-      await axios.delete(`${proxy}/api/v1/admin/announcements/${id}`, cfg());
+      await api.delete(`/api/v1/admin/announcements/${id}`, cfg());
       setAnnouncements((prev) => prev.filter((a) => a.id !== id));
     } catch {}
   };

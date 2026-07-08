@@ -1,12 +1,11 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useEffect, useState, useMemo } from "react";
 import { Question, fetchQuestions } from "@/data/dsa-questions";
 import { Edit, Trash2, Search, Filter } from "lucide-react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
-
 interface QuestionsManagerProps {
     onEdit: (question: Question) => void;
 }
@@ -60,7 +59,7 @@ export default function QuestionsManager({ onEdit }: QuestionsManagerProps) {
 
         try {
             // Note: You'll need to implement this endpoint in your backend
-            await axios.delete(`${proxy}/api/v1/admin/deleteQuestion/${questionId}`, {
+            await api.delete(`/api/v1/admin/deleteQuestion/${questionId}`, {
                 headers: {
                     Authorization: `Bearer ${getMemoryToken()}`,
                 },

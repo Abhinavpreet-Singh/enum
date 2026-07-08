@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl, API_BASE_URL } from "@/lib/api-config";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect, useCallback } from "react";
@@ -24,7 +25,6 @@ import type {
   SimulationStatus,
 } from "@/types/simulation";
 import { fetchSimulationFiles } from "@/services/cloudinary";
-import { proxy } from "@/app/proxy";
 import FileExplorer from "./FileExplorer";
 import CodeEditor from "./CodeEditor";
 import ConsolePanel from "./ConsolePanel";
@@ -212,8 +212,7 @@ export default function SimulationContainer({
         const token = getMemoryToken();
         if (!token) return;
 
-        const res = await fetch(
-          `${proxy}/api/v1/simulation-progress/${simulation.id}`,
+        const res = await fetch(apiUrl(`/api/v1/simulation-progress/${simulation.id}`),
           { headers: { Authorization: `Bearer ${token}` } },
         );
 
@@ -246,7 +245,7 @@ export default function SimulationContainer({
         const token = getMemoryToken();
         if (!token) return;
 
-        const res = await fetch(`${proxy}/api/v1/simulation-progress/${simulation.id}`, {
+        const res = await fetch(apiUrl(`/api/v1/simulation-progress/${simulation.id}`), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -326,7 +325,7 @@ export default function SimulationContainer({
       }));
 
       // Call the backend simulation engine directly (no Next.js server in Tauri .exe)
-      const response = await fetch(`${proxy}/api/v1/simulation-engine/run`, {
+      const response = await fetch(apiUrl("/api/v1/simulation-engine/run"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

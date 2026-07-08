@@ -1,4 +1,6 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api, { isAxiosError } from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect, type MouseEvent } from "react";
@@ -12,8 +14,6 @@ import {
   Clock,
 } from "lucide-react";
 import Link from "next/link";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import type {
   IncidentSimulation,
   IncidentSession,
@@ -107,8 +107,8 @@ export default function IncidentWorkspace({
           return;
         }
 
-        const response = await axios.post(
-          `${proxy}/api/v1/incidents/${incident.id}/session`,
+        const response = await api.post(
+          `/api/v1/incidents/${incident.id}/session`,
           { restart: false },
           { headers: { Authorization: `Bearer ${token}` } },
         );
@@ -128,7 +128,7 @@ export default function IncidentWorkspace({
         }
       } catch (err) {
         const message =
-          axios.isAxiosError(err) && err.response?.data?.message
+          isAxiosError(err) && err.response?.data?.message
             ? err.response.data.message
             : "Failed to start incident session";
         setError(message);
@@ -146,8 +146,8 @@ export default function IncidentWorkspace({
     const interval = setInterval(async () => {
       try {
         const token = getMemoryToken();
-        const response = await axios.post(
-          `${proxy}/api/v1/incidents/${incident.id}/session/${session.id}/tick`,
+        const response = await api.post(
+          `/api/v1/incidents/${incident.id}/session/${session.id}/tick`,
           {},
           { headers: { Authorization: `Bearer ${token}` } },
         );
@@ -177,8 +177,8 @@ export default function IncidentWorkspace({
       if (session && isRunning && !isCompleted) {
         try {
           const token = getMemoryToken();
-          await axios.post(
-            `${proxy}/api/v1/incidents/${incident.id}/session/${session.id}/stop`,
+          await api.post(
+            `/api/v1/incidents/${incident.id}/session/${session.id}/stop`,
             {},
             { headers: { Authorization: `Bearer ${token}` } },
           );
@@ -205,8 +205,8 @@ export default function IncidentWorkspace({
     try {
       setIsLoading(true);
       const token = getMemoryToken();
-      const response = await axios.post(
-        `${proxy}/api/v1/incidents/${incident.id}/session`,
+      const response = await api.post(
+        `/api/v1/incidents/${incident.id}/session`,
         { restart: true },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -234,8 +234,8 @@ export default function IncidentWorkspace({
     try {
       setIsSubmittingReport(true);
       const token = getMemoryToken();
-      const response = await axios.post(
-        `${proxy}/api/v1/incidents/${incident.id}/session/${session.id}/complete`,
+      const response = await api.post(
+        `/api/v1/incidents/${incident.id}/session/${session.id}/complete`,
         { rootCauseId: session.selectedRootCauseId || "" },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -273,8 +273,8 @@ export default function IncidentWorkspace({
   const handleActionTaken = () => {
     if (!session) return;
     const token = getMemoryToken();
-    axios
-      .get(`${proxy}/api/v1/incidents/${incident.id}/session/${session.id}`, {
+    api
+      .get(`/api/v1/incidents/${incident.id}/session/${session.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => setSession(res.data.data.session))

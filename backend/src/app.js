@@ -11,13 +11,15 @@ if (process.env.NODE_ENV === "production") {
 }
 app.disable("x-powered-by")
 
-const normalizeOrigin = (origin) => origin.replace(/\/+$|\/?$/, "");
+const normalizeOrigin = (origin = "") =>
+    String(origin).trim().replace(/\/+$/, "");
 
 const allowedOrigins = [
     "http://localhost:3000",
     "http://localhost:3001",
     "https://enum.live",
     "https://www.enum.live",
+    "https://exam.enum.live",
     "https://enum0.vercel.app",
     env.FRONTEND_URL,
     ...(env.FRONTEND_URLS || []),
@@ -25,23 +27,44 @@ const allowedOrigins = [
     .filter(Boolean)
     .map(normalizeOrigin);
 
+const isAllowedOrigin = (origin) => {
+    if (!origin) return true;
+    return allowedOrigins.includes(normalizeOrigin(origin));
+};
+
 app.use(
     cors({
         origin: function (origin, callback) {
-            if (!origin) return callback(null, true)
-            const normalizedOrigin = normalizeOrigin(origin)
-
-            if (allowedOrigins.indexOf(normalizedOrigin) !== -1) {
-                callback(null, true)
-            } else {
-                callback(new Error("CORS origin not allowed"))
+            // Never throw — a thrown error skips CORS headers and the browser
+            // reports a misleading "No Access-Control-Allow-Origin" failure.
+            if (isAllowedOrigin(origin)) {
+                return callback(null, true);
             }
+            return callback(null, false);
         },
         credentials: true,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization", "Set-Cookie"],
+        allowedHeaders: [
+            "Content-Type",
+            "Authorization",
+            "Set-Cookie",
+            "X-Enum-Client",
+        ],
+        exposedHeaders: ["Set-Cookie"],
+        optionsSuccessStatus: 204,
     }),
 )
+
+// Ensure API error responses still include CORS headers for allowed browsers.
+app.use((req, res, next) => {
+    const origin = req.get("Origin");
+    if (origin && isAllowedOrigin(origin)) {
+        res.header("Access-Control-Allow-Origin", origin);
+        res.header("Access-Control-Allow-Credentials", "true");
+        res.header("Vary", "Origin");
+    }
+    next();
+})
 
 app.use(express.json({ limit: "1mb" }))
 app.use(express.urlencoded({ extended: true, limit: "1mb" }))
@@ -49,8 +72,8 @@ app.use(cookieParser())
 
 app.use(passport.initialize())
 
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok" });
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok", service: "enum-backend" });
 });
 
 console.log("[app] Passport initialized");
@@ -81,6 +104,7 @@ import unifiedLoginRouter from "./routes/unified-login.route.js";
 import assessmentRouter from "./routes/assessment.route.js";
 import questionBankRouter from "./routes/question-bank.route.js";
 import bankQuestionRouter from "./routes/bank-question.route.js";
+import questionImportRouter from "./routes/question-import.route.js";
 import organizationDashboardRouter from "./routes/organization-dashboard.route.js";
 import assessmentInviteRouter from "./routes/assessment-invite.route.js";
 import desktopRouter from "./routes/desktop.route.js";
@@ -114,6 +138,7 @@ app.use("/api/v1/auth", newAuthRouter);
 app.use("/api/v1/auth", unifiedLoginRouter);
 app.use("/api/v1/assessments", assessmentRouter);
 app.use("/api/v1/assessments", assessmentInviteRouter);
+app.use("/api/v1/question-banks", questionImportRouter);
 app.use("/api/v1/question-banks", questionBankRouter);
 app.use("/api/v1/question-banks", bankQuestionRouter);
 app.use("/api/v1/organization-dashboard", organizationDashboardRouter);

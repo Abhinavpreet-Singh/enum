@@ -1,10 +1,10 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { DashboardPageShell, DashboardPageHeader } from "@/components/dashboard/dashboard-page-shell";
 import { TestLinkCopy } from "@/components/dashboard/organization/test-link-copy";
 import { ChevronLeft, CheckCircle, Save } from "lucide-react";
@@ -166,7 +166,7 @@ export default function TestEditor({ mode, assessmentId, initialTab }: TestEdito
     setLoading(true);
     setError("");
     try {
-      const res = await axios.get(`${proxy}/api/v1/assessments/${assessmentId}`);
+      const res = await api.get(`/api/v1/assessments/${assessmentId}`);
       const data = res.data.data as Assessment;
       setTitle(data.title);
       setDescription(data.description || "");
@@ -224,7 +224,7 @@ export default function TestEditor({ mode, assessmentId, initialTab }: TestEdito
     setSaving(true);
     setError("");
     try {
-      const res = await axios.post(`${proxy}/api/v1/assessments`, buildPayload());
+      const res = await api.post("/api/v1/assessments", buildPayload());
       const assessment = res.data.data as CreatedAssessment;
       if (opts.redirectToQuestions) {
         // Go straight to the edit page with the Questions tab open
@@ -270,7 +270,7 @@ export default function TestEditor({ mode, assessmentId, initialTab }: TestEdito
     setSaving(true);
     setError("");
     try {
-      await axios.put(`${proxy}/api/v1/assessments/${assessmentId}`, buildPayload());
+      await api.put(`/api/v1/assessments/${assessmentId}`, buildPayload());
       router.push("/dashboard/tests");
     } catch (err: unknown) {
       const msg =
@@ -301,7 +301,7 @@ export default function TestEditor({ mode, assessmentId, initialTab }: TestEdito
             Test Created
           </h2>
           <p className="font-mono text-xs text-gray-400 mb-6">
-            Share this link or code with candidates so they can join via the ENUM desktop app.
+            Share this link or code with candidates so they can join via the ENUM exam client (web or desktop).
           </p>
           <p className="text-sm font-semibold text-black dark:text-white mb-4">
             {created.title}
@@ -488,7 +488,7 @@ export default function TestEditor({ mode, assessmentId, initialTab }: TestEdito
       />
       <SettingRow
         label="Require Desktop App"
-        description="Candidates must use the ENUM desktop client"
+        description="When enabled, candidates must use the ENUM desktop client — the web browser is blocked. Turn off to allow exams in the browser."
         checked={settings.requireDesktopApp}
         onChange={(v) => setSetting("requireDesktopApp", v)}
       />

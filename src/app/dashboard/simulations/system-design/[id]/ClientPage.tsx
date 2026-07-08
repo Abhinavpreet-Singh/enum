@@ -1,11 +1,11 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api, { isAxiosError } from "@/lib/api";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Send, Loader2, TrendingUp, Network, ShieldAlert, ShieldCheck, AlertTriangle, Sparkles, Circle, CheckCircle2, Lock } from "lucide-react";
 import Link from "next/link";
-import axios from "axios";
-
 import ComponentSidebar from "@/components/systemDesign/ComponentSidebar";
 import SystemDesignCanvas, {
   CanvasHandle,
@@ -19,8 +19,6 @@ import type {
   EvaluationResult,
 } from "@/systemDesign";
 import { analyzeArchitecture } from "@/systemDesign";
-import { proxy } from "@/app/proxy";
-
 interface SDSimulation {
   id: string;
   title: string;
@@ -101,11 +99,11 @@ export default function SystemDesignClientPage() {
 
   useEffect(() => {
     if (!simulationId) return;
-    axios
-      .get(`${proxy}/api/v1/system-design/simulations/${simulationId}`)
+    api
+      .get(`/api/v1/system-design/simulations/${simulationId}`)
       .then((r) => setSimulation(r.data.data ?? null))
       .catch((err) => {
-        if (axios.isAxiosError(err) && err.response?.status === 403) {
+        if (isAxiosError(err) && err.response?.status === 403) {
           setLocked(true);
         }
         setSimulation(null);
@@ -116,8 +114,8 @@ export default function SystemDesignClientPage() {
   // Fetch past submissions (best-effort — silently skip if not authenticated)
   useEffect(() => {
     if (!simulationId) return;
-    axios
-      .get(`${proxy}/api/v1/system-design/submissions/${simulationId}`, {
+    api
+      .get(`/api/v1/system-design/submissions/${simulationId}`, {
         withCredentials: true,
       })
       .then((r) => setHistory(r.data.data ?? []))
@@ -164,8 +162,8 @@ export default function SystemDesignClientPage() {
 
     setSubmitting(true);
     try {
-      const res = await axios.post(
-        `${proxy}/api/v1/system-design/submit`,
+      const res = await api.post(
+        "/api/v1/system-design/submit",
         {
           simulationId,
           nodes,
@@ -203,7 +201,7 @@ export default function SystemDesignClientPage() {
         );
       }
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         if (err.response?.status === 401) {
           const shouldLogin = confirm(
             "You need to be logged in to submit. Go to login page?",

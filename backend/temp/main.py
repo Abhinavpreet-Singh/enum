@@ -1,3 +1,19 @@
-public int[] twoSum(int[] nums, int target) {
-    // Write your code here
-}
+import sys as _sys
+_tokens = _sys.stdin.read().split()
+_ti = [0]
+def _next_tok():
+    v = _tokens[_ti[0]]; _ti[0] += 1; return v
+
+def twoSum(nums, target):
+    for i in range(len(nums)):
+        for j in range(i+1, len(nums)):
+            if nums[i] + nums[j] == target:
+                return [i, j]
+    return []
+
+_n0 = int(_next_tok())
+param0 = [int(_next_tok()) for _ in range(_n0)]
+param1 = int(_next_tok())
+
+result = twoSum(param0, param1)
+print(" ".join(map(str, result)))

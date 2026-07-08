@@ -1,78 +1,61 @@
-import fs from "fs";
-import { exec, spawn } from "child_process";
+import { exec } from "child_process";
+import { promisify } from "util";
 import { generateCppWrapper } from "./cppWrapper.js";
+import {
+  getCompiledBinaryPath,
+  runCommandWithInput,
+  withJudgeWorkdir,
+  writeJudgeFile,
+} from "./judgeSandbox.js";
 
-export const runCppJudge = ({
+const execAsync = promisify(exec);
+
+export async function runCppJudge({
   userCode,
   functionName,
   parameterTypes,
   returnType,
-  testcases
-}) => {
-  return new Promise(async (resolve) => {
-    if (!fs.existsSync("./temp")) {
-      fs.mkdirSync("./temp");
-    }
-
-    const fullCode = generateCppWrapper({
-      userFunctionCode: userCode,
-      functionName,
-      parameterTypes,
-      returnType
-    });
-
-    fs.writeFileSync("./temp/main.cpp", fullCode);
+  testcases,
+}) {
+  return withJudgeWorkdir(async (workdir) => {
+    const sourcePath = writeJudgeFile(
+      workdir,
+      "main.cpp",
+      generateCppWrapper({
+        userFunctionCode: userCode,
+        functionName,
+        parameterTypes,
+        returnType,
+      }),
+    );
+    const binaryPath = getCompiledBinaryPath(workdir);
 
     try {
-      await new Promise((res, rej) => {
-        exec("g++ temp/main.cpp -o temp/main.exe", (err, _stdout, stderr) => {
-          if (err) return rej(stderr || "C++ Compilation Error");
-          res();
-        });
-      });
+      await execAsync(`g++ "${sourcePath}" -o "${binaryPath}"`);
     } catch (compileError) {
-      return resolve(
-        testcases.map(tc => ({
-          input: tc.input,
-          expected: tc.expectedOutput,
-          output: "",
-          passed: false,
-          error: `Compilation Error: ${compileError}`
-        }))
-      );
+      const message =
+        compileError?.stderr ||
+        compileError?.message ||
+        "C++ Compilation Error";
+      return testcases.map((tc) => ({
+        input: tc.input,
+        expected: tc.expectedOutput,
+        output: "",
+        passed: false,
+        error: `Compilation Error: ${message}`,
+      }));
     }
 
-    let results = [];
+    const results = [];
 
     for (const tc of testcases) {
       try {
-        const inputString = tc.input.join("\n") + "\n";
-
-        const { stdout, stderr, exitCode } = await new Promise((res) => {
-          const run = spawn("temp/main.exe");
-
-          let stdout = "";
-          let stderr = "";
-
-          run.stdout.on("data", (data) => {
-            stdout += data.toString();
-          });
-
-          run.stderr.on("data", (data) => {
-            stderr += data.toString();
-          });
-
-          run.on("error", (err) => {
-            res({ stdout: "", stderr: err.message, exitCode: 1 });
-          });
-
-          run.on("close", (code) => {
-            res({ stdout, stderr, exitCode: code });
-          });
-
-          run.stdin.write(inputString);
-          run.stdin.end();
-        });
+        const inputString = `${tc.input.join("\n")}\n`;
+        const { stdout, stderr, exitCode } = await runCommandWithInput(
+          binaryPath,
+          [],
+          inputString,
+        );
 
         if (exitCode !== 0) {
           results.push({
@@ -80,7 +63,7 @@ export const runCppJudge = ({
             expected: tc.expectedOutput,
             output: "",
             passed: false,
-            error: stderr || `Runtime Error (exit code ${exitCode})`
+            error: stderr || `Runtime Error (exit code ${exitCode})`,
           });
         } else {
           const output = stdout.trim();
@@ -88,7 +71,7 @@ export const runCppJudge = ({
             input: tc.input,
             expected: tc.expectedOutput,
             output,
-            passed: output === tc.expectedOutput
+            passed: output === tc.expectedOutput,
           });
         }
       } catch (error) {
@@ -97,11 +80,11 @@ export const runCppJudge = ({
           expected: tc.expectedOutput,
           output: "",
           passed: false,
-          error: String(error)
+          error: String(error),
         });
       }
     }
 
-    resolve(results);
+    return results;
   });
-};
+}

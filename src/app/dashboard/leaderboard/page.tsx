@@ -1,8 +1,8 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { useContext, useEffect, useState } from "react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { AuthContext } from "@/providers/AuthProvider";
 import { Code2, PlayCircle, Zap, Medal } from "lucide-react";
 import {
@@ -94,8 +94,8 @@ export default function LeaderboardPage() {
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    axios
-      .get(`${proxy}/api/v1/users/leaderboard`)
+    api
+      .get("/api/v1/users/leaderboard")
       .then((res) => {
         setEntries(res.data.data ?? []);
       })

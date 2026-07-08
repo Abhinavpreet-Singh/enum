@@ -1,7 +1,6 @@
+import { apiUrl } from "@/lib/api-config";
 import { NextRequest, NextResponse } from "next/server";
-import { proxy } from "@/app/proxy";
 
-const BACKEND_URL = proxy;
 
 interface EngineRunRequest {
     simulationId: string;
@@ -38,9 +37,7 @@ export async function POST(request: NextRequest) {
         // Forward the Authorization header from the client
         const authHeader = request.headers.get("Authorization") || "";
 
-        const backendRes = await fetch(
-            `${BACKEND_URL}/api/v1/simulation-engine/run`,
-            {
+        const backendRes = await fetch(apiUrl("/api/v1/simulation-engine/run"), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

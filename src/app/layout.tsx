@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/providers/theme-provider";
-import { AxiosProvider } from "@/providers/axios-provider";
 import { AuthProvider } from "@/providers/AuthProvider";
 import LoadingBar from "@/components/loading-bar";
 import BotpressChat from "@/components/botpress/BotpressChat";
@@ -59,13 +58,11 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <ThemeProvider>
-          <AxiosProvider>
-            <AuthProvider>
-              <LoadingBar />
-              {children}
-              <BotpressChat />
-            </AuthProvider>
-          </AxiosProvider>
+          <AuthProvider>
+            <LoadingBar />
+            {children}
+            <BotpressChat />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

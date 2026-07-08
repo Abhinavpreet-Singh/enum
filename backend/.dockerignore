@@ -1,0 +1,19 @@
+node_modules
+npm-debug.log*
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+.vscode
+.idea
+coverage
+tests
+**/__tests__
+temp
+*.md
+Dockerfile
+.dockerignore
+
+# Keep prisma/ and generated client artifacts in the build context
+# Do NOT add: prisma, node_modules/.prisma, or @prisma

@@ -1,10 +1,10 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api, { isAxiosError } from "@/lib/api";
 import { useContext, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import axios from "axios";
-import { proxy } from "@/app/proxy.js";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { setMemoryToken } from "@/lib/tokenStore";
 import { AuthContext } from "@/providers/AuthProvider";
@@ -112,7 +112,7 @@ export default function AuthForm({
     setIsLoading(true);
     const successRedirect = `${window.location.origin}/oauth-success?returnTo=${encodeURIComponent(returnTo)}`;
     const failureRedirect = `${window.location.origin}/login?error=${provider}_auth_failed`;
-    const url = new URL(`/auth/${provider}`, proxy);
+    const url = new URL(`/auth/${provider}`, API_BASE_URL);
 
     url.searchParams.set("redirect", successRedirect);
     url.searchParams.set("redirect_uri", successRedirect);
@@ -135,15 +135,15 @@ export default function AuthForm({
       : organizationForm.email
     const endpoint =
       accountType === "user"
-        ? `${proxy}/api/v1/users/send-otp`
-        : `${proxy}/api/v1/companies/send-otp`
+        ? "/api/v1/users/send-otp"
+        : "/api/v1/companies/send-otp"
 
     try {
-      await axios.post(endpoint, { email });
+      await api.post(endpoint, { email });
       setOtpSentTo(email);
       setRegisterStep("otp");
     } catch (err) {
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         const raw =
           err.response?.data?.message ||
           err.response?.data?.error ||
@@ -174,8 +174,8 @@ export default function AuthForm({
       let response;
 
       if (accountType === "user") {
-        response = await axios.post(
-          `${proxy}/api/v1/users/register`,
+        response = await api.post(
+          "/api/v1/users/register",
           {
             username: userForm.username,
             email: userForm.email,
@@ -190,8 +190,8 @@ export default function AuthForm({
           authCtx?.setAccessToken?.(response.data.accessToken);
         }
       } else if (accountType === "organization") {
-        response = await axios.post(
-          `${proxy}/api/v1/companies/register`,
+        response = await api.post(
+          "/api/v1/companies/register",
           {
             name: organizationForm.name,
             email: organizationForm.email,
@@ -219,7 +219,7 @@ export default function AuthForm({
       router.push(returnTo);
     } catch (err) {
       setIsLoading(false);
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         const raw =
           err.response?.data?.message ||
           err.response?.data?.error ||
@@ -260,8 +260,8 @@ export default function AuthForm({
   const submitLoginPayload = async (payload: LoginPayload) => {
     const authResult = authCtx
       ? await authCtx.login(payload)
-      : await axios
-          .post(`${proxy}/api/v1/auth/login`, payload, {
+      : await api
+          .post("/api/v1/auth/login", payload, {
             withCredentials: true,
           })
           .then((response) => {
@@ -317,7 +317,7 @@ export default function AuthForm({
     } catch (err) {
       setIsLoading(false);
       setRoleSelectionOptions([]);
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         const raw =
           err.response?.data?.message ||
           err.response?.data?.error ||
@@ -365,7 +365,7 @@ export default function AuthForm({
       setIsLoading(false);
       setPendingRoleSelection(null);
       setRoleSelectionOptions([]);
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         setError(
           err.response?.data?.message ||
             "Login failed. Please check your credentials and try again.",

@@ -222,8 +222,11 @@ async function runChecks(
   if (ids.includes("desktop_app")) {
     const ok = isTauri();
     set("desktop_app", ok
-      ? { status: "pass", message: "Running in Tauri" }
-      : { status: "fail", message: "Must use the ENUM Desktop Client" });
+      ? { status: "pass", message: "ENUM Desktop Client" }
+      : {
+          status: "fail",
+          message: "This test requires the ENUM Desktop Client. Turn off “Require Desktop App” in security settings to use the web browser.",
+        });
   }
 
   setDone(true);

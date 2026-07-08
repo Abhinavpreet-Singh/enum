@@ -1,9 +1,9 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { useContext, useState, useEffect } from "react";
 import Link from "next/link";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { AuthContext } from "@/providers/AuthProvider";
 import {
   FileText,
@@ -82,8 +82,8 @@ export default function OrganizationDashboardContent() {
 
   useEffect(() => {
     Promise.all([
-      axios.get(`${proxy}/api/v1/organization-dashboard/metrics`).catch(() => null),
-      axios.get(`${proxy}/api/v1/organization-dashboard/recent-activity`).catch(() => null),
+      api.get("/api/v1/organization-dashboard/metrics").catch(() => null),
+      api.get("/api/v1/organization-dashboard/recent-activity").catch(() => null),
     ]).then(([mRes, aRes]) => {
       if (mRes?.data?.data) setMetrics(mRes.data.data);
       if (aRes?.data?.data) {

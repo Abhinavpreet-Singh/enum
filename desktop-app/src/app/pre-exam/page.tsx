@@ -10,6 +10,7 @@ import ViolationBadge from "@/components/security/violation-badge";
 import type { SystemCheckResult } from "@/types";
 import desktopApi from "@/lib/api";
 import { loadLocalDraft } from "@/services/autosave";
+import { resolveAssessmentSettings } from "@/lib/assessment-settings";
 
 export default function PreExamPage() {
   const router = useRouter();
@@ -43,7 +44,7 @@ export default function PreExamPage() {
 
   if (!assessment || !candidate) return null;
 
-  const settings = assessment.settings;
+  const settings = resolveAssessmentSettings(assessment.settings);
 
   async function handleStartExam() {
     if (!checkResult?.canProceed) return;
@@ -62,8 +63,16 @@ export default function PreExamPage() {
       setExamStatus("in_progress");
       router.push(`/exam`);
     } catch (e: unknown) {
+      const err = e as {
+        response?: { data?: { message?: string }; status?: number };
+        message?: string;
+        code?: string;
+      };
       const msg =
-        (e as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        err.response?.data?.message ??
+        (err.code === "ERR_NETWORK"
+          ? "Could not reach the exam server. Check your connection and try again."
+          : err.message) ??
         "Failed to start exam. Please try again.";
       setError(msg);
     } finally {

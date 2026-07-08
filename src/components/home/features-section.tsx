@@ -1,5 +1,7 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
@@ -14,9 +16,7 @@ import {
   Trophy,
   Users,
 } from "lucide-react";
-import axios from "axios";
 import useAuth from "@/hooks/useAuth";
-import { proxy } from "@/app/proxy";
 import { browserSimulations } from "@/data/browser-simulations";
 import {
   CollabLivePreview,
@@ -242,19 +242,19 @@ export default function FeaturesSection() {
     let isMounted = true;
 
     Promise.all([
-      axios.get(`${proxy}/api/v1/users/leaderboard`).catch(() => null),
-      axios
-        .get(`${proxy}/api/v1/simulations/getSimulations`, {
+      api.get("/api/v1/users/leaderboard").catch(() => null),
+      api
+        .get("/api/v1/simulations/getSimulations", {
           withCredentials: true,
         })
         .catch(() => null),
-      axios
-        .get(`${proxy}/api/v1/system-design/simulations`, {
+      api
+        .get("/api/v1/system-design/simulations", {
           withCredentials: true,
         })
         .catch(() => null),
-      axios
-        .get(`${proxy}/api/v1/simulations/linux`, {
+      api
+        .get("/api/v1/simulations/linux", {
           withCredentials: true,
         })
         .catch(() => null),

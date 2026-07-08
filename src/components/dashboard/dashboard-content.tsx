@@ -1,4 +1,6 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import {
@@ -47,8 +49,6 @@ import { useContext, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import useAuth from "@/hooks/useAuth";
 import { useEntitlements } from "@/hooks/useEntitlements";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { browserSimulations } from "@/data/browser-simulations";
 import { AuthContext } from "@/providers/AuthProvider";
 
@@ -177,10 +177,10 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
 
   useEffect(() => {
     Promise.all([
-      axios.get(`${proxy}/api/v1/users/leaderboard`).catch(() => null),
-      axios.get(`${proxy}/api/v1/questions/getQuestion`).catch(() => null),
-      axios.get(`${proxy}/api/v1/simulations/getSimulations`).catch(() => null),
-      axios.get(`${proxy}/api/v1/system-design/simulations`).catch(() => null),
+      api.get("/api/v1/users/leaderboard").catch(() => null),
+      api.get("/api/v1/questions/getQuestion").catch(() => null),
+      api.get("/api/v1/simulations/getSimulations").catch(() => null),
+      api.get("/api/v1/system-design/simulations").catch(() => null),
     ]).then(([lbRes, qRes, simRes, sdRes]) => {
       const lb: LeaderboardEntry[] = lbRes?.data?.data ?? [];
       setLeaderboard(lb);
@@ -243,8 +243,8 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
     if (!token) return;
 
     const fetchProfileXp = () => {
-      axios
-        .get(`${proxy}/api/v1/users/profile`, {
+      api
+        .get("/api/v1/users/profile", {
           withCredentials: true,
           headers: { Authorization: `Bearer ${token}` },
         })

@@ -1,9 +1,9 @@
 "use client";
+import { apiUrl, API_BASE_URL } from "@/lib/api-config";
+import api, { isAxiosError } from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect, useCallback } from "react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import {
   Users, Building2, FileText, BarChart3,
   Trash2, CheckCircle, XCircle, Clock,
@@ -79,8 +79,8 @@ export function OverviewTab() {
 
   const handleOverviewApproval = async (id: string, status: string) => {
     try {
-      await axios.patch(
-        `${proxy}/api/v1/admin/organizations/${id}/approval`,
+      await api.patch(
+        `/api/v1/admin/organizations/${id}/approval`,
         { status },
         getAdminRequestConfig(),
       );
@@ -102,7 +102,7 @@ export function OverviewTab() {
   };
 
   useEffect(() => {
-    axios.get(`${proxy}/api/v1/admin/stats`, getAdminRequestConfig())
+    api.get("/api/v1/admin/stats", getAdminRequestConfig())
       .then(r => setStats(r.data.data))
       .catch(() => setStats(null))
       .finally(() => setLoading(false));
@@ -210,7 +210,7 @@ export function UsersTab() {
     setLoading(true);
     const params: Record<string, string> = { page: String(page), limit: "15" };
     if (search) params.search = search;
-    axios.get(`${proxy}/api/v1/admin/users`, { ...getAdminRequestConfig(), params })
+    api.get("/api/v1/admin/users", { ...getAdminRequestConfig(), params })
       .then(r => { setUsers(r.data.data); setTotal(r.data.total); })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -220,27 +220,27 @@ export function UsersTab() {
 
   const openDetail = async (u: UserRow) => {
     setSelected(u); setDrawerTab("profile"); setUserActivity(null);
-    const r = await axios.get(`${proxy}/api/v1/admin/users/${u.id}`, getAdminRequestConfig());
+    const r = await api.get(`/api/v1/admin/users/${u.id}`, getAdminRequestConfig());
     setSelectedDetail(r.data.data);
   };
 
   const loadActivity = async (id: string) => {
     if (userActivity) return;
     try {
-      const r = await axios.get(`${proxy}/api/v1/admin/users/${id}/activity`, getAdminRequestConfig());
+      const r = await api.get(`/api/v1/admin/users/${id}/activity`, getAdminRequestConfig());
       setUserActivity(r.data.data);
     } catch { setUserActivity({ logs: [], xpAwards: [] }); }
   };
 
   const handleDelete = async (id: string) => {
-    await axios.delete(`${proxy}/api/v1/admin/users/${id}`, getAdminRequestConfig());
+    await api.delete(`/api/v1/admin/users/${id}`, getAdminRequestConfig());
     setDelConfirm(null); setSelected(null); setSelectedDetail(null); fetchList();
   };
 
   const handleSuspend = async (id: string) => {
     const u = users.find((u) => u.id === id);
     const isSuspended = u?.accountRole?.startsWith("__suspended__");
-    await axios.patch(`${proxy}/api/v1/admin/users/${id}/suspend`, {
+    await api.patch(`/api/v1/admin/users/${id}/suspend`, {
       suspended: !isSuspended,
       reason: isSuspended ? "" : "Admin action",
     }, getAdminRequestConfig());
@@ -499,23 +499,23 @@ export function CompaniesTab() {
 
   const getOrganizations = (params?: Record<string, string>) => {
     const config = { ...getAdminRequestConfig(), params };
-    return axios.get(`${proxy}/api/v1/admin/organizations`, config)
-      .catch(() => axios.get(`${proxy}/api/v1/admin/companies`, config));
+    return api.get("/api/v1/admin/organizations", config)
+      .catch(() => api.get("/api/v1/admin/companies", config));
   };
 
   const getOrganizationById = (id: string) => {
     const config = getAdminRequestConfig();
-    return axios.get(`${proxy}/api/v1/admin/organizations/${id}`, config)
-      .catch(() => axios.get(`${proxy}/api/v1/admin/companies/${id}`, config));
+    return api.get(`/api/v1/admin/organizations/${id}`, config)
+      .catch(() => api.get(`/api/v1/admin/companies/${id}`, config));
   };
 
   const patchOrganizationApproval = async (id: string, status: string) => {
     const config = getAdminRequestConfig();
     try {
-      return await axios.patch(`${proxy}/api/v1/admin/organizations/${id}/approval`, { status }, config);
+      return await api.patch(`/api/v1/admin/organizations/${id}/approval`, { status }, config);
     } catch (firstError) {
       try {
-        return await axios.patch(`${proxy}/api/v1/admin/companies/${id}/approval`, { status }, config);
+        return await api.patch(`/api/v1/admin/companies/${id}/approval`, { status }, config);
       } catch {
         throw firstError;
       }
@@ -524,8 +524,8 @@ export function CompaniesTab() {
 
   const deleteOrganizationById = (id: string) => {
     const config = getAdminRequestConfig();
-    return axios.delete(`${proxy}/api/v1/admin/organizations/${id}`, config)
-      .catch(() => axios.delete(`${proxy}/api/v1/admin/companies/${id}`, config));
+    return api.delete(`/api/v1/admin/organizations/${id}`, config)
+      .catch(() => api.delete(`/api/v1/admin/companies/${id}`, config));
   };
 
   const fetch = useCallback((options?: { silent?: boolean }) => {
@@ -582,7 +582,7 @@ export function CompaniesTab() {
       }
       fetch({ silent: true });
     } catch (err) {
-      const message = axios.isAxiosError(err)
+      const message = isAxiosError(err)
         ? err.response?.data?.message || "Failed to update approval status."
         : "Failed to update approval status.";
       setError(message);
@@ -924,8 +924,8 @@ export function ContentTab() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios
-      .get(`${proxy}/api/v1/admin/content-stats`, getAdminRequestConfig())
+    api
+      .get("/api/v1/admin/content-stats", getAdminRequestConfig())
       .then((r) => setData(r.data.data))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
@@ -1060,8 +1060,8 @@ export function ActivityTab() {
 
   const fetchActivity = useCallback(() => {
     setLoading(true);
-    axios
-      .get(`${proxy}/api/v1/admin/activity`, {
+    api
+      .get("/api/v1/admin/activity", {
         ...getAdminRequestConfig(),
         params: { page: String(page), limit: "15" },
       })
@@ -1247,8 +1247,8 @@ export function MaintenanceTab() {
   const loadPages = useCallback(() => {
     setLoading(true);
     setError("");
-    axios
-      .get(`${proxy}/api/v1/admin/maintenance-pages`, getAdminRequestConfig())
+    api
+      .get("/api/v1/admin/maintenance-pages", getAdminRequestConfig())
       .then((r) => setPages(r.data?.data?.pages ?? []))
       .catch(() => setError("Failed to load maintenance pages."))
       .finally(() => setLoading(false));
@@ -1265,8 +1265,8 @@ export function MaintenanceTab() {
     setSubmitting(true);
     setError("");
     try {
-      await axios.post(
-        `${proxy}/api/v1/admin/maintenance-pages`,
+      await api.post(
+        "/api/v1/admin/maintenance-pages",
         { path, message: messageInput },
         getAdminRequestConfig(),
       );
@@ -1274,7 +1274,7 @@ export function MaintenanceTab() {
       loadPages();
     } catch (err: unknown) {
       let msg = "Failed to add page.";
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         if (err.response?.status === 404) {
           msg = "Maintenance API not found. Restart the backend server (npm run dev in backend/).";
         } else {
@@ -1289,8 +1289,8 @@ export function MaintenanceTab() {
 
   const handleToggle = async (page: MaintenancePageRow) => {
     try {
-      await axios.patch(
-        `${proxy}/api/v1/admin/maintenance-pages/${page.id}`,
+      await api.patch(
+        `/api/v1/admin/maintenance-pages/${page.id}`,
         { enabled: !page.enabled },
         getAdminRequestConfig(),
       );
@@ -1303,8 +1303,8 @@ export function MaintenanceTab() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await axios.delete(
-        `${proxy}/api/v1/admin/maintenance-pages/${deleteTarget.id}`,
+      await api.delete(
+        `/api/v1/admin/maintenance-pages/${deleteTarget.id}`,
         getAdminRequestConfig(),
       );
       setDeleteTarget(null);

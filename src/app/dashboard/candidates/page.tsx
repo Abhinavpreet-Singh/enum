@@ -1,9 +1,9 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import { DashboardPageShell, DashboardPageHeader } from "@/components/dashboard/dashboard-page-shell";
 import {
   Users,
@@ -50,7 +50,7 @@ export default function CandidatesPage() {
 
   const load = useCallback(async () => {
     try {
-      const { data } = await axios.get(`${proxy}/api/v1/assessments`, { withCredentials: true });
+      const { data } = await api.get("/api/v1/assessments", { withCredentials: true });
       // API returns { message, data: [...] }
       setTests(Array.isArray(data.data) ? data.data : []);
     } catch {

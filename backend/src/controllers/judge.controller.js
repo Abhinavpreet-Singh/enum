@@ -4,21 +4,15 @@ import { runJavaJudge } from "../utils/judgeEngine/javaJudge.js";
 import { runCppJudge } from "../utils/judgeEngine/cppJudge.js";
 import { runCJudge } from "../utils/judgeEngine/cJudge.js";
 import { runPythonJudge } from "../utils/judgeEngine/pythonJudge.js";
+import { normaliseJudgeTestCaseInput } from "../utils/judgeEngine/testCaseInput.js";
 
 /**
  * Normalise a raw test-case object into the shape the judge engines expect:
  *   { input: string[], expectedOutput: string }
  */
-function normaliseTestCase(tc) {
-  let input = tc.input ?? "";
+function normaliseTestCase(tc, parameterTypes = []) {
   const expectedOutput = String(tc.expectedOutput ?? tc.output ?? "").trim();
-
-  if (typeof input === "string") {
-    input = input.split("\n").filter((s) => s.trim() !== "");
-  }
-  if (!Array.isArray(input)) {
-    input = [String(input)];
-  }
+  const input = normaliseJudgeTestCaseInput(tc.input, parameterTypes);
 
   return { input, expectedOutput };
 }
@@ -59,13 +53,21 @@ export const judgeCode = async (req, res) => {
       return res.status(404).json({ message: "Question not found." });
     }
 
+<<<<<<< HEAD
     testcases = serializeQuestion(question).testcases.map(normaliseTestCase);
+=======
+    testcases = (question.testcases || []).map((tc) =>
+      normaliseTestCase(tc, question.parameterTypes || []),
+    );
+>>>>>>> ee1bfa44d7b8a28128e2ef821bca487cf82c3216
     functionName = question.functionName;
     parameterTypes = question.parameterTypes;
     returnType = question.returnType;
   } else if (Array.isArray(testCases) && testCases.length > 0) {
     // ── Exam coding-question flow: test cases (+ optional function metadata) ─
-    testcases = testCases.map(normaliseTestCase);
+    const paramTypes =
+      Array.isArray(inlineParamTypes) && inlineParamTypes.length ? inlineParamTypes : [];
+    testcases = testCases.map((tc) => normaliseTestCase(tc, paramTypes));
     // Use the function signature the exam client sent (from the bank question record)
     functionName = inlineFunctionName || undefined;
     parameterTypes = Array.isArray(inlineParamTypes) && inlineParamTypes.length

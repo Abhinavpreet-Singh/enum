@@ -1,12 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import desktopApi from "@/lib/api";
 import { useExamStore } from "@/store/exam-store";
 
 export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-white dark:bg-black">
+          <p className="font-mono text-xs tracking-wider text-gray-400">Loading…</p>
+        </div>
+      }
+    >
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const setAuth = useExamStore((s) => s.setAuth);
   const setAssessment = useExamStore((s) => s.setAssessment);
 
@@ -28,6 +43,13 @@ export default function LoginPage() {
     setThemeMode(initialTheme);
     document.documentElement.classList.toggle("dark", initialTheme === "dark");
   }, []);
+
+  useEffect(() => {
+    const code = searchParams.get("code")?.trim();
+    if (!code) return;
+    setTestCode(code);
+    setStep("link");
+  }, [searchParams]);
 
   function toggleTheme() {
     const nextTheme = themeMode === "dark" ? "light" : "dark";

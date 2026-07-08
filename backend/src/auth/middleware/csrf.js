@@ -6,10 +6,17 @@
  * since SameSite alone is not always reliable across all browsers/setups.
  */
 export function verifyCsrfOrigin(req, res, next) {
-  const allowedOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || "http://localhost:3000")
-    .split(",")
-    .map((s) => s.trim().replace(/\/$/, ""))
-    .filter(Boolean);
+  const allowedOrigins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://enum.live",
+    "https://www.enum.live",
+    "https://exam.enum.live",
+    ...(process.env.FRONTEND_URLS || process.env.FRONTEND_URL || "http://localhost:3000")
+      .split(",")
+      .map((s) => s.trim().replace(/\/$/, ""))
+      .filter(Boolean),
+  ];
 
   // Always allow same-origin requests (backend-to-backend / server actions)
   const backendUrl = (process.env.BACKEND_URL || "http://localhost:8000").replace(/\/$/, "");

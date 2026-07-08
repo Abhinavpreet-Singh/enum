@@ -1,7 +1,6 @@
+import { apiUrl, API_BASE_URL } from "@/lib/api-config";
 import { NextRequest, NextResponse } from "next/server";
-import { proxy } from "../../proxy";
-
-const SUBMISSIONS_API_URL = `${proxy}/api/v1/submissions/save`;
+const SUBMISSIONS_API_URL = apiUrl("/api/v1/submissions/save");
 
 export async function POST(request: NextRequest) {
   try {

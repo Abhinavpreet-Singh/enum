@@ -1,8 +1,8 @@
 "use client";
+import { apiUrl } from "@/lib/api-config";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect } from "react";
-import { proxy } from "@/app/proxy";
 import {
   Play,
   Check,
@@ -54,8 +54,8 @@ const languageOptions = [
   { label: "C++", value: "cpp" },
 ];
 
-// Call the backend judge endpoint directly (no Next.js server in Tauri .exe)
-const JUDGE_API_URL = `${proxy}/api/v1/judge/run`;
+// Same-origin proxy avoids browser CORS against api.enum.live in production.
+const JUDGE_API_URL = "/api/judge/";
 
 type Language = "python" | "java" | "c" | "cpp";
 type BottomTab = "testcase" | "result";
@@ -214,9 +214,14 @@ export default function CodeEditor({
     error?: string;
   }> => {
     try {
+      const token = getMemoryToken();
       const response = await fetch(JUDGE_API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           questionId,
           language,
@@ -364,8 +369,9 @@ export default function CodeEditor({
     // Save all submissions to backend (accepted AND failed)
     try {
       const token = getMemoryToken();
-      const saveRes = await fetch(`${proxy}/api/v1/submissions/save`, {
+      const saveRes = await fetch(apiUrl("/api/v1/submissions/save"), {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),

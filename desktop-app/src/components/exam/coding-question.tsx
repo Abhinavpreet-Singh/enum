@@ -146,6 +146,23 @@ export default function CodingQuestion({ question, answer, language = "python", 
       });
       const data = await resp.json();
 
+      if (!resp.ok) {
+        const message = data.message ?? `Judge request failed (${resp.status}).`;
+        setRunError(message);
+        setVerdict("error");
+        setActiveTab("result");
+        if (isSubmit) {
+          setSubmitOverlay({
+            phase: "error",
+            passed: 0,
+            total: 0,
+            runtime: Date.now() - startTime,
+            message,
+          });
+        }
+        return;
+      }
+
       if (data.message && !data.results) {
         setRunError(data.message);
         setVerdict("error");
@@ -195,6 +212,17 @@ export default function CodingQuestion({ question, answer, language = "python", 
             passed,
             total,
             runtime: Date.now() - startTime,
+          });
+          onAnswer({
+            code,
+            language: lang,
+            judge: {
+              passed: allPassed,
+              passedCount: passed,
+              totalCount: total,
+              runtimeMs: Date.now() - startTime,
+              submittedAt: new Date().toISOString(),
+            },
           });
         }
         return;

@@ -1,9 +1,9 @@
 "use client";
+import { apiUrl, API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 import { useState, useEffect, useCallback } from "react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import {
   AlertTriangle, Shield, ShieldAlert, ShieldOff,
   Eye, Search, Filter,
@@ -77,7 +77,7 @@ export default function ViolationsSection() {
     if (severity !== "all") params.severity = severity;
     if (type !== "all") params.type = type;
 
-    axios.get(`${proxy}/api/v1/admin/violations`, { ...cfg(), params })
+    api.get("/api/v1/admin/violations", { ...cfg(), params })
       .then((r) => {
         setViolations(r.data.data.violations);
         setTotal(r.data.data.total);

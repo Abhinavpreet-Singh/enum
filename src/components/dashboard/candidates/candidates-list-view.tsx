@@ -1,9 +1,9 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api-config";
+import api from "@/lib/api";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import {
   Users,
   CheckCircle2,
@@ -104,8 +104,8 @@ export function CandidatesListView({ assessmentId, detailBasePath, backHref, bac
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get(
-        `${proxy}/api/v1/organization-dashboard/assessments/${assessmentId}/attempts`,
+      const { data } = await api.get(
+        `/api/v1/organization-dashboard/assessments/${assessmentId}/attempts`,
         { withCredentials: true },
       );
       setAssessment(data.data.assessment);

@@ -1,4 +1,4 @@
-import { proxy } from "@/app/proxy";
+import { apiUrl, API_BASE_URL } from "@/lib/api-config";
 import { getMemoryToken } from "@/lib/tokenStore";
 
 export type AccountType = "student" | "organization" | "admin";
@@ -42,7 +42,7 @@ export async function fetchAccountSession(): Promise<AccountSession> {
   if (!token) {
     // Try /me with cookie — may still be authenticated via refresh cookie
     try {
-      const res = await fetch(`${proxy}/api/v1/auth/me`, {
+      const res = await fetch(apiUrl("/api/v1/auth/me"), {
         credentials: "include",
       });
       if (res.ok) {
@@ -61,7 +61,7 @@ export async function fetchAccountSession(): Promise<AccountSession> {
   }
 
   try {
-    const res = await fetch(`${proxy}/api/v1/auth/session`, {
+    const res = await fetch(apiUrl("/api/v1/auth/session"), {
       headers: { Authorization: `Bearer ${token}` },
       credentials: "include",
     });

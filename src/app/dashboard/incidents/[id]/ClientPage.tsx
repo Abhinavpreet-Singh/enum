@@ -1,11 +1,11 @@
 "use client";
+import { API_BASE_URL } from "@/lib/api-config";
+import api, { isAxiosError } from "@/lib/api";
 import { getMemoryToken } from "@/lib/tokenStore";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, Loader2, AlertCircle } from "lucide-react";
-import axios from "axios";
-import { proxy } from "@/app/proxy";
 import type { IncidentSimulation } from "@/types/incident";
 import IncidentWorkspace from "@/components/incidents/IncidentWorkspace";
 import { formatIncidentCode } from "@/components/incidents/incident-display";
@@ -25,8 +25,8 @@ export default function IncidentDetailClientPage() {
         setIsLoading(true);
         const token = getMemoryToken();
         const [detailRes, listRes] = await Promise.all([
-          axios.get(`${proxy}/api/v1/incidents/${id}`),
-          axios.get(`${proxy}/api/v1/incidents`, {
+          api.get(`/api/v1/incidents/${id}`),
+          api.get("/api/v1/incidents", {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
           }),
         ]);
@@ -36,7 +36,7 @@ export default function IncidentDetailClientPage() {
         if (idx >= 0) setScenarioLabel(formatIncidentCode(idx));
       } catch (err) {
         const message =
-          axios.isAxiosError(err) && err.response?.data?.message
+          isAxiosError(err) && err.response?.data?.message
             ? err.response.data.message
             : "Failed to load incident";
         setError(message);

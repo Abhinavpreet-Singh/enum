@@ -1,10 +1,10 @@
 "use client";
 
+import { apiUrl, API_BASE_URL } from "@/lib/api-config";
+import api, { isAxiosError } from "@/lib/api";
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, RotateCcw, Play, Send } from "lucide-react";
-import axios from "axios";
 import Link from "next/link";
-import { proxy } from "@/app/proxy";
 import QuestionPanel, { type LinuxQuestion } from "./QuestionPanel";
 import MonacoCodeEditor from "./MonacoCodeEditor";
 import OutputTerminal from "./OutputTerminal";
@@ -62,7 +62,7 @@ export default function LinuxArenaPage({
   useEffect(() => {
     const fetchQuestions = async () => {
       setLoading(true);
-      const response = await axios.get(`${proxy}/api/v1/simulations/linux`, {
+      const response = await api.get("/api/v1/simulations/linux", {
         withCredentials: true,
       });
       const nextQuestions = (response.data?.data ?? []) as LinuxQuestion[];
@@ -123,7 +123,7 @@ export default function LinuxArenaPage({
     setOutputLines(["$ Running Bash command...", ""]);
 
     try {
-      const response = await fetch(`${proxy}/api/v1/compiler/run`, {
+      const response = await fetch(apiUrl("/api/v1/compiler/run"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ language: "bash", code }),
@@ -155,8 +155,8 @@ export default function LinuxArenaPage({
     setOutputLines(["$ Submitting Bash solution...", ""]);
 
     try {
-      const response = await axios.post(
-        `${proxy}/api/v1/simulations/linux/submit`,
+      const response = await api.post(
+        "/api/v1/simulations/linux/submit",
         {
           questionId: selectedQuestion.id,
           code,
@@ -194,7 +194,7 @@ export default function LinuxArenaPage({
         }
       }
     } catch (error) {
-      const message = axios.isAxiosError(error)
+      const message = isAxiosError(error)
         ? (error.response?.data?.message as string) || error.message
         : error instanceof Error
           ? error.message
