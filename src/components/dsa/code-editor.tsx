@@ -54,8 +54,8 @@ const languageOptions = [
   { label: "C++", value: "cpp" },
 ];
 
-// Call the backend judge endpoint directly (no Next.js server in Tauri .exe)
-const JUDGE_API_URL = apiUrl("/api/v1/judge/run");
+// Same-origin proxy avoids browser CORS against api.enum.live in production.
+const JUDGE_API_URL = "/api/judge/";
 
 type Language = "python" | "java" | "c" | "cpp";
 type BottomTab = "testcase" | "result";

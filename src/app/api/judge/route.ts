@@ -6,6 +6,7 @@ const JUDGE_API_URL = apiUrl("/api/v1/judge/run");
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const authHeader = request.headers.get("authorization");
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for judge
@@ -14,6 +15,10 @@ export async function POST(request: NextRequest) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(authHeader ? { Authorization: authHeader } : {}),
+        ...(request.headers.get("cookie")
+          ? { Cookie: request.headers.get("cookie")! }
+          : {}),
       },
       body: JSON.stringify(body),
       signal: controller.signal,

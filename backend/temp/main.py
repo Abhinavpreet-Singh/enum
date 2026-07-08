@@ -4,10 +4,12 @@ _ti = [0]
 def _next_tok():
     v = _tokens[_ti[0]]; _ti[0] += 1; return v
 
-def twoSum(nums: List[int], target: int) -> List[int]:
-    # Write your code here
-    pass
-
+def twoSum(nums, target):
+    for i in range(len(nums)):
+        for j in range(i+1, len(nums)):
+            if nums[i] + nums[j] == target:
+                return [i, j]
+    return []
 
 _n0 = int(_next_tok())
 param0 = [int(_next_tok()) for _ in range(_n0)]

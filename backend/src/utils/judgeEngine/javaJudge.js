@@ -1,7 +1,15 @@
 import fs from "fs";
 import path from "path";
-import { exec, spawn } from "child_process";
+import { exec } from "child_process";
+import { promisify } from "util";
 import { generateJavaWrapper } from "./javaWrapper.js";
+import {
+  runCommandWithInput,
+  withJudgeWorkdir,
+  writeJudgeFile,
+} from "./judgeSandbox.js";
+
+const execAsync = promisify(exec);
 
 function resolveJavaBinaries() {
   const javaHome = process.env.JAVA_HOME;
@@ -30,88 +38,50 @@ function resolveJavaBinaries() {
   return { javac: "javac", java: "java" };
 }
 
-export const runJavaJudge = ({
+export async function runJavaJudge({
   userCode,
   functionName,
   parameterTypes,
   returnType,
-  testcases
-}) => {
-  return new Promise(async (resolve) => {
-    if (!fs.existsSync("./temp")) {
-      fs.mkdirSync("./temp");
-    }
-
+  testcases,
+}) {
+  return withJudgeWorkdir(async (workdir) => {
     const fullCode = generateJavaWrapper({
       userFunctionCode: userCode,
       functionName,
       parameterTypes,
-      returnType
+      returnType,
     });
 
-    fs.writeFileSync("./temp/Main.java", fullCode);
-
+    const sourcePath = writeJudgeFile(workdir, "Main.java", fullCode);
     const { javac: javacCmd, java: javaCmd } = resolveJavaBinaries();
 
     try {
-      await new Promise((res, rej) => {
-        exec(`"${javacCmd}" temp/Main.java`, (err, _stdout, stderr) => {
-          if (err) {
-            const msg = stderr || err.message || "Java Compilation Error";
-            if (msg.includes("not found") || msg.includes("No such file")) {
-              return rej(
-                "Java (JDK) is not installed on this server. " +
-                "Run: sudo apt-get install -y openjdk-17-jdk"
-              );
-            }
-            return rej(msg);
-          }
-          res();
-        });
-      });
+      await execAsync(`"${javacCmd}" "${sourcePath}"`, { cwd: workdir });
     } catch (compileError) {
-      return resolve(
-        testcases.map(tc => ({
-          input: tc.input,
-          expected: tc.expectedOutput,
-          output: "",
-          passed: false,
-          error: `Compilation Error: ${compileError}`
-        }))
-      );
+      const message =
+        compileError?.stderr ||
+        compileError?.message ||
+        "Java Compilation Error";
+      return testcases.map((tc) => ({
+        input: tc.input,
+        expected: tc.expectedOutput,
+        output: "",
+        passed: false,
+        error: `Compilation Error: ${message}`,
+      }));
     }
 
-    let results = [];
+    const results = [];
 
     for (const tc of testcases) {
       try {
-        const inputString = tc.input.join("\n") + "\n";
-
-        const { stdout, stderr, exitCode } = await new Promise((res) => {
-          const run = spawn(javaCmd, ["-cp", "temp", "Main"]);
-
-          let stdout = "";
-          let stderr = "";
-
-          run.stdout.on("data", (data) => {
-            stdout += data.toString();
-          });
-
-          run.stderr.on("data", (data) => {
-            stderr += data.toString();
-          });
-
-          run.on("error", (err) => {
-            res({ stdout: "", stderr: err.message, exitCode: 1 });
-          });
-
-          run.on("close", (code) => {
-            res({ stdout, stderr, exitCode: code });
-          });
-
-          run.stdin.write(inputString);
-          run.stdin.end();
-        });
+        const inputString = `${tc.input.join("\n")}\n`;
+        const { stdout, stderr, exitCode } = await runCommandWithInput(
+          javaCmd,
+          ["-cp", workdir, "Main"],
+          inputString,
+        );
 
         if (exitCode !== 0) {
           results.push({
@@ -119,7 +89,7 @@ export const runJavaJudge = ({
             expected: tc.expectedOutput,
             output: "",
             passed: false,
-            error: stderr || `Runtime Error (exit code ${exitCode})`
+            error: stderr || `Runtime Error (exit code ${exitCode})`,
           });
         } else {
           const output = stdout.trim();
@@ -127,7 +97,7 @@ export const runJavaJudge = ({
             input: tc.input,
             expected: tc.expectedOutput,
             output,
-            passed: output === tc.expectedOutput
+            passed: output === tc.expectedOutput,
           });
         }
       } catch (error) {
@@ -136,11 +106,11 @@ export const runJavaJudge = ({
           expected: tc.expectedOutput,
           output: "",
           passed: false,
-          error: String(error)
+          error: String(error),
         });
       }
     }
 
-    resolve(results);
+    return results;
   });
-};
+}

@@ -55,7 +55,11 @@ ENV NODE_PATH=/usr/local/lib/node_modules
 WORKDIR /app
 
 RUN groupadd --system --gid 1001 enum && \
-    useradd --system --uid 1001 --gid enum enum
+    useradd --system --uid 1001 --gid enum enum && \
+    mkdir -p /tmp/enum-judge && \
+    chown -R enum:enum /tmp/enum-judge
+
+ENV ENUM_JUDGE_TMPDIR=/tmp/enum-judge
 
 # Copy generated Prisma client + production node_modules from builder
 COPY --from=builder --chown=enum:enum /app/node_modules ./node_modules
