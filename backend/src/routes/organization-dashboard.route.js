@@ -5,6 +5,8 @@ import {
   getRecentActivity,
   getOrganizationProfile,
   updateOrganizationProfile,
+  getOrganizationPrivacy,
+  updateOrganizationPrivacy,
   getAssessmentAttempts,
   getAttemptDetail,
 } from "../controllers/organization-dashboard.controller.js";
@@ -17,6 +19,8 @@ router.get("/metrics", ...guard, getDashboardMetrics);
 router.get("/recent-activity", ...guard, getRecentActivity);
 router.get("/profile", ...guard, getOrganizationProfile);
 router.patch("/profile", ...guard, updateOrganizationProfile);
+router.get("/privacy", ...guard, getOrganizationPrivacy);
+router.patch("/privacy", ...guard, updateOrganizationPrivacy);
 router.get("/assessments/:assessmentId/attempts", ...guard, getAssessmentAttempts);
 router.get("/attempts/:attemptId", ...guard, getAttemptDetail);
 

@@ -9,6 +9,9 @@ import {
     userForgetPassword,
     getProfile,
     updateProfile,
+    updatePassword,
+    getPrivacy,
+    updatePrivacy,
     uploadAvatar,
     getLeaderboard,
     awardBrowserXp
@@ -35,6 +38,8 @@ router.route("/logout").post(verifyJWT, logoutUser);
 router.route("/forgotPassword").put(userForgetPassword);
 router.route("/profile").get(verifyJWT, getProfile);
 router.route("/profile").put(verifyJWT, updateProfile);
+router.route("/password").put(verifyJWT, updatePassword);
+router.route("/privacy").get(verifyJWT, getPrivacy).put(verifyJWT, updatePrivacy);
 router.route("/avatar").post(verifyJWT, upload.single("avatar"), uploadAvatar);
 router.route("/award-browser-xp").patch(verifyJWT, awardBrowserXp);
 router.route("/leaderboard").get(featureGate("leaderboard_public"), getLeaderboard);

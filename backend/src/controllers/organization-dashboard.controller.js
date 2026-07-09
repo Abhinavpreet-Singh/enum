@@ -1,5 +1,6 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import prisma from "../db/index.js";
+import { ApiError } from "../utils/apiError.js";
 import {
   bankQuestionInclude,
   candidateAttemptInclude,
@@ -151,6 +152,50 @@ export const updateOrganizationProfile = asyncHandler(async (req, res) => {
   return res.status(200).json({
     message: "Organization profile updated.",
     data: safe,
+  });
+});
+
+export const getOrganizationPrivacy = asyncHandler(async (req, res) => {
+  const org = await prisma.organization.findUnique({
+    where: { id: req.organization.id },
+    select: {
+      companyPagePublic: true,
+      showContactEmail: true,
+    },
+  });
+
+  return res.status(200).json({
+    message: "Organization privacy settings fetched.",
+    data: org,
+  });
+});
+
+export const updateOrganizationPrivacy = asyncHandler(async (req, res) => {
+  const allowedFields = ["companyPagePublic", "showContactEmail"];
+  const updateFields = {};
+
+  for (const field of allowedFields) {
+    if (req.body[field] !== undefined) {
+      updateFields[field] = Boolean(req.body[field]);
+    }
+  }
+
+  if (Object.keys(updateFields).length === 0) {
+    throw new ApiError(400, "No privacy settings to update.");
+  }
+
+  const org = await prisma.organization.update({
+    where: { id: req.organization.id },
+    data: updateFields,
+    select: {
+      companyPagePublic: true,
+      showContactEmail: true,
+    },
+  });
+
+  return res.status(200).json({
+    message: "Organization privacy settings updated.",
+    data: org,
   });
 });
 

@@ -1,10 +1,7 @@
 "use client";
 
-import { API_BASE_URL } from "@/lib/api-config";
 import api from "@/lib/api";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { getMemoryToken } from "@/lib/tokenStore";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { AuthContext } from "@/providers/AuthProvider";
 import { useTheme } from "@/providers/theme-provider";
 import { useAccountSession } from "@/hooks/useAccountType";
@@ -23,45 +20,40 @@ import {
 import {
   User,
   Building2,
-  Bell,
   Shield,
+  Eye,
   Sun,
   Moon,
-  Camera,
-  ExternalLink,
   Mail,
   KeyRound,
   LogOut,
+  Copy,
+  Check,
+  Link2,
 } from "lucide-react";
 
-type SettingsTab = "account" | "company" | "notifications" | "security" | "appearance";
+type SettingsTab = "account" | "company" | "privacy" | "security" | "appearance";
 
-type StudentNotificationPrefs = {
-  productUpdates: boolean;
-  weeklyDigest: boolean;
-  streakReminders: boolean;
-  leaderboardUpdates: boolean;
+type StudentPrivacy = {
+  profilePublic: boolean;
+  showOnLeaderboard: boolean;
+  showActivityStats: boolean;
 };
 
-type OrgNotificationPrefs = {
-  candidateSubmissions: boolean;
-  violationAlerts: boolean;
-  weeklyReports: boolean;
-  productUpdates: boolean;
+type OrgPrivacy = {
+  companyPagePublic: boolean;
+  showContactEmail: boolean;
 };
 
-const DEFAULT_STUDENT_NOTIFICATIONS: StudentNotificationPrefs = {
-  productUpdates: true,
-  weeklyDigest: true,
-  streakReminders: true,
-  leaderboardUpdates: false,
+const DEFAULT_STUDENT_PRIVACY: StudentPrivacy = {
+  profilePublic: true,
+  showOnLeaderboard: true,
+  showActivityStats: true,
 };
 
-const DEFAULT_ORG_NOTIFICATIONS: OrgNotificationPrefs = {
-  candidateSubmissions: true,
-  violationAlerts: true,
-  weeklyReports: true,
-  productUpdates: true,
+const DEFAULT_ORG_PRIVACY: OrgPrivacy = {
+  companyPagePublic: true,
+  showContactEmail: false,
 };
 
 const INDUSTRY_OPTIONS = [
@@ -77,26 +69,20 @@ const INDUSTRY_OPTIONS = [
 
 const SIZE_OPTIONS = ["1-10", "11-50", "51-200", "200+"];
 
-function loadPrefs<T>(key: string, defaults: T): T {
-  if (typeof window === "undefined") return defaults;
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return defaults;
-    return { ...defaults, ...JSON.parse(raw) };
-  } catch {
-    return defaults;
-  }
-}
-
-function savePrefs<T>(key: string, value: T) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(key, JSON.stringify(value));
-}
-
 function approvalTone(status: string): "success" | "warning" | "danger" | "neutral" {
   if (status === "approved") return "success";
   if (status === "rejected") return "danger";
   return "warning";
+}
+
+function signInMethodLabel(provider: string | null): string {
+  if (provider === "google") return "Google OAuth";
+  if (provider === "github") return "GitHub OAuth";
+  return "Email & password";
+}
+
+function isOAuthProvider(provider: string | null): boolean {
+  return provider === "google" || provider === "github";
 }
 
 export default function SettingsContent() {
@@ -105,20 +91,18 @@ export default function SettingsContent() {
   const authCtx = useContext(AuthContext);
   const { theme, toggleTheme } = useTheme();
   const sessionReady = verified && !sessionLoading;
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const tabs = useMemo<{ id: SettingsTab; label: string; icon: typeof User }[]>(
     () =>
       isOrganization
         ? [
             { id: "company", label: "Company", icon: Building2 },
-            { id: "notifications", label: "Notifications", icon: Bell },
+            { id: "privacy", label: "Privacy", icon: Eye },
             { id: "security", label: "Security", icon: Shield },
             { id: "appearance", label: "Appearance", icon: Sun },
           ]
         : [
             { id: "account", label: "Account", icon: User },
-            { id: "notifications", label: "Notifications", icon: Bell },
+            { id: "privacy", label: "Privacy", icon: Eye },
             { id: "security", label: "Security", icon: Shield },
             { id: "appearance", label: "Appearance", icon: Sun },
           ],
@@ -132,14 +116,21 @@ export default function SettingsContent() {
     null,
   );
 
-  // ── Student account state ─────────────────────────────────────────────────
-  const [loadingAccount, setLoadingAccount] = useState(!isOrganization);
-  const [savingAccount, setSavingAccount] = useState(false);
-  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
   const [provider, setProvider] = useState<string | null>(null);
-  const [avatar, setAvatar] = useState<string | null>(null);
+  const [hasPassword, setHasPassword] = useState(false);
+  const [loadingAccount, setLoadingAccount] = useState(!isOrganization);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [username, setUsername] = useState("");
+  const [loadingPrivacy, setLoadingPrivacy] = useState(false);
+  const [savingPrivacy, setSavingPrivacy] = useState(false);
+  const [studentPrivacy, setStudentPrivacy] = useState<StudentPrivacy>(DEFAULT_STUDENT_PRIVACY);
+  const [orgPrivacy, setOrgPrivacy] = useState<OrgPrivacy>(DEFAULT_ORG_PRIVACY);
+  const [copiedProfileLink, setCopiedProfileLink] = useState(false);
 
   // ── Organization state ────────────────────────────────────────────────────
   const [loadingCompany, setLoadingCompany] = useState(isOrganization);
@@ -157,14 +148,6 @@ export default function SettingsContent() {
     approvalStatus: "pending",
   });
 
-  // ── Notifications (local until backend exists) ────────────────────────────
-  const prefsKey = useMemo(
-    () => `enum:notification-prefs:${accountType}:${email || "default"}`,
-    [accountType, email],
-  );
-  const [studentNotifications, setStudentNotifications] = useState(DEFAULT_STUDENT_NOTIFICATIONS);
-  const [orgNotifications, setOrgNotifications] = useState(DEFAULT_ORG_NOTIFICATIONS);
-
   // ── Security ──────────────────────────────────────────────────────────────
   const [sendingReset, setSendingReset] = useState(false);
 
@@ -176,15 +159,6 @@ export default function SettingsContent() {
     }
   }, [isOrganization]);
 
-  useEffect(() => {
-    if (!email) return;
-    if (isOrganization) {
-      setOrgNotifications(loadPrefs(prefsKey, DEFAULT_ORG_NOTIFICATIONS));
-    } else {
-      setStudentNotifications(loadPrefs(prefsKey, DEFAULT_STUDENT_NOTIFICATIONS));
-    }
-  }, [prefsKey, isOrganization, email]);
-
   const loadStudentAccount = useCallback(async () => {
     setLoadingAccount(true);
     try {
@@ -193,15 +167,52 @@ export default function SettingsContent() {
       });
       const data = res.data?.data;
       if (!data) return;
-      setDisplayName(data.displayName || data.username || "");
       setEmail(data.email || "");
-      setUsername(data.username || "");
       setProvider(data.provider || null);
-      setAvatar(data.avatar || localStorage.getItem("userAvatar") || null);
+      setHasPassword(Boolean(data.hasPassword));
     } catch {
       setBanner({ tone: "error", text: "Could not load account details." });
     } finally {
       setLoadingAccount(false);
+    }
+  }, []);
+
+  const loadStudentPrivacy = useCallback(async () => {
+    setLoadingPrivacy(true);
+    try {
+      const res = await api.get("/api/v1/users/privacy", { withCredentials: true });
+      const data = res.data?.data;
+      if (!data) return;
+      setUsername(data.username || "");
+      setProvider(data.provider || null);
+      setStudentPrivacy({
+        profilePublic: data.profilePublic ?? true,
+        showOnLeaderboard: data.showOnLeaderboard ?? true,
+        showActivityStats: data.showActivityStats ?? true,
+      });
+    } catch {
+      setBanner({ tone: "error", text: "Could not load privacy settings." });
+    } finally {
+      setLoadingPrivacy(false);
+    }
+  }, []);
+
+  const loadOrgPrivacy = useCallback(async () => {
+    setLoadingPrivacy(true);
+    try {
+      const res = await api.get("/api/v1/organization-dashboard/privacy", {
+        withCredentials: true,
+      });
+      const data = res.data?.data;
+      if (!data) return;
+      setOrgPrivacy({
+        companyPagePublic: data.companyPagePublic ?? true,
+        showContactEmail: data.showContactEmail ?? false,
+      });
+    } catch {
+      setBanner({ tone: "error", text: "Could not load privacy settings." });
+    } finally {
+      setLoadingPrivacy(false);
     }
   }, []);
 
@@ -237,28 +248,90 @@ export default function SettingsContent() {
     if (!sessionReady) return;
     if (isOrganization) {
       loadCompany();
+      loadOrgPrivacy();
     } else {
       loadStudentAccount();
+      loadStudentPrivacy();
     }
-  }, [sessionReady, isOrganization, loadCompany, loadStudentAccount]);
+  }, [
+    sessionReady,
+    isOrganization,
+    loadCompany,
+    loadStudentAccount,
+    loadStudentPrivacy,
+    loadOrgPrivacy,
+  ]);
 
-  const saveStudentAccount = async () => {
-    setSavingAccount(true);
+  const saveStudentPrivacy = async (next: StudentPrivacy) => {
+    setSavingPrivacy(true);
     setBanner(null);
     try {
-      await api.put(
-        "/api/v1/users/profile",
-        { displayName },
-        { withCredentials: true },
-      );
-      window.dispatchEvent(
-        new CustomEvent("userNameChanged", { detail: displayName }),
-      );
-      setBanner({ tone: "success", text: "Account updated successfully." });
+      const res = await api.put("/api/v1/users/privacy", next, { withCredentials: true });
+      const data = res.data?.data;
+      if (data) {
+        setStudentPrivacy({
+          profilePublic: data.profilePublic ?? true,
+          showOnLeaderboard: data.showOnLeaderboard ?? true,
+          showActivityStats: data.showActivityStats ?? true,
+        });
+      }
+      setBanner({ tone: "success", text: "Privacy settings saved." });
     } catch {
-      setBanner({ tone: "error", text: "Failed to save account changes." });
+      setBanner({ tone: "error", text: "Failed to save privacy settings." });
     } finally {
-      setSavingAccount(false);
+      setSavingPrivacy(false);
+    }
+  };
+
+  const saveOrgPrivacy = async (next: OrgPrivacy) => {
+    setSavingPrivacy(true);
+    setBanner(null);
+    try {
+      const res = await api.patch("/api/v1/organization-dashboard/privacy", next, {
+        withCredentials: true,
+      });
+      const data = res.data?.data;
+      if (data) {
+        setOrgPrivacy({
+          companyPagePublic: data.companyPagePublic ?? true,
+          showContactEmail: data.showContactEmail ?? false,
+        });
+      }
+      setBanner({ tone: "success", text: "Privacy settings saved." });
+    } catch {
+      setBanner({ tone: "error", text: "Failed to save privacy settings." });
+    } finally {
+      setSavingPrivacy(false);
+    }
+  };
+
+  const updateStudentPrivacy = <K extends keyof StudentPrivacy>(
+    key: K,
+    value: StudentPrivacy[K],
+  ) => {
+    const next = { ...studentPrivacy, [key]: value };
+    setStudentPrivacy(next);
+    void saveStudentPrivacy(next);
+  };
+
+  const updateOrgPrivacy = <K extends keyof OrgPrivacy>(key: K, value: OrgPrivacy[K]) => {
+    const next = { ...orgPrivacy, [key]: value };
+    setOrgPrivacy(next);
+    void saveOrgPrivacy(next);
+  };
+
+  const profileUrl = useMemo(() => {
+    if (typeof window === "undefined") return "/dashboard/profile/";
+    return `${window.location.origin}/dashboard/profile/`;
+  }, []);
+
+  const copyProfileLink = async () => {
+    try {
+      await navigator.clipboard.writeText(profileUrl);
+      setCopiedProfileLink(true);
+      setTimeout(() => setCopiedProfileLink(false), 2000);
+    } catch {
+      setBanner({ tone: "error", text: "Could not copy profile link." });
     }
   };
 
@@ -276,59 +349,6 @@ export default function SettingsContent() {
     } finally {
       setSavingCompany(false);
     }
-  };
-
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const src = ev.target?.result as string;
-      setAvatar(src);
-      localStorage.setItem("userAvatar", src);
-      window.dispatchEvent(new Event("userAvatarChanged"));
-    };
-    reader.readAsDataURL(file);
-
-    const token = getMemoryToken();
-    if (!token) return;
-    const formData = new FormData();
-    formData.append("avatar", file);
-    api
-      .post("/api/v1/users/avatar", formData, {
-        withCredentials: true,
-        headers: { "Content-Type": "multipart/form-data" },
-      })
-      .then((res) => {
-        const url = res.data?.data?.avatar;
-        if (!url) return;
-        setAvatar(url);
-        localStorage.setItem("userAvatar", url);
-        window.dispatchEvent(new Event("userAvatarChanged"));
-        setBanner({ tone: "success", text: "Avatar updated." });
-      })
-      .catch(() => {
-        setBanner({ tone: "error", text: "Avatar upload failed." });
-      });
-  };
-
-  const updateStudentNotification = <K extends keyof StudentNotificationPrefs>(
-    key: K,
-    value: StudentNotificationPrefs[K],
-  ) => {
-    const next = { ...studentNotifications, [key]: value };
-    setStudentNotifications(next);
-    savePrefs(prefsKey, next);
-  };
-
-  const updateOrgNotification = <K extends keyof OrgNotificationPrefs>(
-    key: K,
-    value: OrgNotificationPrefs[K],
-  ) => {
-    const next = { ...orgNotifications, [key]: value };
-    setOrgNotifications(next);
-    savePrefs(prefsKey, next);
   };
 
   const sendPasswordReset = async () => {
@@ -351,101 +371,162 @@ export default function SettingsContent() {
     }
   };
 
+  const savePassword = async () => {
+    if (newPassword.length < 8) {
+      setBanner({ tone: "error", text: "New password must be at least 8 characters." });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setBanner({ tone: "error", text: "New password and confirmation do not match." });
+      return;
+    }
+
+    if (hasPassword && !currentPassword) {
+      setBanner({ tone: "error", text: "Current password is required." });
+      return;
+    }
+
+    setSavingPassword(true);
+    setBanner(null);
+    try {
+      await api.put(
+        "/api/v1/users/password",
+        {
+          ...(hasPassword ? { currentPassword } : {}),
+          newPassword,
+          confirmPassword,
+        },
+        { withCredentials: true },
+      );
+      setHasPassword(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setBanner({
+        tone: "success",
+        text: hasPassword ? "Password changed successfully." : "Password set successfully.",
+      });
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to update password.";
+      setBanner({ tone: "error", text: message });
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
   const handleLogout = async () => {
     await authCtx?.logout?.();
     window.location.href = "/login/";
   };
 
-  const renderAccountPanel = () => (
-    <SettingsPanel
-      title="Account"
-      description="Manage how you appear on Enum and update your login identity."
-      footer={<SaveButton onClick={saveStudentAccount} saving={savingAccount} />}
-    >
-      {loadingAccount ? (
-        <div className="h-32 animate-pulse border border-gray-200 bg-gray-50 dark:border-neutral-800 dark:bg-neutral-950" />
-      ) : (
-        <>
-          <div className="flex flex-wrap items-center gap-4">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="group relative h-20 w-20 overflow-hidden rounded-full border border-black/15 bg-linear-to-br from-gray-700 to-gray-900 dark:border-white/20"
-            >
-              {avatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={avatar} alt="Avatar" className="h-full w-full object-cover" />
-              ) : (
-                <span className="flex h-full w-full items-center justify-center text-lg font-bold text-white">
-                  {(displayName || username || "U").slice(0, 1).toUpperCase()}
-                </span>
-              )}
-              <span className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity group-hover:opacity-100">
-                <Camera className="h-5 w-5 text-white" />
-              </span>
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleAvatarChange}
-            />
-            <div>
-              <p className="font-mono text-xs font-medium text-black dark:text-white">
-                Profile photo
-              </p>
-              <p className="mt-1 font-mono text-[10px] text-gray-500 dark:text-gray-400">
-                JPG or PNG, up to 5 MB.
-              </p>
-            </div>
-          </div>
+  const renderAccountPanel = () => {
+    const oauthAccount = isOAuthProvider(provider);
+    const settingFirstPassword = oauthAccount && !hasPassword;
+    const changingPassword = hasPassword;
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Display name">
-              <input
-                className={inputCls}
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Your display name"
-              />
-            </Field>
-            <Field label="Username" hint="Used in your public profile URL.">
-              <input className={inputCls} value={username} disabled />
-            </Field>
-            <Field label="Email" hint="Contact support to change your email.">
-              <input className={inputCls} value={email} disabled />
-            </Field>
-            <Field label="Sign-in method">
-              <input
-                className={inputCls}
-                value={provider ? `${provider.charAt(0).toUpperCase()}${provider.slice(1)} OAuth` : "Email & password"}
-                disabled
-              />
-            </Field>
-          </div>
-
-          <div className={`${panelSurface} flex flex-wrap items-center justify-between gap-3 px-4 py-3`}>
-            <div>
-              <p className="font-mono text-xs font-medium text-black dark:text-white">
-                Public profile
-              </p>
-              <p className="mt-0.5 font-mono text-[10px] text-gray-500 dark:text-gray-400">
-                Edit bio, skills, certifications, and social links.
-              </p>
+    return (
+      <SettingsPanel
+        title="Account"
+        description="Manage your sign-in method and password."
+        footer={
+          <SaveButton
+            onClick={savePassword}
+            saving={savingPassword}
+            label={settingFirstPassword ? "Set password" : "Change password"}
+          />
+        }
+      >
+        {loadingAccount ? (
+          <div className="h-32 animate-pulse border border-gray-200 bg-gray-50 dark:border-neutral-800 dark:bg-neutral-950" />
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Email">
+                <input className={inputCls} value={email} disabled />
+              </Field>
+              <Field label="Sign-in method">
+                <input className={inputCls} value={signInMethodLabel(provider)} disabled />
+              </Field>
             </div>
-            <Link
-              href="/dashboard/profile/"
-              className="inline-flex items-center gap-1.5 border border-black px-3 py-1.5 font-mono text-[10px] tracking-wider text-black transition-colors hover:bg-black hover:text-white dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black"
-            >
-              Open profile
-              <ExternalLink className="h-3 w-3" />
-            </Link>
-          </div>
-        </>
-      )}
-    </SettingsPanel>
-  );
+
+            <div className={`${panelSurface} space-y-4 px-4 py-4`}>
+              <div className="flex items-start gap-3">
+                <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-mono text-xs font-medium text-black dark:text-white">
+                    {settingFirstPassword
+                      ? "Set a password"
+                      : changingPassword
+                        ? "Change your password"
+                        : "Password"}
+                  </p>
+                  <p className="mt-0.5 font-mono text-[10px] text-gray-500 dark:text-gray-400">
+                    {settingFirstPassword
+                      ? "Add a password so you can also sign in with email and password."
+                      : "Enter your current password, then choose a new one."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {changingPassword ? (
+                  <Field label="Current password">
+                    <input
+                      className={inputCls}
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      autoComplete="current-password"
+                    />
+                  </Field>
+                ) : null}
+                <Field label="New password" hint="At least 8 characters.">
+                  <input
+                    className={inputCls}
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                </Field>
+                <Field label="Confirm new password">
+                  <input
+                    className={inputCls}
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                </Field>
+              </div>
+            </div>
+
+            <div className={`${panelSurface} flex flex-wrap items-center justify-between gap-3 px-4 py-4`}>
+              <div>
+                <p className="font-mono text-xs font-medium text-black dark:text-white">
+                  Sign out
+                </p>
+                <p className="mt-0.5 font-mono text-[10px] text-gray-500 dark:text-gray-400">
+                  End your session on this device.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex items-center gap-2 border border-red-300 px-3 py-2 font-mono text-[10px] tracking-wider text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/20"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Sign out
+              </button>
+            </div>
+          </>
+        )}
+      </SettingsPanel>
+    );
+  };
 
   const renderCompanyPanel = () => (
     <SettingsPanel
@@ -554,64 +635,113 @@ export default function SettingsContent() {
     </SettingsPanel>
   );
 
-  const renderNotificationsPanel = () => (
+  const renderPrivacyPanel = () => (
     <SettingsPanel
-      title="Notifications"
-      description="Choose what updates you want to hear about. Preferences are saved on this device."
+      title="Privacy"
+      description={
+        isOrganization
+          ? "Control what candidates and the public can see about your organization."
+          : "Control what other Enum users can see about your profile and activity."
+      }
     >
-      {isOrganization ? (
+      {loadingPrivacy ? (
+        <div className="h-32 animate-pulse border border-gray-200 bg-gray-50 dark:border-neutral-800 dark:bg-neutral-950" />
+      ) : isOrganization ? (
         <div className="space-y-2">
           <ToggleRow
-            title="Candidate submissions"
-            description="Get notified when a candidate completes an assessment."
-            checked={orgNotifications.candidateSubmissions}
-            onChange={(v) => updateOrgNotification("candidateSubmissions", v)}
+            title="Public company page"
+            description="Allow your company profile to be visible on public hiring pages."
+            checked={orgPrivacy.companyPagePublic}
+            onChange={(v) => updateOrgPrivacy("companyPagePublic", v)}
+            disabled={savingPrivacy}
           />
           <ToggleRow
-            title="Proctoring violations"
-            description="Alerts for medium and high severity violations during live tests."
-            checked={orgNotifications.violationAlerts}
-            onChange={(v) => updateOrgNotification("violationAlerts", v)}
-          />
-          <ToggleRow
-            title="Weekly hiring report"
-            description="Summary of invites, completions, and average scores."
-            checked={orgNotifications.weeklyReports}
-            onChange={(v) => updateOrgNotification("weeklyReports", v)}
-          />
-          <ToggleRow
-            title="Product updates"
-            description="New Enum features for assessment teams and recruiters."
-            checked={orgNotifications.productUpdates}
-            onChange={(v) => updateOrgNotification("productUpdates", v)}
+            title="Show contact email to candidates"
+            description="Display your primary contact email on assessment invites and results."
+            checked={orgPrivacy.showContactEmail}
+            onChange={(v) => updateOrgPrivacy("showContactEmail", v)}
+            disabled={savingPrivacy}
           />
         </div>
       ) : (
-        <div className="space-y-2">
-          <ToggleRow
-            title="Streak reminders"
-            description="Nudges when your practice streak is about to break."
-            checked={studentNotifications.streakReminders}
-            onChange={(v) => updateStudentNotification("streakReminders", v)}
-          />
-          <ToggleRow
-            title="Weekly progress digest"
-            description="A recap of problems solved, simulations, and XP earned."
-            checked={studentNotifications.weeklyDigest}
-            onChange={(v) => updateStudentNotification("weeklyDigest", v)}
-          />
-          <ToggleRow
-            title="Leaderboard movement"
-            description="Alerts when your global rank changes significantly."
-            checked={studentNotifications.leaderboardUpdates}
-            onChange={(v) => updateStudentNotification("leaderboardUpdates", v)}
-          />
-          <ToggleRow
-            title="Product updates"
-            description="New tracks, arenas, and platform improvements."
-            checked={studentNotifications.productUpdates}
-            onChange={(v) => updateStudentNotification("productUpdates", v)}
-          />
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <ToggleRow
+              title="Public profile"
+              description="Let other Enum users view your profile page."
+              checked={studentPrivacy.profilePublic}
+              onChange={(v) => updateStudentPrivacy("profilePublic", v)}
+              disabled={savingPrivacy}
+            />
+            <ToggleRow
+              title="Leaderboard participation"
+              description="Include your rank and stats on the global leaderboard."
+              checked={studentPrivacy.showOnLeaderboard}
+              onChange={(v) => updateStudentPrivacy("showOnLeaderboard", v)}
+              disabled={savingPrivacy}
+            />
+            <ToggleRow
+              title="Show activity stats"
+              description="Display XP, streak, and solve counts on your profile."
+              checked={studentPrivacy.showActivityStats}
+              onChange={(v) => updateStudentPrivacy("showActivityStats", v)}
+              disabled={savingPrivacy}
+            />
+          </div>
+
+          <div className={`${panelSurface} space-y-3 px-4 py-4`}>
+            <div className="flex items-start gap-3">
+              <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+              <div className="min-w-0 flex-1">
+                <p className="font-mono text-xs font-medium text-black dark:text-white">
+                  Profile link
+                </p>
+                <p className="mt-0.5 font-mono text-[10px] text-gray-500 dark:text-gray-400">
+                  {studentPrivacy.profilePublic
+                    ? "Share this link so others can view your public profile."
+                    : "Enable public profile to share your link with others."}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <input className={`${inputCls} min-w-0 flex-1`} value={profileUrl} disabled />
+              <button
+                type="button"
+                onClick={copyProfileLink}
+                disabled={!studentPrivacy.profilePublic}
+                className="inline-flex items-center gap-1.5 border border-black px-3 py-2 font-mono text-[10px] tracking-wider text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black"
+              >
+                {copiedProfileLink ? (
+                  <>
+                    <Check className="h-3.5 w-3.5" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" />
+                    Copy
+                  </>
+                )}
+              </button>
+            </div>
+            {username ? (
+              <p className="font-mono text-[10px] text-gray-500 dark:text-gray-400">
+                Username: @{username}
+              </p>
+            ) : null}
+          </div>
+
+          {provider ? (
+            <div className={`${panelSurface} px-4 py-4`}>
+              <p className="font-mono text-xs font-medium text-black dark:text-white">
+                Connected account
+              </p>
+              <p className="mt-1 font-mono text-[10px] text-gray-500 dark:text-gray-400">
+                Signed in with {signInMethodLabel(provider)}. OAuth connections are managed through
+                your provider.
+              </p>
+            </div>
+          ) : null}
         </div>
       )}
     </SettingsPanel>
@@ -713,8 +843,8 @@ export default function SettingsContent() {
         return renderAccountPanel();
       case "company":
         return renderCompanyPanel();
-      case "notifications":
-        return renderNotificationsPanel();
+      case "privacy":
+        return renderPrivacyPanel();
       case "security":
         return renderSecurityPanel();
       case "appearance":
