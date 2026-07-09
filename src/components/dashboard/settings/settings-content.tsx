@@ -24,7 +24,6 @@ import {
   Eye,
   Sun,
   Moon,
-  Mail,
   KeyRound,
   LogOut,
   Copy,
@@ -149,7 +148,6 @@ export default function SettingsContent() {
   });
 
   // ── Security ──────────────────────────────────────────────────────────────
-  const [sendingReset, setSendingReset] = useState(false);
 
   useEffect(() => {
     if (isOrganization) {
@@ -348,26 +346,6 @@ export default function SettingsContent() {
       setBanner({ tone: "error", text: "Failed to save company profile." });
     } finally {
       setSavingCompany(false);
-    }
-  };
-
-  const sendPasswordReset = async () => {
-    if (!email) return;
-    setSendingReset(true);
-    setBanner(null);
-    try {
-      await api.post("/api/v1/auth/password-reset/request", {
-        email,
-        accountType: isOrganization ? "organization" : "student",
-      });
-      setBanner({
-        tone: "success",
-        text: `Password reset link sent to ${email}.`,
-      });
-    } catch {
-      setBanner({ tone: "error", text: "Could not send password reset email." });
-    } finally {
-      setSendingReset(false);
     }
   };
 
@@ -748,53 +726,12 @@ export default function SettingsContent() {
   );
 
   const renderSecurityPanel = () => (
-    <div className="space-y-5">
-      <SettingsPanel
-        title="Password & sign-in"
-        description="Reset your password or review how you authenticate."
-      >
-        <div className={`${panelSurface} space-y-4 px-4 py-4`}>
-          <div className="flex items-start gap-3">
-            <Mail className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-            <div className="min-w-0 flex-1">
-              <p className="font-mono text-xs font-medium text-black dark:text-white">
-                {email || "No email on file"}
-              </p>
-              <p className="mt-0.5 font-mono text-[10px] text-gray-500 dark:text-gray-400">
-                We&apos;ll email a secure link to reset your password.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={sendPasswordReset}
-            disabled={!email || sendingReset}
-            className="inline-flex items-center gap-2 border border-black px-3 py-2 font-mono text-[10px] tracking-wider text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black"
-          >
-            <KeyRound className="h-3.5 w-3.5" />
-            {sendingReset ? "Sending…" : "Send reset link"}
-          </button>
-        </div>
-      </SettingsPanel>
-
-      <SettingsPanel
-        title="Active sessions"
-        description="Devices currently signed in to your account."
-      >
-        <SessionsPanel compact />
-      </SettingsPanel>
-
-      <SettingsPanel title="Sign out" description="End your session on this device.">
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="inline-flex items-center gap-2 border border-red-300 px-3 py-2 font-mono text-[10px] tracking-wider text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/20"
-        >
-          <LogOut className="h-3.5 w-3.5" />
-          Sign out
-        </button>
-      </SettingsPanel>
-    </div>
+    <SettingsPanel
+      title="Active sessions"
+      description="Devices currently signed in to your account."
+    >
+      <SessionsPanel compact />
+    </SettingsPanel>
   );
 
   const renderAppearancePanel = () => (
