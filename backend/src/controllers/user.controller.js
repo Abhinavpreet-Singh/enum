@@ -296,12 +296,14 @@ const getProfile = asyncHandler(async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user.id },
     include: userProfileInclude,
-    omit: { password: true, refreshToken: true },
   });
 
   if (!user) {
     throw new ApiError(404, "User not found");
   }
+
+  const hasPassword = Boolean(user.password);
+  const { password: _password, refreshToken: _refreshToken, ...safeUser } = user;
 
   let accessSummary = { isPro: false, tracks: [], entitlements: [] };
   try {
@@ -313,7 +315,8 @@ const getProfile = asyncHandler(async (req, res) => {
   return res.status(200).json({
     message: "Profile fetched",
     data: {
-      ...serializeUserProfile(user),
+      ...serializeUserProfile(safeUser),
+      hasPassword,
       premium: {
         isPro: accessSummary.isPro,
         tracks: accessSummary.tracks,
@@ -378,6 +381,115 @@ const updateProfile = asyncHandler(async (req, res) => {
   return res.status(200).json({
     message: "Profile updated",
     data: serializeUserProfile(user),
+  });
+});
+
+const updatePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword, confirmPassword } = req.body;
+
+  if (!newPassword || String(newPassword).length < 8) {
+    throw new ApiError(400, "New password must be at least 8 characters.");
+  }
+
+  if (newPassword !== confirmPassword) {
+    throw new ApiError(400, "New password and confirmation do not match.");
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const hasPassword = Boolean(user.password);
+
+  if (hasPassword) {
+    if (!currentPassword) {
+      throw new ApiError(400, "Current password is required.");
+    }
+
+    const isCurrentPasswordValid = await bcrypt.compare(
+      String(currentPassword),
+      user.password,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new ApiError(401, "Current password is incorrect.");
+    }
+  }
+
+  const hashedPassword = await bcrypt.hash(String(newPassword), 10);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { password: hashedPassword },
+  });
+
+  return res.status(200).json({
+    message: hasPassword
+      ? "Password changed successfully."
+      : "Password set successfully.",
+  });
+});
+
+const getPrivacy = asyncHandler(async (req, res) => {
+  if (!req.user?.id) {
+    throw new ApiError(401, "Unauthorized request");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: req.user.id },
+    select: {
+      username: true,
+      provider: true,
+      profilePublic: true,
+      showOnLeaderboard: true,
+      showActivityStats: true,
+    },
+  });
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  return res.status(200).json({
+    message: "Privacy settings fetched",
+    data: user,
+  });
+});
+
+const updatePrivacy = asyncHandler(async (req, res) => {
+  if (!req.user?.id) {
+    throw new ApiError(401, "Unauthorized request");
+  }
+
+  const allowedFields = ["profilePublic", "showOnLeaderboard", "showActivityStats"];
+  const updateFields = {};
+
+  for (const field of allowedFields) {
+    if (req.body[field] !== undefined) {
+      updateFields[field] = Boolean(req.body[field]);
+    }
+  }
+
+  if (Object.keys(updateFields).length === 0) {
+    throw new ApiError(400, "No privacy settings to update.");
+  }
+
+  const user = await prisma.user.update({
+    where: { id: req.user.id },
+    data: updateFields,
+    select: {
+      username: true,
+      provider: true,
+      profilePublic: true,
+      showOnLeaderboard: true,
+      showActivityStats: true,
+    },
+  });
+
+  return res.status(200).json({
+    message: "Privacy settings updated",
+    data: user,
   });
 });
 
@@ -537,8 +649,9 @@ const getLeaderboard = asyncHandler(async (req, res) => {
     userSDMap[row.userId] = (userSDMap[row.userId] ?? 0) + 1;
   }
 
-  // 4. All users
+  // 4. Users who opted into the leaderboard
   const users = await prisma.user.findMany({
+    where: { showOnLeaderboard: true },
     select: {
       id: true,
       username: true,
@@ -584,6 +697,9 @@ export {
   getUserById,
   getProfile,
   updateProfile,
+  updatePassword,
+  getPrivacy,
+  updatePrivacy,
   uploadAvatar,
   awardBrowserXp,
   getLeaderboard,
