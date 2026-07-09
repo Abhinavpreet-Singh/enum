@@ -25,7 +25,7 @@ const getAdminPrivilege = asyncHandler(async (req, res) => {
 });
 
 const adminPostQuestion = asyncHandler(async (req, res) => {
-    const { title, desc, level, testcases, constraints, topic, initialCode, functionName, parameterNames, parameterTypes, returnType } = req.body;
+    const { title, desc, level, testcases, constraints, topic, initialCode, functionName, parameterNames, parameterTypes, returnType, isFree } = req.body;
 
     if (
         !title?.trim() ||
@@ -62,6 +62,7 @@ const adminPostQuestion = asyncHandler(async (req, res) => {
             parameterNames: parameterNames || [],
             parameterTypes,
             returnType,
+            isFree: typeof isFree === "boolean" ? isFree : null,
             ...buildQuestionNestedCreate({ testcases, initialCode }),
         },
         include: questionInclude,

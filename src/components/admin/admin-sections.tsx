@@ -12,6 +12,8 @@ import {
   Ban, RotateCcw, Zap, History,
 } from "lucide-react";
 import { normalizePagePath } from "@/lib/normalize-page-path";
+import Link from "next/link";
+import { ADMIN_CONTENT_TYPES } from "@/lib/admin-content-types";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const panelBorder = "border border-black/20 dark:border-white/25";
@@ -53,17 +55,42 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
-function StatCard({ label, value, icon: Icon, accent }: { label: string; value: number | string; icon: typeof Users; accent?: string }) {
-  return (
-    <div className={`${panelSurface} p-5 flex items-center gap-4`}>
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  accent,
+  href,
+}: {
+  label: string;
+  value: number | string;
+  icon: typeof Users;
+  accent?: string;
+  href?: string;
+}) {
+  const content = (
+    <div className={`${panelSurface} p-5 flex items-center gap-4 ${href ? "transition-colors hover:bg-black/2 dark:hover:bg-white/3 cursor-pointer" : ""}`}>
       <div className={`w-10 h-10 flex items-center justify-center border ${panelBorder} shrink-0 ${accent ?? ""}`}>
         <Icon className="w-4.5 h-4.5 text-gray-500 dark:text-gray-400" />
       </div>
-      <div>
+      <div className="min-w-0">
         <p className="font-mono text-[10px] tracking-widest text-gray-400 uppercase">{label}</p>
         <p className="font-mono text-2xl font-bold text-black dark:text-white leading-tight">{value}</p>
+        {href && (
+          <p className="mt-1 font-mono text-[9px] uppercase tracking-wider text-amber-600 dark:text-amber-400">
+            Click to add
+          </p>
+        )}
       </div>
     </div>
+  );
+
+  if (!href) return content;
+
+  return (
+    <Link href={href} className="block">
+      {content}
+    </Link>
   );
 }
 
@@ -954,11 +981,11 @@ export function ContentTab() {
           Learning content
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <StatCard label="Browser Simulations" value={counts.simulations} icon={Code} />
-          <StatCard label="Incident Scenarios" value={counts.incidents} icon={IncidentIcon} />
-          <StatCard label="DSA Questions" value={counts.dsaQuestions} icon={Target} />
-          <StatCard label="Linux Challenges" value={counts.linuxQuestions} icon={Code} />
-          <StatCard label="System Design" value={counts.systemDesign} icon={Layers} />
+          <StatCard label="Browser Simulations" value={counts.simulations} icon={Code} href={ADMIN_CONTENT_TYPES.simulations.href} />
+          <StatCard label="Incident Scenarios" value={counts.incidents} icon={IncidentIcon} href={ADMIN_CONTENT_TYPES.incidents.href} />
+          <StatCard label="DSA Questions" value={counts.dsaQuestions} icon={Target} href={ADMIN_CONTENT_TYPES.dsa.href} />
+          <StatCard label="Linux Challenges" value={counts.linuxQuestions} icon={Code} href={ADMIN_CONTENT_TYPES.linux.href} />
+          <StatCard label="System Design" value={counts.systemDesign} icon={Layers} href={ADMIN_CONTENT_TYPES["system-design"].href} />
           <StatCard label="Code Submissions" value={counts.submissions} icon={FileText} />
           <StatCard label="Sim Progress Rows" value={counts.simulationProgress} icon={BarChart3} />
           <StatCard label="Incident Sessions" value={counts.incidentSessions} icon={Activity} />

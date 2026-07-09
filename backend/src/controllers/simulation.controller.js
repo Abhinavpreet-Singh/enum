@@ -11,6 +11,7 @@ import {
   getUserAccessSummary,
   hasTrackAccessFromSummary,
   simulationCategoryToTrackKey,
+  resolveItemAccess,
 } from "../services/entitlement.service.js";
 import {
   buildSimulationNestedCreate,
@@ -34,20 +35,19 @@ const enrichSimulationAccess = async (simulations, userId) => {
     const product = productsByTrack[trackKey];
     const freeItemQuota = product?.freeItemQuota ?? 0;
     const hasAccess = !product || hasTrackAccessFromSummary(accessSummary, trackKey);
-    const isFree = counters[trackKey] <= freeItemQuota;
-    const locked = !hasAccess && !isFree;
+    const access = resolveItemAccess({
+      item: sim,
+      hasAccess,
+      freeIndex: counters[trackKey],
+      freeItemQuota,
+      trackKey,
+      productSlug: product?.slug || "",
+      lockedReason: "Upgrade to unlock this premium simulation.",
+    });
 
     return {
       ...sim,
-      access: {
-        locked,
-        isFree,
-        freeIndex: counters[trackKey],
-        freeItemQuota,
-        trackKey,
-        productSlug: product?.slug || "",
-        reason: locked ? "Upgrade to unlock this premium simulation." : "",
-      },
+      access,
     };
   });
 };
@@ -170,6 +170,7 @@ const adminPostSimulation = asyncHandler(async (req, res) => {
     estimatedTime,
     tags,
     xpReward,
+    isFree,
   } = req.body;
 
   if (
@@ -204,6 +205,7 @@ const adminPostSimulation = asyncHandler(async (req, res) => {
       estimatedTime: estimatedTime || 15,
       tags: tags || [],
       xpReward: xpReward || 50,
+      isFree: typeof isFree === "boolean" ? isFree : null,
       ...buildSimulationNestedCreate({ steps, initialFiles }),
     },
     include: simulationInclude,

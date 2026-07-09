@@ -346,22 +346,47 @@ export async function decorateItemsWithAccess({
 
   return items.map((item, index) => {
     const freeIndex = index + 1;
-    const isFree = freeIndex <= quota;
-    const locked = !unlocked && !isFree;
+    const access = resolveItemAccess({
+      item,
+      hasAccess: unlocked,
+      freeIndex,
+      freeItemQuota: quota,
+      trackKey,
+      productSlug: product?.slug || "",
+    });
 
     return {
       ...item,
-      access: {
-        locked,
-        isFree,
-        freeIndex,
-        freeItemQuota: quota,
-        trackKey,
-        productSlug: product?.slug || "",
-        reason: locked ? "Upgrade to unlock this premium track." : "",
-      },
+      access,
     };
   });
+}
+
+export function resolveItemAccess({
+  item,
+  hasAccess,
+  freeIndex,
+  freeItemQuota,
+  trackKey = "",
+  productSlug = "",
+  lockedReason = "Upgrade to unlock this premium track.",
+}) {
+  let isFree;
+  if (item?.isFree === true) isFree = true;
+  else if (item?.isFree === false) isFree = false;
+  else isFree = freeIndex <= freeItemQuota;
+
+  const locked = !hasAccess && !isFree;
+
+  return {
+    locked,
+    isFree,
+    freeIndex,
+    freeItemQuota,
+    trackKey,
+    productSlug,
+    reason: locked ? lockedReason : "",
+  };
 }
 
 export async function assertTrackAccess({ userId, trackKey, itemIndex = 0, product = null }) {

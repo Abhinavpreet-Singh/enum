@@ -6,6 +6,7 @@ import {
   getTrackProductMap,
   getUserAccessSummary,
   hasTrackAccessFromSummary,
+  resolveItemAccess,
 } from "../services/entitlement.service.js";
 import {
   linuxQuestionInclude,
@@ -42,20 +43,19 @@ export const getLinuxQuestions = asyncHandler(async (req, res) => {
     data: questions.map((question, index) => {
       const serialized = serializeLinuxQuestion(question);
       const freeIndex = index + 1;
-      const isFree = freeIndex <= freeItemQuota;
-      const locked = !hasAccess && !isFree;
+      const access = resolveItemAccess({
+        item: question,
+        hasAccess,
+        freeIndex,
+        freeItemQuota,
+        trackKey: "linux",
+        productSlug: product?.slug || "track-linux",
+        lockedReason: "Upgrade to unlock this Linux lab.",
+      });
 
       return {
         ...serialized,
-        access: {
-          locked,
-          isFree,
-          freeItemQuota,
-          freeIndex,
-          trackKey: "linux",
-          productSlug: product?.slug || "track-linux",
-          reason: locked ? "Upgrade to unlock this Linux lab." : "",
-        },
+        access,
       };
     }),
   });
@@ -90,10 +90,17 @@ export const getLinuxQuestionById = asyncHandler(async (req, res) => {
   const product = productsByTrack["linux"];
   const freeItemQuota = product?.freeItemQuota ?? 2;
   const hasAccess = !product || hasTrackAccessFromSummary(accessSummary, "linux");
-  const isFree = freeIndex <= freeItemQuota;
-  const locked = !hasAccess && !isFree;
+  const access = resolveItemAccess({
+    item: question,
+    hasAccess,
+    freeIndex,
+    freeItemQuota,
+    trackKey: "linux",
+    productSlug: product?.slug || "track-linux",
+    lockedReason: "Upgrade to unlock this Linux lab.",
+  });
 
-  if (locked) {
+  if (access.locked) {
     throw new ApiError(403, "Upgrade to unlock this Linux lab.");
   }
 
@@ -101,15 +108,7 @@ export const getLinuxQuestionById = asyncHandler(async (req, res) => {
     message: "Linux question fetched successfully",
     data: {
       ...serializeLinuxQuestion(question),
-      access: {
-        locked,
-        isFree,
-        freeItemQuota,
-        freeIndex,
-        trackKey: "linux",
-        productSlug: product?.slug || "track-linux",
-        reason: "",
-      },
+      access,
     },
   });
 });
@@ -143,10 +142,17 @@ export const submitLinuxQuestion = asyncHandler(async (req, res) => {
   const product = productsByTrack["linux"];
   const freeItemQuota = product?.freeItemQuota ?? 2;
   const hasAccess = !product || hasTrackAccessFromSummary(accessSummary, "linux");
-  const isFree = freeIndex <= freeItemQuota;
-  const locked = !hasAccess && !isFree;
+  const access = resolveItemAccess({
+    item: question,
+    hasAccess,
+    freeIndex,
+    freeItemQuota,
+    trackKey: "linux",
+    productSlug: product?.slug || "track-linux",
+    lockedReason: "Upgrade to unlock this Linux lab.",
+  });
 
-  if (locked) {
+  if (access.locked) {
     throw new ApiError(403, "Upgrade to unlock this Linux lab.");
   }
 

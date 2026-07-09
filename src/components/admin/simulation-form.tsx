@@ -1,10 +1,19 @@
 "use client";
-import { API_BASE_URL } from "@/lib/api-config";
-import api from "@/lib/api";
-import { getMemoryToken } from "@/lib/tokenStore";
+import api, { isAxiosError } from "@/lib/api";
+import { getAdminRequestConfig } from "@/lib/admin-api";
+import { useRouter } from "next/navigation";
 
 import { useState } from "react";
 import { Plus, Trash2, FileCode } from "lucide-react";
+import {
+  AccessTierField,
+  accessTierToIsFree,
+} from "@/components/admin/content/access-tier-field";
+import {
+  actionButtonCls,
+  labelCls,
+  panelSurface,
+} from "@/components/admin/content/admin-form-styles";
 interface SimulationFile {
   name: string;
   path: string;
@@ -17,6 +26,8 @@ interface SimulationStep {
 }
 
 export default function SimulationForm() {
+  const router = useRouter();
+  const [accessTier, setAccessTier] = useState<"free" | "paid">("paid");
   const [formData, setFormData] = useState({
     title: "",
     category: "backend" as "frontend" | "backend" | "fullstack" | "devops",
@@ -144,17 +155,13 @@ export default function SimulationForm() {
         ),
         solution,
         hints: hints.filter((h) => h.trim()),
+        isFree: accessTierToIsFree(accessTier),
       };
 
       const response = await api.post(
-        "/api/v1/simulations/adminPostSimulation",
+        "/api/v1/admin/content/simulations",
         payload,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${getMemoryToken()}`,
-          },
-        },
+        getAdminRequestConfig(),
       );
 
       if (response.status === 201) {
@@ -162,32 +169,14 @@ export default function SimulationForm() {
           type: "success",
           message: "Simulation created successfully!",
         });
-        // Reset form
-        setFormData({
-          title: "",
-          category: "backend",
-          difficulty: "easy",
-          description: "",
-          incident: "",
-          estimatedTime: 15,
-          xpReward: 50,
-          tags: "",
-        });
-        setSteps([{ description: "" }]);
-        setInitialFiles([
-          { name: "", path: "", content: "", language: "javascript" },
-        ]);
-        setSolutionFiles([{ fileName: "", code: "" }]);
-        setHints([""]);
+        setTimeout(() => router.push("/dashboard/admin/content/"), 1200);
       }
     } catch (error) {
-      console.error("Error creating simulation:", error);
       setSubmitStatus({
         type: "error",
-        message:
-          error instanceof Error
-            ? `Failed to create simulation: ${error.message}`
-            : "Failed to create simulation. Please try again.",
+        message: isAxiosError(error)
+          ? error.response?.data?.message || "Failed to create simulation."
+          : "Failed to create simulation. Please try again.",
       });
     } finally {
       setLoading(false);
@@ -195,20 +184,23 @@ export default function SimulationForm() {
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+    <div className={panelSurface}>
       <form onSubmit={handleSubmit} className="p-6 md:p-8">
-        {/* Status Message */}
         {submitStatus.type && (
           <div
-            className={`mb-6 p-4 rounded-md font-mono text-sm ${
+            className={`mb-6 p-4 font-mono text-sm border ${
               submitStatus.type === "success"
-                ? "bg-green-50 text-green-800 border border-green-200"
-                : "bg-red-50 text-red-800 border border-red-200"
+                ? "border-emerald-400/40 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-300"
+                : "border-red-400/40 bg-red-50 text-red-800 dark:bg-red-950/20 dark:text-red-300"
             }`}
           >
             {submitStatus.message}
           </div>
         )}
+
+        <div className="mb-6">
+          <AccessTierField value={accessTier} onChange={setAccessTier} />
+        </div>
 
         {/* Title */}
         <div className="mb-6">
@@ -587,14 +579,22 @@ export default function SimulationForm() {
           </div>
         </div>
 
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full px-6 py-4 bg-black text-white font-mono text-sm tracking-wide hover:bg-gray-800 transition-colors rounded-md disabled:bg-gray-400 disabled:cursor-not-allowed"
-        >
-          {loading ? "CREATING SIMULATION..." : "CREATE SIMULATION"}
-        </button>
+        <div className="flex justify-end gap-2 pt-4 border-t border-black/10 dark:border-white/10">
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard/admin/content/")}
+            className={`${actionButtonCls} border-black/20 text-gray-500`}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className={`${actionButtonCls} border-black bg-black text-white dark:border-white dark:bg-white dark:text-black disabled:opacity-50`}
+          >
+            {loading ? "Creating…" : "Create simulation"}
+          </button>
+        </div>
       </form>
     </div>
   );

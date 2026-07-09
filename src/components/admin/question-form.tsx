@@ -1,10 +1,21 @@
 "use client";
-import { API_BASE_URL } from "@/lib/api-config";
-import api from "@/lib/api";
-import { getMemoryToken } from "@/lib/tokenStore";
+import api, { isAxiosError } from "@/lib/api";
+import { getAdminRequestConfig } from "@/lib/admin-api";
+import { useRouter } from "next/navigation";
 
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
+import {
+  AccessTierField,
+  accessTierToIsFree,
+} from "@/components/admin/content/access-tier-field";
+import {
+  actionButtonCls,
+  inputCls,
+  labelCls,
+  panelSurface,
+  textareaCls,
+} from "@/components/admin/content/admin-form-styles";
 interface Testcase {
   input: string[]; // Array of input values (one per parameter line)
   expectedOutput: string;
@@ -26,6 +37,8 @@ const SUPPORTED_TYPES = [
 ];
 
 export default function QuestionForm() {
+  const router = useRouter();
+  const [accessTier, setAccessTier] = useState<"free" | "paid">("free");
   const [formData, setFormData] = useState({
     title: "",
     desc: "",
@@ -165,7 +178,7 @@ export default function QuestionForm() {
           title: formData.title,
           desc: formData.desc,
           level: formData.level,
-          constraints: formData.constraints,
+          constraints: formData.constraints.trim() || "No additional constraints.",
           topic: formData.topic,
           functionName: formData.functionName,
           parameterNames: parameters.map(
@@ -174,17 +187,10 @@ export default function QuestionForm() {
           parameterTypes: parameters.map((p) => p.type),
           returnType: formData.returnType,
           testcases: formatTestcases(testcases),
+          isFree: accessTierToIsFree(accessTier),
         },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${getMemoryToken()}`,
-          },
-        },
+        getAdminRequestConfig(),
       );
-
-      console.log("Response:", response.data);
-      console.log("Status:", response.status);
 
       if (response.status === 201) {
         setSubmitStatus({
@@ -192,46 +198,34 @@ export default function QuestionForm() {
           message: "Question posted successfully!",
         });
 
-        // Reset form after successful submission
-        setFormData({
-          title: "",
-          desc: "",
-          level: "Easy",
-          constraints: "",
-          topic: "",
-          functionName: "",
-          returnType: "int",
-        });
-        setParameters([{ name: "", type: "int" }]);
-        setTestcases([{ input: [""], expectedOutput: "" }]);
+        setTimeout(() => router.push("/dashboard/admin/content/"), 1200);
       }
     } catch (error) {
-      console.error("Error posting question:", error);
       setSubmitStatus({
         type: "error",
-        message:
-          error instanceof Error
-            ? `Failed to post question: ${error.message}`
-            : "Failed to post question. Please try again.",
+        message: isAxiosError(error)
+          ? error.response?.data?.message || "Failed to post question."
+          : "Failed to post question. Please try again.",
       });
     }
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-      <form onSubmit={handleSubmit} className="p-6 md:p-8">
-        {/* Status Message */}
+    <div className={panelSurface}>
+      <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
         {submitStatus.type && (
           <div
-            className={`mb-6 p-4 rounded-md font-mono text-sm ${
+            className={`p-4 font-mono text-sm border ${
               submitStatus.type === "success"
-                ? "bg-green-50 text-green-800 border border-green-200"
-                : "bg-red-50 text-red-800 border border-red-200"
+                ? "border-emerald-400/40 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-300"
+                : "border-red-400/40 bg-red-50 text-red-800 dark:bg-red-950/20 dark:text-red-300"
             }`}
           >
             {submitStatus.message}
           </div>
         )}
+
+        <AccessTierField value={accessTier} onChange={setAccessTier} />
 
         {/* Title */}
         <div className="mb-6">
@@ -540,13 +534,19 @@ export default function QuestionForm() {
           </div>
         </div>
 
-        {/* Submit Button */}
-        <div className="flex justify-end pt-4 border-t border-gray-200">
+        <div className="flex justify-end gap-2 pt-4 border-t border-black/10 dark:border-white/10">
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard/admin/content/")}
+            className={`${actionButtonCls} border-black/20 text-gray-500`}
+          >
+            Cancel
+          </button>
           <button
             type="submit"
-            className="px-8 py-3 bg-black text-white font-mono text-sm tracking-wide hover:bg-gray-800 transition-colors rounded-md"
+            className={`${actionButtonCls} border-black bg-black text-white dark:border-white dark:bg-white dark:text-black`}
           >
-            POST QUESTION
+            Create question
           </button>
         </div>
       </form>
