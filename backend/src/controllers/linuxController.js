@@ -7,6 +7,10 @@ import {
   getUserAccessSummary,
   hasTrackAccessFromSummary,
 } from "../services/entitlement.service.js";
+import {
+  linuxQuestionInclude,
+  serializeLinuxQuestion,
+} from "../utils/prismaNormalizers.js";
 
 function normalizeOutput(value) {
   return String(value ?? "").replace(/\r\n/g, "\n").trim();
@@ -20,6 +24,7 @@ async function runBashCode(code) {
 export const getLinuxQuestions = asyncHandler(async (req, res) => {
   const questions = await linuxQuestionModel.findMany({
     orderBy: [{ difficulty: "asc" }, { createdAt: "asc" }],
+    include: linuxQuestionInclude,
   });
 
   const userId = req.user?.id;
@@ -35,12 +40,13 @@ export const getLinuxQuestions = asyncHandler(async (req, res) => {
   return res.status(200).json({
     message: "Linux questions fetched successfully",
     data: questions.map((question, index) => {
+      const serialized = serializeLinuxQuestion(question);
       const freeIndex = index + 1;
       const isFree = freeIndex <= freeItemQuota;
       const locked = !hasAccess && !isFree;
 
       return {
-        ...question,
+        ...serialized,
         access: {
           locked,
           isFree,
@@ -64,6 +70,7 @@ export const getLinuxQuestionById = asyncHandler(async (req, res) => {
     where: {
       OR: [{ id }, { slug: id }],
     },
+    include: linuxQuestionInclude,
   });
 
   if (!question) throw new ApiError(404, "Linux question not found");
@@ -93,7 +100,7 @@ export const getLinuxQuestionById = asyncHandler(async (req, res) => {
   return res.status(200).json({
     message: "Linux question fetched successfully",
     data: {
-      ...question,
+      ...serializeLinuxQuestion(question),
       access: {
         locked,
         isFree,

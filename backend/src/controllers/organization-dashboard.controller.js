@@ -1,5 +1,11 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import prisma from "../db/index.js";
+import {
+  bankQuestionInclude,
+  candidateAttemptInclude,
+  serializeBankQuestion,
+  serializeCandidateAttempt,
+} from "../utils/prismaNormalizers.js";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -228,6 +234,7 @@ export const getAttemptDetail = asyncHandler(async (req, res) => {
   const attempt = await prisma.candidateAttempt.findFirst({
     where: { id: attemptId },
     include: {
+      ...candidateAttemptInclude,
       assessment: {
         select: {
           id: true,
@@ -258,9 +265,14 @@ export const getAttemptDetail = asyncHandler(async (req, res) => {
 
   const bankQuestions =
     bankIds.length > 0
-      ? await prisma.bankQuestion.findMany({ where: { id: { in: bankIds } } })
+      ? await prisma.bankQuestion.findMany({
+          where: { id: { in: bankIds } },
+          include: bankQuestionInclude,
+        })
       : [];
-  const bqMap = Object.fromEntries(bankQuestions.map((b) => [b.id, b]));
+  const bqMap = Object.fromEntries(
+    bankQuestions.map((b) => [b.id, serializeBankQuestion(b)]),
+  );
 
   const questions = aqRows.map((aq) => {
     if (aq.questionType === "bank" && aq.bankQuestionId && bqMap[aq.bankQuestionId]) {
@@ -289,21 +301,23 @@ export const getAttemptDetail = asyncHandler(async (req, res) => {
     };
   });
 
+  const serializedAttempt = serializeCandidateAttempt(attempt);
+
   return res.status(200).json({
     message: "Attempt detail fetched.",
     data: {
       attempt: {
-        id: attempt.id,
-        email: attempt.email,
-        rollNumber: attempt.rollNumber ?? null,
-        status: attempt.status,
-        startedAt: attempt.startedAt,
-        submittedAt: attempt.submittedAt ?? null,
-        totalScore: attempt.totalScore,
-        maxScore: attempt.maxScore,
-        suspicionLevel: attempt.suspicionLevel,
-        answers: attempt.answers ?? [],
-        codeSubmissions: attempt.codeSubmissions ?? [],
+        id: serializedAttempt.id,
+        email: serializedAttempt.email,
+        rollNumber: serializedAttempt.rollNumber ?? null,
+        status: serializedAttempt.status,
+        startedAt: serializedAttempt.startedAt,
+        submittedAt: serializedAttempt.submittedAt ?? null,
+        totalScore: serializedAttempt.totalScore,
+        maxScore: serializedAttempt.maxScore,
+        suspicionLevel: serializedAttempt.suspicionLevel,
+        answers: serializedAttempt.answers ?? [],
+        codeSubmissions: serializedAttempt.codeSubmissions ?? [],
         durationSeconds: durationSeconds(attempt.startedAt, attempt.submittedAt),
         passed:
           attempt.maxScore > 0

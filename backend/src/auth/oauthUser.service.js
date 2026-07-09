@@ -50,7 +50,6 @@ export const findOrCreateOAuthUser = async ({
       provider,
       displayName: displayName || null,
       avatar: avatar || "",
-      certs: [],
     },
   });
 

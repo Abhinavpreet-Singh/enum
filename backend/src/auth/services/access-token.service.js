@@ -1,11 +1,12 @@
 import { ApiError } from "../../utils/apiError.js";
 import prisma from "../../db/index.js";
 import { hashAccessToken } from "../utils/tokens.js";
+import { isValidId } from "../../utils/isValidId.js";
 
 export async function assertAccessTokenSession({ token, decoded }) {
   const sessionId = decoded?.sid || decoded?.sessionId;
 
-  if (!sessionId || !/^[a-f\d]{24}$/i.test(String(sessionId))) {
+  if (!isValidId(sessionId)) {
     throw new ApiError(401, "Access token session is missing.");
   }
 

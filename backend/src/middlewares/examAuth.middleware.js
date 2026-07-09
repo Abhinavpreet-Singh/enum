@@ -2,8 +2,7 @@ import prisma from "../db/index.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";
-
-const OBJECT_ID_RE = /^[a-f\d]{24}$/i;
+import { isValidId } from "../utils/isValidId.js";
 
 const verifyAccessToken = (token) => {
   const secrets = [process.env.ACCESS_TOKEN_SECRET, process.env.JWT_SECRET].filter(Boolean);
@@ -47,7 +46,7 @@ export const verifyExamJWT = asyncHandler(async (req, _res, next) => {
   }
 
   const userId = decoded._id || decoded.userId || decoded.id;
-  if (!userId || !OBJECT_ID_RE.test(String(userId))) {
+  if (!isValidId(userId)) {
     throw new ApiError(401, "Invalid exam session token.");
   }
 

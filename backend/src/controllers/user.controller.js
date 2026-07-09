@@ -17,6 +17,12 @@ import { tryAwardXp, AWARD_TYPES, buildAwardKey } from "../services/xpService.js
 import { logUserActivity } from "../services/activityLogService.js";
 import { confirmPasswordReset } from "../services/passwordReset.service.js";
 import { getUserAccessSummary } from "../services/entitlement.service.js";
+import {
+  buildUserCertReplace,
+  parseUserLinksUpdate,
+  serializeUserProfile,
+  userProfileInclude,
+} from "../utils/prismaNormalizers.js";
 
 const buildStreakUpdate = (user, now) => {
   const lastActivity = user?.lastActivityDate;
@@ -289,6 +295,7 @@ const getProfile = asyncHandler(async (req, res) => {
 
   const user = await prisma.user.findUnique({
     where: { id: req.user.id },
+    include: userProfileInclude,
     omit: { password: true, refreshToken: true },
   });
 
@@ -306,7 +313,7 @@ const getProfile = asyncHandler(async (req, res) => {
   return res.status(200).json({
     message: "Profile fetched",
     data: {
-      ...user,
+      ...serializeUserProfile(user),
       premium: {
         isPro: accessSummary.isPro,
         tracks: accessSummary.tracks,
@@ -345,14 +352,22 @@ const updateProfile = asyncHandler(async (req, res) => {
   const updateFields = {};
 
   for (const field of allowedFields) {
-    if (req.body[field] !== undefined) {
+    if (field === "links" && req.body.links !== undefined) {
+      Object.assign(updateFields, parseUserLinksUpdate(req.body.links));
+    } else if (field !== "certs" && req.body[field] !== undefined) {
       updateFields[field] = req.body[field];
     }
   }
 
   const user = await prisma.user.update({
     where: { id: req.user.id },
-    data: updateFields,
+    data: {
+      ...updateFields,
+      ...(req.body.certs !== undefined
+        ? { certs: buildUserCertReplace(req.body.certs) }
+        : {}),
+    },
+    include: userProfileInclude,
     omit: { password: true, refreshToken: true },
   });
 
@@ -362,7 +377,7 @@ const updateProfile = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     message: "Profile updated",
-    data: user,
+    data: serializeUserProfile(user),
   });
 });
 
@@ -454,81 +469,56 @@ const awardBrowserXp = asyncHandler(async (req, res) => {
 });
 
 const getLeaderboard = asyncHandler(async (req, res) => {
-  // Use raw MongoDB aggregation to avoid Prisma type coercion failing on null userId
-  // values that exist in the DB despite the schema declaring them non-nullable.
-
   // 1. Accepted submissions — deduplicated per (userId, questionId), joined with question level
-  const subAgg = await prisma.submission.aggregateRaw({
-    pipeline: [
-      {
-        $match: {
-          verdict: "accepted",
-          userId: { $ne: null },
-          questionId: { $ne: null },
-        },
-      },
-      { $group: { _id: { userId: "$userId", questionId: "$questionId" } } },
-      {
-        $lookup: {
-          from: "questions",
-          localField: "_id.questionId",
-          foreignField: "_id",
-          as: "q",
-        },
-      },
-      { $unwind: { path: "$q", preserveNullAndEmptyArrays: true } },
-      { $project: { _id: 0, userId: "$_id.userId", level: "$q.level" } },
-    ],
+  const subGroups = await prisma.submission.groupBy({
+    by: ["userId", "questionId"],
+    where: { verdict: "accepted" },
   });
 
+  const questionIds = [...new Set(subGroups.map((row) => row.questionId))];
+  const questions = questionIds.length
+    ? await prisma.question.findMany({
+        where: { id: { in: questionIds } },
+        select: { id: true, level: true },
+      })
+    : [];
+  const levelByQuestionId = Object.fromEntries(
+    questions.map((question) => [question.id, question.level]),
+  );
+
   const userProblemMap = {};
-  for (const row of subAgg) {
-    const uid = row.userId?.$oid ?? row.userId;
+  for (const row of subGroups) {
+    const uid = row.userId;
     if (!uid) continue;
     if (!userProblemMap[uid])
       userProblemMap[uid] = { problemXP: 0, problemsSolved: 0 };
-    const level = row.level ?? "Easy";
+    const level = levelByQuestionId[row.questionId] ?? "Easy";
     const xp = level === "Medium" ? 25 : level === "Hard" ? 50 : 10;
     userProblemMap[uid].problemXP += xp;
     userProblemMap[uid].problemsSolved += 1;
   }
 
   // 2. Solved simulations joined with xpReward/difficulty
-  const simAgg = await prisma.userSimulationProgress.aggregateRaw({
-    pipeline: [
-      { $match: { solved: true, userId: { $ne: null } } },
-      {
-        $lookup: {
-          from: "simulations",
-          localField: "simulationId",
-          foreignField: "_id",
-          as: "sim",
-        },
-      },
-      { $unwind: { path: "$sim", preserveNullAndEmptyArrays: true } },
-      {
-        $project: {
-          _id: 0,
-          userId: 1,
-          xpReward: "$sim.xpReward",
-          difficulty: "$sim.difficulty",
-        },
-      },
-    ],
+  const simProgress = await prisma.userSimulationProgress.findMany({
+    where: { solved: true },
+    select: {
+      userId: true,
+      simulation: { select: { xpReward: true, difficulty: true } },
+    },
   });
 
   const userSimMap = {};
-  for (const row of simAgg) {
-    const uid = row.userId?.$oid ?? row.userId;
+  for (const row of simProgress) {
+    const uid = row.userId;
     if (!uid) continue;
     if (!userSimMap[uid])
       userSimMap[uid] = { simulationsSolved: 0, simulationXP: 0 };
-    let simXP = row.xpReward || 0;
+    let simXP = row.simulation?.xpReward || 0;
     if (simXP === 0) {
       simXP =
-        row.difficulty === "medium"
+        row.simulation?.difficulty === "medium"
           ? 100
-          : row.difficulty === "hard"
+          : row.simulation?.difficulty === "hard"
             ? 150
             : 50;
     }

@@ -4,6 +4,10 @@ import { ApiError } from "../utils/apiError.js";
 import prisma from "../db/index.js";
 import { fetchFileFromCloudinary } from "../utils/cloudinary.js";
 import { executeCompilerCode } from "../services/compilerService.js";
+import {
+  serializeSimulation,
+  simulationInclude,
+} from "../utils/prismaNormalizers.js";
 
 /**
  * Bundle simulation files into a single CommonJS bootstrap script.
@@ -98,13 +102,16 @@ export const runSimulationEngine = asyncHandler(async (req, res) => {
 
     const simulation = await prisma.simulation.findUnique({
         where: { id: simulationId },
+        include: simulationInclude,
     });
     if (!simulation) throw new ApiError(404, "Simulation not found");
+
+    const serialized = serializeSimulation(simulation);
 
     // ── Build base file map from simulation's stored files ───────────────
     const fileMap = {};
     await Promise.all(
-        simulation.initialFiles.map(async (file) => {
+        (serialized.initialFiles || []).map(async (file) => {
             if (file.cloudinaryUrl) {
                 try {
                     fileMap[file.path] = await fetchFileFromCloudinary(file.cloudinaryUrl);

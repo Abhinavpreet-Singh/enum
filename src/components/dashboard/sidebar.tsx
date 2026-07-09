@@ -107,8 +107,16 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
   const accountType = useAccountType();
   const { accountType: resolvedType, verified } = useAccountSession();
   const isAdmin = verified && accountType === "admin";
-  const [navItems, setNavItems] = useState(() => getNavForRole(accountType));
   const { access } = useEntitlements();
+  const [navItems, setNavItems] = useState(() => {
+    const items = getNavForRole(accountType);
+    if (accountType === "student" && access.isPro) {
+      return items.map((item) =>
+        item.href === "/dashboard/pro" ? { ...item, label: "Pro" } : item,
+      );
+    }
+    return items;
+  });
   const settingsHref = getSettingsHref(accountType);
   const hasSettingsInNav = navItems.some((item) => item.label === "Settings");
 
@@ -327,7 +335,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
                 </span>
               </Link>
             )}
-
+            
             {/* Settings in footer when not already in the main nav (e.g. students) */}
             {!hasSettingsInNav && (
               <Link

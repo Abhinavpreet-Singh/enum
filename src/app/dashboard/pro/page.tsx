@@ -206,6 +206,7 @@ export default function ProPage() {
       const loaded = await loadRazorpay();
       if (!loaded || !window.Razorpay) {
         setMessage("Unable to load Razorpay checkout. Please try again.");
+        setBuyingSlug("");
         return;
       }
 
@@ -214,6 +215,12 @@ export default function ProPage() {
         currency,
       });
       const order = orderResponse.data?.data;
+
+      if (!order?.keyId || !order?.orderId) {
+        setMessage("Checkout could not be started. Please sign in again and retry.");
+        setBuyingSlug("");
+        return;
+      }
 
       const checkout = new window.Razorpay({
         key: order.keyId,
@@ -285,12 +292,20 @@ export default function ProPage() {
         typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === "string"
           ? (error as { response: { data: { message: string } } }).response.data.message
           : "";
+      const status =
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof (error as { response?: { status?: number } }).response?.status === "number"
+          ? (error as { response: { status: number } }).response.status
+          : 0;
       setMessage(
-        /razorpay|key|expired|authentication|credential/i.test(backendMessage)
-          ? `${backendMessage} Check that RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are a fresh matching test key pair in backend/.env.`
-          : backendMessage || fallback,
+        status === 401
+          ? "Your session expired. Please sign in again, then retry checkout."
+          : /razorpay|key|expired|authentication|credential/i.test(backendMessage)
+            ? `${backendMessage} Check that RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are a fresh matching test key pair in backend/.env.`
+            : backendMessage || fallback,
       );
-    } finally {
       setBuyingSlug("");
     }
   };

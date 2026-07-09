@@ -1,4 +1,8 @@
 import prisma from "../db/index.js";
+import {
+  bankQuestionInclude,
+  serializeBankQuestion,
+} from "./prismaNormalizers.js";
 
 /** Load assessment questions and strip correct answers for candidates. */
 export async function hydrateAssessmentQuestions(assessmentId) {
@@ -12,14 +16,16 @@ export async function hydrateAssessmentQuestions(assessmentId) {
       if (aq.questionType === "bank" && aq.bankQuestionId) {
         const bq = await prisma.bankQuestion.findUnique({
           where: { id: aq.bankQuestionId },
+          include: bankQuestionInclude,
         });
         if (bq) {
-          const safeOptions = Array.isArray(bq.options)
-            ? bq.options.map(({ text, isCorrect: _isCorrect, ...rest }) => ({
+          const serialized = serializeBankQuestion(bq);
+          const safeOptions = Array.isArray(serialized.options)
+            ? serialized.options.map(({ text, isCorrect: _isCorrect, ...rest }) => ({
                 text,
                 ...rest,
               }))
-            : bq.options;
+            : serialized.options;
           return {
             aqId: aq.id,
             order: aq.order,
@@ -31,14 +37,13 @@ export async function hydrateAssessmentQuestions(assessmentId) {
             difficulty: bq.difficulty,
             options: safeOptions,
             codeTemplate: bq.codeTemplate,
-            testCases: (bq.testCases || []).map((tc) => ({
+            testCases: (serialized.testCases || []).map((tc) => ({
               input: tc.input,
               expectedOutput: tc.expectedOutput ?? tc.output ?? "",
             })),
             tags: bq.tags,
             technology: bq.technology,
             topic: bq.topic,
-            // Judge metadata — present only for coding questions
             functionName: bq.functionName ?? null,
             parameterTypes: bq.parameterTypes ?? [],
             returnType: bq.returnType ?? null,

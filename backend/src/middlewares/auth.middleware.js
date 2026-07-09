@@ -9,6 +9,7 @@ import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { verifyAccessToken as verifyJwtToken, extractIdFromToken } from "../auth/utils/tokens.js";
 import { assertAccessTokenSession } from "../auth/services/access-token.service.js";
+import { isValidId } from "../utils/isValidId.js";
 
 // ─── Token extraction ─────────────────────────────────────────────────────────
 
@@ -57,7 +58,7 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
   const accountType = decodedToken?.accountType || "user";
   const id = extractIdFromToken(decodedToken);
 
-  if (!id || !/^[a-f\d]{24}$/i.test(String(id))) {
+  if (!isValidId(id)) {
     throw new ApiError(401, "Invalid access token");
   }
 

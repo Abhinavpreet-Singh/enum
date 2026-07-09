@@ -8,6 +8,14 @@ import jwt from "jsonwebtoken";
 import { getAuthCookieOptions } from "../utils/cookieOptions.js";
 import { assertAssessmentAccessible } from "../utils/assessmentAccess.js";
 import { hydrateAssessmentQuestions } from "../utils/hydrateAssessmentQuestions.js";
+import {
+  bankQuestionInclude,
+  candidateAttemptInclude,
+  replaceCandidateAttemptAnswers,
+  replaceCandidateAttemptCodeSubmissions,
+  serializeBankQuestion,
+  serializeCandidateAttempt,
+} from "../utils/prismaNormalizers.js";
 
 const router = Router();
 
@@ -256,12 +264,14 @@ router.post(
         email: req.user.email,
         rollNumber: req.body.rollNumber || null,
         status: "in_progress",
-        answers: [],
-        codeSubmissions: [],
       },
+      include: candidateAttemptInclude,
     });
 
-    return res.status(201).json({ message: "Attempt started.", data: attempt });
+    return res.status(201).json({
+      message: "Attempt started.",
+      data: serializeCandidateAttempt(attempt),
+    });
   }),
 );
 
@@ -273,20 +283,13 @@ router.put(
     const { attemptId } = req.params;
     const { timeRemaining, currentQuestionIndex, deviceInfo } = req.body;
 
-    const attempt = await prisma.candidateAttempt.findUnique({ where: { id: attemptId } });
+    const attempt = await prisma.candidateAttempt.findUnique({
+      where: { id: attemptId },
+      include: candidateAttemptInclude,
+    });
     if (!attempt) throw new ApiError(404, "Attempt not found.");
     if (attempt.userId !== req.user?.id) throw new ApiError(403, "Access denied.");
     if (attempt.status !== "in_progress") throw new ApiError(400, "Attempt is already submitted.");
-
-    // Store heartbeat metadata in a flexible way
-    await prisma.candidateAttempt.update({
-      where: { id: attemptId },
-      data: {
-        // We piggyback on the answers array's metadata – store heartbeat as a
-        // synthetic entry that the proctor dashboard can read.
-        answers: attempt.answers,
-      },
-    });
 
     return res.status(200).json({ message: "Heartbeat received.", data: { timeRemaining } });
   }),
@@ -300,17 +303,21 @@ router.put(
     const { attemptId } = req.params;
     const { answers, codeSubmissions } = req.body;
 
-    const attempt = await prisma.candidateAttempt.findUnique({ where: { id: attemptId } });
+    const attempt = await prisma.candidateAttempt.findUnique({
+      where: { id: attemptId },
+      include: candidateAttemptInclude,
+    });
     if (!attempt) throw new ApiError(404, "Attempt not found.");
     if (attempt.userId !== req.user?.id) throw new ApiError(403, "Access denied.");
     if (attempt.status !== "in_progress") throw new ApiError(400, "Attempt already submitted.");
 
-    const updated = await prisma.candidateAttempt.update({
-      where: { id: attemptId },
-      data: {
-        answers: answers ?? attempt.answers,
-        codeSubmissions: codeSubmissions ?? attempt.codeSubmissions,
-      },
+    await prisma.$transaction(async (tx) => {
+      if (answers !== undefined) {
+        await replaceCandidateAttemptAnswers(tx, attemptId, answers);
+      }
+      if (codeSubmissions !== undefined) {
+        await replaceCandidateAttemptCodeSubmissions(tx, attemptId, codeSubmissions);
+      }
     });
 
     return res.status(200).json({ message: "Progress saved.", data: { savedAt: new Date() } });
@@ -367,36 +374,41 @@ router.post(
 
     const attempt = await prisma.candidateAttempt.findUnique({
       where: { id: attemptId },
-      include: { assessment: { include: { questions: true, settings: true } } },
+      include: {
+        ...candidateAttemptInclude,
+        assessment: { include: { questions: true, settings: true } },
+      },
     });
     if (!attempt) throw new ApiError(404, "Attempt not found.");
     if (attempt.userId !== req.user?.id) throw new ApiError(403, "Access denied.");
     if (attempt.status !== "in_progress") throw new ApiError(400, "Attempt already submitted.");
 
-    // Simple auto-scoring for MCQ/MSQ/numerical
     let totalScore = 0;
     let maxScore = 0;
 
-    const finalAnswers = answers ?? attempt.answers;
+    const serializedAttempt = serializeCandidateAttempt(attempt);
+    const finalAnswers = answers ?? serializedAttempt.answers;
 
     for (const aq of attempt.assessment.questions) {
       maxScore += aq.points;
 
       if (aq.questionType === "bank" && aq.bankQuestionId) {
-        const bq = await prisma.bankQuestion.findUnique({ where: { id: aq.bankQuestionId } });
+        const bq = await prisma.bankQuestion.findUnique({
+          where: { id: aq.bankQuestionId },
+          include: bankQuestionInclude,
+        });
         if (!bq) continue;
 
+        const serializedBq = serializeBankQuestion(bq);
         const candidateAnswer = finalAnswers.find((a) => a.aqId === aq.id);
         if (!candidateAnswer) continue;
 
         if (bq.type === "mcq") {
-          // candidateAnswer.value = index of chosen option
-          const opts = bq.options || [];
+          const opts = serializedBq.options || [];
           const chosen = opts[candidateAnswer.value];
           if (chosen?.isCorrect) totalScore += aq.points;
         } else if (bq.type === "msq") {
-          // candidateAnswer.value = array of indices
-          const opts = bq.options || [];
+          const opts = serializedBq.options || [];
           const correctIndices = opts
             .map((o, i) => (o.isCorrect ? i : -1))
             .filter((i) => i !== -1);
@@ -417,20 +429,27 @@ router.post(
             totalScore += aq.points;
           }
         }
-        // Coding / SQL / Linux scored separately by judge service
       }
     }
 
-    const submitted = await prisma.candidateAttempt.update({
-      where: { id: attemptId },
-      data: {
-        status: reason === "auto" ? "auto_submitted" : "submitted",
-        submittedAt: new Date(),
-        answers: finalAnswers,
-        codeSubmissions: codeSubmissions ?? attempt.codeSubmissions,
-        totalScore,
-        maxScore,
-      },
+    const submitted = await prisma.$transaction(async (tx) => {
+      await replaceCandidateAttemptAnswers(tx, attemptId, finalAnswers);
+      await replaceCandidateAttemptCodeSubmissions(
+        tx,
+        attemptId,
+        codeSubmissions ?? serializedAttempt.codeSubmissions,
+      );
+
+      return tx.candidateAttempt.update({
+        where: { id: attemptId },
+        data: {
+          status: reason === "auto" ? "auto_submitted" : "submitted",
+          submittedAt: new Date(),
+          totalScore,
+          maxScore,
+        },
+        include: candidateAttemptInclude,
+      });
     });
 
     return res.status(200).json({

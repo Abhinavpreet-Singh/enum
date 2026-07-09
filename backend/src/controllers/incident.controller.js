@@ -13,6 +13,104 @@ import {
   logUserActivity,
   outcomeFromIncident,
 } from "../services/activityLogService.js";
+import {
+  incidentInclude,
+  incidentSessionInclude,
+  incidentSessionStateInclude,
+  replaceSessionActions,
+  replaceSessionStateServices,
+  serializeIncident,
+  serializeIncidentSession,
+  serializeIncidentSessionState,
+} from "../utils/prismaNormalizers.js";
+
+async function loadIncidentRecord(id, { withTimeline = false } = {}) {
+  return prisma.incidentSimulation.findUnique({
+    where: { id },
+    include: {
+      ...incidentInclude,
+      ...(withTimeline
+        ? { timelineEvents: { orderBy: { timeSecond: "asc" } } }
+        : {}),
+    },
+  });
+}
+
+async function loadSerializedIncident(id, { withTimeline = false } = {}) {
+  const incident = await loadIncidentRecord(id, { withTimeline });
+  if (!incident) return null;
+  const serialized = serializeIncident(incident);
+  if (withTimeline) {
+    return { ...serialized, timelineEvents: incident.timelineEvents };
+  }
+  return serialized;
+}
+
+async function createInitialSessionState(sessionId, incident) {
+  const serialized = serializeIncident(incident);
+  const state = await prisma.incidentSessionState.create({
+    data: {
+      sessionId,
+      currentTime: 0,
+      metrics: serialized.initialMetrics,
+      logs: serialized.initialLogs || [],
+      activeAlerts: [],
+      services: {
+        create: (serialized.initialServices || []).map((service, index) => ({
+          sortOrder: index,
+          serviceKey: service.id,
+          name: service.name || "",
+          status: service.status || "healthy",
+          color: service.color || "green",
+        })),
+      },
+    },
+    include: incidentSessionStateInclude,
+  });
+  return serializeIncidentSessionState(state);
+}
+
+async function resetSessionState(sessionId, incident) {
+  const serialized = serializeIncident(incident);
+  const state = await prisma.incidentSessionState.upsert({
+    where: { sessionId },
+    create: {
+      sessionId,
+      currentTime: 0,
+      metrics: serialized.initialMetrics,
+      logs: serialized.initialLogs || [],
+      activeAlerts: [],
+      services: {
+        create: (serialized.initialServices || []).map((service, index) => ({
+          sortOrder: index,
+          serviceKey: service.id,
+          name: service.name || "",
+          status: service.status || "healthy",
+          color: service.color || "green",
+        })),
+      },
+    },
+    update: {
+      currentTime: 0,
+      metrics: serialized.initialMetrics,
+      logs: serialized.initialLogs || [],
+      activeAlerts: [],
+    },
+    include: incidentSessionStateInclude,
+  });
+
+  await replaceSessionStateServices(
+    prisma,
+    state.id,
+    serialized.initialServices || [],
+  );
+
+  const refreshed = await prisma.incidentSessionState.findUnique({
+    where: { id: state.id },
+    include: incidentSessionStateInclude,
+  });
+  return serializeIncidentSessionState(refreshed);
+}
 
 /**
  * Utility: Process timeline events for a given elapsed time
@@ -205,14 +303,7 @@ const getIncident = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Incident ID is required");
   }
 
-  const incident = await prisma.incidentSimulation.findUnique({
-    where: { id },
-    include: {
-      timelineEvents: {
-        orderBy: { timeSecond: "asc" },
-      },
-    },
-  });
+  const incident = await loadIncidentRecord(id, { withTimeline: true });
 
   if (!incident) {
     throw new ApiError(404, "Incident simulation not found");
@@ -220,7 +311,10 @@ const getIncident = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     message: "Incident fetched successfully",
-    data: incident,
+    data: {
+      ...serializeIncident(incident),
+      timelineEvents: incident.timelineEvents,
+    },
   });
 });
 
@@ -241,12 +335,7 @@ const startIncidentSession = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Incident ID is required");
   }
 
-  const incident = await prisma.incidentSimulation.findUnique({
-    where: { id },
-    include: {
-      timelineEvents: true,
-    },
-  });
+  const incident = await loadIncidentRecord(id, { withTimeline: true });
 
   if (!incident) {
     throw new ApiError(404, "Incident simulation not found");
@@ -255,64 +344,64 @@ const startIncidentSession = asyncHandler(async (req, res) => {
   const existingSession = await prisma.incidentSession.findFirst({
     where: { userId, incidentId: id },
     orderBy: { updatedAt: "desc" },
+    include: incidentSessionInclude,
   });
 
-  const initialStateData = {
-    currentTime: 0,
-    services: incident.initialServices || [],
-    metrics: incident.initialMetrics || {},
-    logs: incident.initialLogs || [],
-    activeAlerts: [],
-  };
-
-  const loadState = async (sessionId) =>
-    prisma.incidentSessionState.findUnique({
+  const loadState = async (sessionId) => {
+    const state = await prisma.incidentSessionState.findUnique({
       where: { sessionId },
+      include: incidentSessionStateInclude,
     });
+    return state ? serializeIncidentSessionState(state) : null;
+  };
 
   // Resume in-progress or review last completed run — no reset unless restart=true
   if (existingSession && !restart) {
     const state =
       (await loadState(existingSession.id)) ??
-      (await prisma.incidentSessionState.create({
-        data: { sessionId: existingSession.id, ...initialStateData },
-      }));
+      (await createInitialSessionState(existingSession.id, incident));
 
     return res.status(200).json({
       message: existingSession.isCompleted
         ? "Existing completed session"
         : "Existing session resumed",
-      data: { session: existingSession, state },
+      data: {
+        session: serializeIncidentSession(existingSession),
+        state,
+      },
     });
   }
 
   if (existingSession && restart) {
-    const session = await prisma.incidentSession.update({
-      where: { id: existingSession.id },
-      data: {
-        elapsedTime: 0,
-        isActive: true,
-        isCompleted: false,
-        selectedRootCauseId: "",
-        diagnosedAt: null,
-        correctDiagnosis: false,
-        actionsTaken: [],
-        diagnosticScore: 0,
-        actionScore: 0,
-        timeBonusScore: 0,
-        totalScore: 0,
-      },
+    const session = await prisma.$transaction(async (tx) => {
+      await replaceSessionActions(tx, existingSession.id, []);
+      return tx.incidentSession.update({
+        where: { id: existingSession.id },
+        data: {
+          elapsedTime: 0,
+          isActive: true,
+          isCompleted: false,
+          selectedRootCauseId: "",
+          diagnosedAt: null,
+          correctDiagnosis: false,
+          diagnosticScore: 0,
+          actionScore: 0,
+          timeBonusScore: 0,
+          totalScore: 0,
+        },
+        include: incidentSessionInclude,
+      });
     });
 
-    const state = await prisma.incidentSessionState.upsert({
-      where: { sessionId: existingSession.id },
-      create: { sessionId: existingSession.id, ...initialStateData },
-      update: initialStateData,
-    });
+    const state = await resetSessionState(existingSession.id, incident);
 
     return res.status(200).json({
       message: "Incident session reset for new attempt",
-      data: { session, state, restarted: true },
+      data: {
+        session: serializeIncidentSession(session),
+        state,
+        restarted: true,
+      },
     });
   }
 
@@ -324,19 +413,15 @@ const startIncidentSession = asyncHandler(async (req, res) => {
       isActive: true,
       isCompleted: false,
     },
+    include: incidentSessionInclude,
   });
 
-  const initialState = await prisma.incidentSessionState.create({
-    data: {
-      sessionId: session.id,
-      ...initialStateData,
-    },
-  });
+  const initialState = await createInitialSessionState(session.id, incident);
 
   return res.status(201).json({
     message: "Incident session started",
     data: {
-      session,
+      session: serializeIncidentSession(session),
       state: initialState,
     },
   });
@@ -357,6 +442,7 @@ const getIncidentSessionState = asyncHandler(async (req, res) => {
   // Verify ownership
   const session = await prisma.incidentSession.findUnique({
     where: { id: sessionId },
+    include: incidentSessionInclude,
   });
 
   if (!session) {
@@ -373,6 +459,7 @@ const getIncidentSessionState = asyncHandler(async (req, res) => {
 
   const state = await prisma.incidentSessionState.findUnique({
     where: { sessionId },
+    include: incidentSessionStateInclude,
   });
 
   if (!state) {
@@ -382,8 +469,8 @@ const getIncidentSessionState = asyncHandler(async (req, res) => {
   return res.status(200).json({
     message: "Session state fetched",
     data: {
-      session,
-      state,
+      session: serializeIncidentSession(session),
+      state: serializeIncidentSessionState(state),
     },
   });
 });
@@ -404,6 +491,7 @@ const tickIncidentSimulation = asyncHandler(async (req, res) => {
   // Verify session
   const session = await prisma.incidentSession.findUnique({
     where: { id: sessionId },
+    include: incidentSessionInclude,
   });
 
   if (!session || session.userId !== userId || session.incidentId !== id) {
@@ -411,12 +499,7 @@ const tickIncidentSimulation = asyncHandler(async (req, res) => {
   }
 
   // Get incident and its timeline
-  const incident = await prisma.incidentSimulation.findUnique({
-    where: { id },
-    include: {
-      timelineEvents: true,
-    },
-  });
+  const incident = await loadSerializedIncident(id, { withTimeline: true });
 
   if (!incident) {
     throw new ApiError(404, "Incident not found");
@@ -432,10 +515,7 @@ const tickIncidentSimulation = asyncHandler(async (req, res) => {
   const isComplete =
     newTime >= incident.durationSeconds || session.isCompleted;
 
-  // Parse actions taken
-  const actionsTaken = (session.actionsTaken || []).map((a) =>
-    typeof a === "string" ? JSON.parse(a) : a,
-  );
+  const actionsTaken = serializeIncidentSession(session).actionsTaken;
 
   // Process timeline up to new time with action effects
   const { services, metrics, logs } = processTimelineEvents(
@@ -444,32 +524,47 @@ const tickIncidentSimulation = asyncHandler(async (req, res) => {
     actionsTaken,
   );
 
-  // Update state
-  const updatedState = await prisma.incidentSessionState.update({
-    where: { sessionId },
-    data: {
-      currentTime: newTime,
-      services,
-      metrics,
-      logs,
-    },
+  const updatedSession = await prisma.$transaction(async (tx) => {
+    const existingState = await tx.incidentSessionState.findUnique({
+      where: { sessionId },
+    });
+
+    if (!existingState) {
+      throw new ApiError(404, "Session state not found");
+    }
+
+    await tx.incidentSessionState.update({
+      where: { sessionId },
+      data: {
+        currentTime: newTime,
+        metrics,
+        logs,
+      },
+    });
+
+    await replaceSessionStateServices(tx, existingState.id, services);
+
+    return tx.incidentSession.update({
+      where: { id: sessionId },
+      data: {
+        elapsedTime: newTime,
+        isActive: !isComplete,
+        isCompleted: isComplete ? true : session.isCompleted,
+      },
+      include: incidentSessionInclude,
+    });
   });
 
-  // Update session time
-  const updatedSession = await prisma.incidentSession.update({
-    where: { id: sessionId },
-    data: {
-      elapsedTime: newTime,
-      isActive: !isComplete,
-      isCompleted: isComplete ? true : session.isCompleted,
-    },
+  const updatedState = await prisma.incidentSessionState.findUnique({
+    where: { sessionId },
+    include: incidentSessionStateInclude,
   });
 
   return res.status(200).json({
     message: "Simulation advanced",
     data: {
-      session: updatedSession,
-      state: updatedState,
+      session: serializeIncidentSession(updatedSession),
+      state: serializeIncidentSessionState(updatedState),
       isComplete,
     },
   });
@@ -495,6 +590,7 @@ const diagnoseIncident = asyncHandler(async (req, res) => {
   // Verify session
   const session = await prisma.incidentSession.findUnique({
     where: { id: sessionId },
+    include: incidentSessionInclude,
   });
 
   if (!session || session.userId !== userId || session.incidentId !== id) {
@@ -502,9 +598,7 @@ const diagnoseIncident = asyncHandler(async (req, res) => {
   }
 
   // Get incident to verify root cause
-  const incident = await prisma.incidentSimulation.findUnique({
-    where: { id },
-  });
+  const incident = await loadSerializedIncident(id);
 
   if (!incident) {
     throw new ApiError(404, "Incident not found");
@@ -532,12 +626,13 @@ const diagnoseIncident = asyncHandler(async (req, res) => {
       correctDiagnosis,
       diagnosticScore,
     },
+    include: incidentSessionInclude,
   });
 
   return res.status(200).json({
     message: "Diagnosis submitted",
     data: {
-      session: updatedSession,
+      session: serializeIncidentSession(updatedSession),
       correct: correctDiagnosis,
       hint: !correctDiagnosis ? rootCauseOption.hint : null,
     },
@@ -564,6 +659,7 @@ const performIncidentAction = asyncHandler(async (req, res) => {
   // Verify session
   const session = await prisma.incidentSession.findUnique({
     where: { id: sessionId },
+    include: incidentSessionInclude,
   });
 
   if (!session || session.userId !== userId || session.incidentId !== id) {
@@ -571,9 +667,7 @@ const performIncidentAction = asyncHandler(async (req, res) => {
   }
 
   // Get incident to verify action
-  const incident = await prisma.incidentSimulation.findUnique({
-    where: { id },
-  });
+  const incident = await loadSerializedIncident(id);
 
   if (!incident) {
     throw new ApiError(404, "Incident not found");
@@ -586,9 +680,7 @@ const performIncidentAction = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid actionId");
   }
 
-  const priorActions = (session.actionsTaken || []).map((a) =>
-    typeof a === "string" ? JSON.parse(a) : a,
-  );
+  const priorActions = serializeIncidentSession(session).actionsTaken;
   if (priorActions.length >= 1) {
     throw new ApiError(
       400,
@@ -596,27 +688,30 @@ const performIncidentAction = asyncHandler(async (req, res) => {
     );
   }
 
-  // Create action record
   const action = {
     actionId,
     timestamp: session.elapsedTime,
-    effective: false, // Will be determined during tick
+    effective: false,
   };
 
-  // Add to actionsTaken
-  const updatedSession = await prisma.incidentSession.update({
-    where: { id: sessionId },
+  await prisma.incidentSessionAction.create({
     data: {
-      actionsTaken: {
-        push: action,
-      },
+      sessionId,
+      actionKey: actionId,
+      timestamp: session.elapsedTime,
+      effective: false,
     },
+  });
+
+  const updatedSession = await prisma.incidentSession.findUnique({
+    where: { id: sessionId },
+    include: incidentSessionInclude,
   });
 
   return res.status(200).json({
     message: "Action taken",
     data: {
-      session: updatedSession,
+      session: serializeIncidentSession(updatedSession),
       action,
     },
   });
@@ -637,6 +732,7 @@ const completeIncidentSession = asyncHandler(async (req, res) => {
   // Verify session
   const session = await prisma.incidentSession.findUnique({
     where: { id: sessionId },
+    include: incidentSessionInclude,
   });
 
   if (!session || session.userId !== userId || session.incidentId !== id) {
@@ -644,26 +740,23 @@ const completeIncidentSession = asyncHandler(async (req, res) => {
   }
 
   // Get incident
-  const incident = await prisma.incidentSimulation.findUnique({
-    where: { id },
-  });
+  const incident = await loadIncidentRecord(id);
 
   if (!incident) {
     throw new ApiError(404, "Incident not found");
   }
 
+  const serializedIncident = serializeIncident(incident);
+
   // Calculate final score
   const diagnosticScore = session.correctDiagnosis ? 100 : 0;
 
-  // Best single remediation counts (not a checklist of every action)
   let actionScore = 0;
-  const actionsTaken = (session.actionsTaken || []).map((a) =>
-    typeof a === "string" ? JSON.parse(a) : a,
-  );
+  const actionsTaken = serializeIncidentSession(session).actionsTaken;
 
   if (session.correctDiagnosis && actionsTaken.length > 0) {
     for (const action of actionsTaken) {
-      const actionOption = incident.actionOptions?.find(
+      const actionOption = serializedIncident.actionOptions?.find(
         (a) => a.id === action.actionId,
       );
       if (actionOption) {
@@ -713,6 +806,7 @@ const completeIncidentSession = asyncHandler(async (req, res) => {
           attempts: { increment: 1 },
           xpAwarded: xpResult.awarded || xpResult.alreadyClaimed,
         },
+        include: incidentSessionInclude,
       });
 
       await logUserActivity(tx, {
@@ -742,7 +836,7 @@ const completeIncidentSession = asyncHandler(async (req, res) => {
   return res.status(200).json({
     message: "Session completed with score",
     data: {
-      session: completedSession,
+      session: serializeIncidentSession(completedSession),
       xpEarned,
       xpAlreadyAwarded,
       totalXp,
@@ -771,6 +865,7 @@ const stopIncidentSession = asyncHandler(async (req, res) => {
   // Verify session
   const session = await prisma.incidentSession.findUnique({
     where: { id: sessionId },
+    include: incidentSessionInclude,
   });
 
   if (!session || session.userId !== userId || session.incidentId !== id) {
@@ -783,12 +878,13 @@ const stopIncidentSession = asyncHandler(async (req, res) => {
     data: {
       isActive: false,
     },
+    include: incidentSessionInclude,
   });
 
   return res.status(200).json({
     message: "Session stopped",
     data: {
-      session: stoppedSession,
+      session: serializeIncidentSession(stoppedSession),
     },
   });
 });
