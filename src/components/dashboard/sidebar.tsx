@@ -81,7 +81,6 @@ const ADMIN_NAV = [
   { icon: ShieldAlert,   label: "Violations",  href: "/dashboard/admin/violations/",  matchExact: false },
   { icon: LineChart,     label: "Analytics",   href: "/dashboard/admin/analytics/",   matchExact: false },
   { icon: ClipboardList, label: "Settings",    href: "/dashboard/admin/settings/",    matchExact: false },
-  { icon: History,       label: "Audit Log",   href: "/dashboard/admin/audit/",       matchExact: false },
   { icon: Construction,  label: "Maintenance", href: "/dashboard/admin/maintenance/", matchExact: false },
 ];
 

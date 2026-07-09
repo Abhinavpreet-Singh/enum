@@ -21,6 +21,7 @@ import {
   getUserAccessSummary,
   hasTrackAccessFromSummary,
   TRACK_KEYS,
+  resolveItemAccess,
 } from "../services/entitlement.service.js";
 import {
   buildFeedbackItemsCreate,
@@ -43,19 +44,18 @@ const enrichSystemDesignAccess = async (simulations, userId) => {
 
   return simulations.map((sim, index) => {
     const freeIndex = index + 1;
-    const isFree = freeIndex <= freeItemQuota;
-    const locked = !hasAccess && !isFree;
+    const access = resolveItemAccess({
+      item: sim,
+      hasAccess,
+      freeIndex,
+      freeItemQuota,
+      trackKey: TRACK_KEYS.SYSTEM_DESIGN,
+      productSlug: product?.slug || "",
+      lockedReason: "Upgrade to unlock this system design simulation.",
+    });
     return {
       ...sim,
-      access: {
-        locked,
-        isFree,
-        freeIndex,
-        freeItemQuota,
-        trackKey: TRACK_KEYS.SYSTEM_DESIGN,
-        productSlug: product?.slug || "",
-        reason: locked ? "Upgrade to unlock this system design simulation." : "",
-      },
+      access,
     };
   });
 };
@@ -413,6 +413,7 @@ export const createSystemDesignSimulation = asyncHandler(async (req, res) => {
     maxScore,
     tags,
     templateUrl,
+    isFree,
   } = req.body;
 
   if (!title || !description) {
@@ -427,6 +428,7 @@ export const createSystemDesignSimulation = asyncHandler(async (req, res) => {
       maxScore: maxScore || 10,
       tags: tags || [],
       templateUrl: templateUrl || "",
+      isFree: typeof isFree === "boolean" ? isFree : null,
       ...buildSystemDesignRulesCreate(evaluationRules || []),
     },
     include: systemDesignSimulationInclude,

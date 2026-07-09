@@ -29,6 +29,15 @@ import {
   revokeUserPremium,
   updatePremiumProduct,
 } from "../controllers/admin-billing.controller.js";
+import {
+  createDsaQuestion,
+  updateDsaQuestion,
+  deleteDsaQuestion,
+  createLinuxQuestion,
+  createIncidentSimulation,
+  createSimulation,
+  createSystemDesign,
+} from "../controllers/admin-content.controller.js";
 
 const router = Router();
 
@@ -93,6 +102,15 @@ router.get("/maintenance-pages", getAllMaintenancePages);
 router.post("/maintenance-pages", createMaintenancePage);
 router.patch("/maintenance-pages/:id", updateMaintenancePage);
 router.delete("/maintenance-pages/:id", deleteMaintenancePage);
+
+// Content creation
+router.post("/adminPostQuestion", createDsaQuestion);
+router.put("/editQuestion/:id", updateDsaQuestion);
+router.delete("/deleteQuestion/:id", deleteDsaQuestion);
+router.post("/content/linux-questions", createLinuxQuestion);
+router.post("/content/incidents", createIncidentSimulation);
+router.post("/content/simulations", createSimulation);
+router.post("/content/system-design", createSystemDesign);
 
 // Legacy aliases used by older frontend builds
 router.get("/companies", getAllOrganizations);

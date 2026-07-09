@@ -448,6 +448,7 @@ model Question {
   parameterNames String[] @default([])
   parameterTypes String[]
   returnType     String
+  isFree         Boolean?
 
   testCases   QuestionTestCase[]
   initialCodes QuestionInitialCode[]
@@ -496,6 +497,7 @@ model LinuxQuestion {
   constraints    String[] @default([])
   hints          String[] @default([])
   language       String   @default("bash")
+  isFree         Boolean?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -592,6 +594,7 @@ model Simulation {
   xpReward       Int      @default(50)
   entryFile      String   @default("index.js")
   expectedOutput String   @default("")
+  isFree         Boolean?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -659,6 +662,7 @@ model SystemDesignSimulation {
   maxScore    Int      @default(10)
   tags        String[] @default([])
   templateUrl String   @default("")
+  isFree      Boolean?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -756,6 +760,7 @@ model IncidentSimulation {
   realIncidentDesc String  @default("")
   revealTitle      String  @default("Based on...")
   revealText       String  @default("")
+  isFree           Boolean?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

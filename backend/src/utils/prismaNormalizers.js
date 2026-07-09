@@ -285,6 +285,59 @@ export function buildSystemDesignRulesCreate(evaluationRules = []) {
   };
 }
 
+export function buildLinuxExamplesCreate(examples = []) {
+  return {
+    examples: {
+      create: examples.map((example, index) => ({
+        sortOrder: index,
+        input: example?.input || "",
+        output: example?.output || "",
+      })),
+    },
+  };
+}
+
+export function buildIncidentNestedCreate({
+  services = [],
+  rootCauseOptions = [],
+  actionOptions = [],
+} = {}) {
+  return {
+    services: {
+      create: services.map((service, index) => ({
+        sortOrder: index,
+        serviceKey: service?.id || service?.serviceKey || `service-${index + 1}`,
+        name: service?.name || "",
+        status: service?.status || "healthy",
+        color: service?.color || "green",
+      })),
+    },
+    rootCauseOptions: {
+      create: rootCauseOptions.map((option, index) => ({
+        sortOrder: index,
+        optionKey: option?.id || option?.optionKey || `rc-${index + 1}`,
+        title: option?.title || "",
+        description: option?.description || "",
+        isCorrect: Boolean(option?.isCorrect),
+        hint: option?.hint || "",
+      })),
+    },
+    actionOptions: {
+      create: actionOptions.map((option, index) => ({
+        sortOrder: index,
+        actionKey: option?.id || option?.actionKey || `action-${index + 1}`,
+        title: option?.title || "",
+        description: option?.description || "",
+        category: option?.category || "general",
+        fixesMetrics: option?.fixesMetrics || [],
+        recoveryTime: option?.recoveryTime ?? 30,
+        pointsIfCorrect: option?.pointsIfCorrect ?? 50,
+        pointsIfWrong: option?.pointsIfWrong ?? 0,
+      })),
+    },
+  };
+}
+
 export function buildQuestionNestedCreate({ testcases = [], initialCode = [] } = {}) {
   return {
     testCases: {
