@@ -3,7 +3,7 @@ import prisma from "../db/index.js";
 import { ApiError } from "../utils/apiError.js";
 import bcrypt from "bcrypt";
 import { sendOtpEmail } from "../utils/resendEmail.js";
-import { setRefreshCookie } from "../auth/utils/cookies.js";
+import { setAuthCookies } from "../auth/utils/cookies.js";
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -180,7 +180,7 @@ const loginOrganization = asyncHandler(async (req, res) => {
     omit: { password: true, refreshToken: true },
   });
 
-  setRefreshCookie(res, refreshToken);
+  setAuthCookies(res, { accessToken, refreshToken });
 
   return res.status(200).json({
     message: "Logged in successfully.",

@@ -1,5 +1,9 @@
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-const REFRESH_COOKIE_NAME = "rt";
+const ACCESS_TOKEN_MS = 10 * 60 * 1000; // matches ACCESS_TOKEN_EXPIRY_SECONDS in tokens.js
+const REFRESH_COOKIE_NAME = "refreshToken";
+const ACCESS_COOKIE_NAME = "accessToken";
+/** Legacy name — still accepted on read / cleared on logout. */
+const LEGACY_REFRESH_COOKIE_NAME = "rt";
 
 const isCrossSiteDeployment = () => {
   if (process.env.COOKIE_CROSS_SITE === "true") return true;
@@ -21,7 +25,7 @@ const isCrossSiteDeployment = () => {
   });
 };
 
-export function getRefreshCookieOptions() {
+function getBaseCookieOptions() {
   const crossSite = isCrossSiteDeployment();
   const cookieDomain = process.env.COOKIE_DOMAIN?.trim();
 
@@ -33,21 +37,53 @@ export function getRefreshCookieOptions() {
     sameSite: crossSite ? "none" : "lax",
     ...(cookieDomain ? { domain: cookieDomain } : {}),
     path: "/",
+  };
+}
+
+export function getRefreshCookieOptions() {
+  return {
+    ...getBaseCookieOptions(),
     maxAge: THIRTY_DAYS_MS,
   };
 }
 
+export function getAccessCookieOptions() {
+  return {
+    ...getBaseCookieOptions(),
+    maxAge: ACCESS_TOKEN_MS,
+  };
+}
+
+/** Set refresh cookie only (legacy helper — prefer setAuthCookies). */
 export function setRefreshCookie(res, token) {
-  res.cookie(REFRESH_COOKIE_NAME, token, getRefreshCookieOptions());
+  const options = getRefreshCookieOptions();
+  res.cookie(REFRESH_COOKIE_NAME, token, options);
+  // Keep writing `rt` briefly so older clients still work during rollout.
+  res.cookie(LEGACY_REFRESH_COOKIE_NAME, token, options);
+}
+
+/** Set access + refresh cookies after login / refresh / OAuth. */
+export function setAuthCookies(res, { accessToken, refreshToken }) {
+  if (refreshToken) {
+    setRefreshCookie(res, refreshToken);
+  }
+  if (accessToken) {
+    res.cookie(ACCESS_COOKIE_NAME, accessToken, getAccessCookieOptions());
+  }
 }
 
 export function clearRefreshCookie(res) {
-  res.clearCookie(REFRESH_COOKIE_NAME, {
-    ...getRefreshCookieOptions(),
-    maxAge: 0,
-  });
+  const refreshOptions = { ...getRefreshCookieOptions(), maxAge: 0 };
+  const accessOptions = { ...getAccessCookieOptions(), maxAge: 0 };
+  res.clearCookie(REFRESH_COOKIE_NAME, refreshOptions);
+  res.clearCookie(LEGACY_REFRESH_COOKIE_NAME, refreshOptions);
+  res.clearCookie(ACCESS_COOKIE_NAME, accessOptions);
 }
 
 export function getRefreshTokenFromRequest(req) {
-  return req.cookies?.[REFRESH_COOKIE_NAME] || null;
+  return (
+    req.cookies?.[REFRESH_COOKIE_NAME] ||
+    req.cookies?.[LEGACY_REFRESH_COOKIE_NAME] ||
+    null
+  );
 }

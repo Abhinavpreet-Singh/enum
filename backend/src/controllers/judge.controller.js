@@ -53,7 +53,9 @@ export const judgeCode = async (req, res) => {
       return res.status(404).json({ message: "Question not found." });
     }
 
-    testcases = (question.testcases || []).map((tc) =>
+    // Prisma relation is `testCases`; serialized API shape uses `testcases`
+    const rawTestCases = question.testCases || question.testcases || [];
+    testcases = rawTestCases.map((tc) =>
       normaliseTestCase(tc, question.parameterTypes || []),
     );
     functionName = question.functionName;

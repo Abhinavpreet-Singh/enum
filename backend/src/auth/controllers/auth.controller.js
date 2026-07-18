@@ -11,7 +11,7 @@ import {
   revokeSpecificSession,
 } from "../services/auth.service.js";
 import {
-  setRefreshCookie,
+  setAuthCookies,
   clearRefreshCookie,
   getRefreshTokenFromRequest,
 } from "../utils/cookies.js";
@@ -69,7 +69,7 @@ export const login = asyncHandler(async (req, res) => {
 
   const { user, accessToken, refreshToken, accountType: resolvedAccountType } = result;
 
-  setRefreshCookie(res, refreshToken);
+  setAuthCookies(res, { accessToken, refreshToken });
 
   return res.status(200).json({
     message: resolvedAccountType === "admin" ? "Admin logged in." : "Logged in.",
@@ -104,7 +104,7 @@ export const refresh = asyncHandler(async (req, res) => {
       accessTokenHash: hashAccessToken(accessToken),
       accessTokenExpiresAt: getAccessTokenExpiryDate(),
     });
-    setRefreshCookie(res, newRefreshToken);
+    setAuthCookies(res, { accessToken, refreshToken: newRefreshToken });
     return res.status(200).json({ message: "Token refreshed.", accessToken, accountType: "organization" });
   }
 
@@ -120,7 +120,7 @@ export const refresh = asyncHandler(async (req, res) => {
     accessTokenExpiresAt: getAccessTokenExpiryDate(),
   });
 
-  setRefreshCookie(res, newRefreshToken);
+  setAuthCookies(res, { accessToken, refreshToken: newRefreshToken });
   return res.status(200).json({ message: "Token refreshed.", accessToken, accountType: type });
 });
 
@@ -134,6 +134,8 @@ export const me = asyncHandler(async (req, res) => {
   if (!session) throw new ApiError(401, "Session expired. Please log in.");
 
   const result = await getMe({ sessionId: session.id });
+
+  setAuthCookies(res, { accessToken: result.accessToken });
 
   return res.status(200).json({
     message: "Authenticated.",
@@ -210,9 +212,9 @@ export const handleOAuthSuccess = async (req, res, userId) => {
   const userAgent = req.get("User-Agent") || "";
   const ipAddress = getIp(req);
 
-  const { refreshToken, accountType } = await loginWithOAuth({ userId, userAgent, ipAddress });
+  const { accessToken, refreshToken } = await loginWithOAuth({ userId, userAgent, ipAddress });
 
-  setRefreshCookie(res, refreshToken);
+  setAuthCookies(res, { accessToken, refreshToken });
 
   // Redirect to /oauth-success WITHOUT any token in the URL.
   // The frontend page will call GET /api/v1/auth/me with the cookie.

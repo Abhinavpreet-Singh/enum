@@ -47,6 +47,8 @@ RUN apt-get update && \
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ENV PATH="$JAVA_HOME/bin:$PATH"
 ENV NODE_ENV=production
+# Backend image already includes language toolchains; no Docker-in-Docker on Dokploy/DO.
+ENV COMPILER_RUNTIME=local
 
 # Global modules used by in-container code execution (/tmp sandboxes)
 RUN npm install -g express cors axios dotenv body-parser

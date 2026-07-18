@@ -4,8 +4,7 @@ import { ApiError } from "../utils/apiError.js";
 import bcrypt from "bcrypt";
 import { uploadAvatarToCloudinary } from "../utils/cloudinary.js";
 import { sendOtpEmail } from "../utils/resendEmail.js";
-import { getAuthCookieOptions } from "../utils/cookieOptions.js";
-import { setRefreshCookie, clearRefreshCookie } from "../auth/utils/cookies.js";
+import { setAuthCookies, clearRefreshCookie } from "../auth/utils/cookies.js";
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -220,7 +219,7 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 
   clearRefreshCookie(res);
-  setRefreshCookie(res, refreshToken);
+  setAuthCookies(res, { accessToken, refreshToken });
   return res
     .status(200)
     .json({
@@ -257,12 +256,10 @@ const logoutUser = asyncHandler(async (req, res) => {
     data: { refreshToken: null },
   });
 
-  const options = getAuthCookieOptions();
+  clearRefreshCookie(res);
 
   return res
     .status(200)
-    .clearCookie("accessToken", options)
-    .clearCookie("refreshToken", options)
     .json({
       message: "Logged out successfully",
     });
