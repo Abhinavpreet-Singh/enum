@@ -15,7 +15,7 @@
  *
  * FUTURE EXTENSION:
  * - Train a random forest or small neural network on the collected feature vectors
- * - Use the `training-data.js` model to store and retrieve labeled samples
+ * - Use Redis-backed persistence for labeled samples (see cache/queue.js)
  * - Export features to CSV for offline model training in Python/scikit-learn
  */
 
@@ -28,7 +28,7 @@ import { ComplexityClass, COMPLEXITY_ORDER } from '../types.js';
 
 /**
  * In-memory store of training samples.
- * In production, this would be backed by MongoDB/Redis.
+ * In production, this would be backed by Redis/PostgreSQL.
  * @type {Array<{features: number[], label: number}>}
  */
 let trainingData = [];
@@ -116,7 +116,7 @@ export function addTrainingSample(features, label) {
 }
 
 /**
- * Bulk-load training data (e.g., from MongoDB on startup).
+ * Bulk-load training data (e.g., from Redis or PostgreSQL on startup).
  *
  * @param {Array<{features: number[], label: number}>} samples
  */

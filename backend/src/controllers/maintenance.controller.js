@@ -3,7 +3,7 @@ import { ApiError } from "../utils/apiError.js";
 import prisma from "../db/index.js";
 import { normalizePagePath } from "../utils/normalizePath.js";
 
-const isValidObjectId = (value) => /^[a-f\d]{24}$/i.test(String(value || ""));
+import { isValidId } from "../utils/isValidId.js";
 
 const DEFAULT_MESSAGE =
   "This page is currently under maintenance. Please check back later.";
@@ -66,7 +66,7 @@ export const createMaintenancePage = asyncHandler(async (req, res) => {
 /** Admin: update message or enabled state. */
 export const updateMaintenancePage = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!isValidObjectId(id)) throw new ApiError(400, "Invalid maintenance page id.");
+  if (!isValidId(id)) throw new ApiError(400, "Invalid maintenance page id.");
 
   const existing = await prisma.maintenancePage.findUnique({ where: { id } });
   if (!existing) throw new ApiError(404, "Maintenance page not found.");
@@ -96,7 +96,7 @@ export const updateMaintenancePage = asyncHandler(async (req, res) => {
 /** Admin: remove a page from maintenance. */
 export const deleteMaintenancePage = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!isValidObjectId(id)) throw new ApiError(400, "Invalid maintenance page id.");
+  if (!isValidId(id)) throw new ApiError(400, "Invalid maintenance page id.");
 
   const existing = await prisma.maintenancePage.findUnique({ where: { id } });
   if (!existing) throw new ApiError(404, "Maintenance page not found.");

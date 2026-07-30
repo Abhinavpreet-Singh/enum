@@ -9,7 +9,7 @@ import {
 } from "../services/entitlement.service.js";
 import { audit } from "./admin-advanced.controller.js";
 
-const isValidObjectId = (value) => /^[a-f\d]{24}$/i.test(String(value || ""));
+import { isValidId } from "../utils/isValidId.js";
 
 const productPayload = (body) => {
   const data = {};
@@ -102,7 +102,7 @@ export const createPremiumProduct = asyncHandler(async (req, res) => {
 
 export const updatePremiumProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!isValidObjectId(id)) throw new ApiError(400, "Valid product id required.");
+  if (!isValidId(id)) throw new ApiError(400, "Valid product id required.");
 
   const data = productPayload(req.body);
   const product = await prisma.premiumProduct.update({
@@ -123,7 +123,7 @@ export const updatePremiumProduct = asyncHandler(async (req, res) => {
 
 export const grantUserPremium = asyncHandler(async (req, res) => {
   const { userId, productId, notes = "" } = req.body;
-  if (!isValidObjectId(userId) || !isValidObjectId(productId)) {
+  if (!isValidId(userId) || !isValidId(productId)) {
     throw new ApiError(400, "Valid userId and productId are required.");
   }
 
@@ -154,7 +154,7 @@ export const grantUserPremium = asyncHandler(async (req, res) => {
 
 export const revokeUserPremium = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!isValidObjectId(id)) throw new ApiError(400, "Valid entitlement id required.");
+  if (!isValidId(id)) throw new ApiError(400, "Valid entitlement id required.");
 
   const entitlement = await revokeEntitlement(id);
   await audit("billing.entitlement.revoke", {

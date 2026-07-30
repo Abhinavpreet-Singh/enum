@@ -18,7 +18,7 @@ COPY src ./src
 
 # 3. Generate Prisma Client inside the image for debian-openssl-3.0.x
 #    DATABASE_URL is required by prisma.config.ts but generate does not connect.
-ENV DATABASE_URL="mongodb://build-placeholder:27017/build"
+ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
 RUN npx prisma generate
 
 # 4. Verify the query engine was generated before pruning

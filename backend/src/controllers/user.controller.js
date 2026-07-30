@@ -48,7 +48,7 @@ const buildStreakUpdate = (user, now) => {
   return { currentStreak: 1, lastActivityDate: now };
 };
 
-const isValidObjectId = (value) => /^[a-f\d]{24}$/i.test(String(value || ""));
+import { isValidId } from "../utils/isValidId.js";
 
 const generateAccessAndRefreshToken = async (userId, req) => {
   try {
@@ -232,7 +232,7 @@ const loginUser = asyncHandler(async (req, res) => {
 const getUserById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  if (!id || !isValidObjectId(id)) {
+  if (!id || !isValidId(id)) {
     throw new ApiError(400, "Valid user id is required");
   }
 

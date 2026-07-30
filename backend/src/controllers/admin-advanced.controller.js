@@ -2,7 +2,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import prisma from "../db/index.js";
 
-const isValidObjectId = (value) => /^[a-f\d]{24}$/i.test(String(value || ""));
+import { isValidId } from "../utils/isValidId.js";
 
 // ── Audit log helper ──────────────────────────────────────────────────────────
 export const audit = async (action, { targetType = "", targetId = "", targetName = "", detail = "", adminEmail = "" } = {}) => {
@@ -138,7 +138,7 @@ export const getAnalytics = asyncHandler(async (req, res) => {
 // ── User advanced operations ──────────────────────────────────────────────────
 export const getUserActivity = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!isValidObjectId(id)) throw new ApiError(400, "Valid user id required.");
+  if (!isValidId(id)) throw new ApiError(400, "Valid user id required.");
 
   const [logs, xpAwards] = await Promise.all([
     prisma.userActivityLog.findMany({
@@ -158,7 +158,7 @@ export const getUserActivity = asyncHandler(async (req, res) => {
 
 export const suspendUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!isValidObjectId(id)) throw new ApiError(400, "Valid user id required.");
+  if (!isValidId(id)) throw new ApiError(400, "Valid user id required.");
   const { suspended, reason = "" } = req.body;
 
   const user = await prisma.user.findUnique({ where: { id } });
@@ -254,7 +254,7 @@ export const createAnnouncement = asyncHandler(async (req, res) => {
 
 export const updateAnnouncement = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!isValidObjectId(id)) throw new ApiError(400, "Valid id required.");
+  if (!isValidId(id)) throw new ApiError(400, "Valid id required.");
   const { title, body, type, audience, active } = req.body;
 
   const existing = await prisma.announcement.findUnique({ where: { id } });
@@ -276,7 +276,7 @@ export const updateAnnouncement = asyncHandler(async (req, res) => {
 
 export const deleteAnnouncement = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!isValidObjectId(id)) throw new ApiError(400, "Valid id required.");
+  if (!isValidId(id)) throw new ApiError(400, "Valid id required.");
 
   await prisma.announcement.delete({ where: { id } });
 

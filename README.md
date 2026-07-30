@@ -232,14 +232,14 @@ DELETE /api/v1/admin/deleteQuestion/:id      — Delete question (admin only)
 
 ---
 
-## 3. Database Schema (Prisma + MongoDB)
+## 3. Database Schema (Prisma + PostgreSQL)
 
 ### Location: `enum_backend/prisma/schema.prisma`
 
 #### **Core Models**
 
 **User**
-- `id` (ObjectId) — Primary key
+- `id` (cuid String) — Primary key
 - `username` (String, unique)
 - `email` (String, unique)
 - `password` (String, optional for OAuth users)
@@ -260,16 +260,16 @@ DELETE /api/v1/admin/deleteQuestion/:id      — Delete question (admin only)
 - **Relations**: Solutions[], Submissions[], SimulationProgress[], SystemDesignSubmissions[], IncidentSession[], UserActivityLog[], UserXpAward[]
 
 **UserXpAward**
-- `id` (ObjectId)
-- `userId` (ObjectId) — Links to User
+- `id` (cuid String)
+- `userId` (cuid String) — Links to User
 - `awardKey` (String) — Unique award key identifier (prevents duplicate XP claims)
 - `xpAmount` (Int) — Granted XP
 
 **UserActivityLog**
-- `id` (ObjectId)
-- `userId` (ObjectId) — Links to User
+- `id` (cuid String)
+- `userId` (cuid String) — Links to User
 - `activityType` (String) — `dsa` | `simulation` | `system_design` | `incident` | `browser`
-- `resourceId` (ObjectId) — ID of problem/simulation
+- `resourceId` (cuid String) — ID of problem/simulation
 - `resourceTitle` (String) — Name of the resource
 - `outcome` (String) — `correct` | `partial` | `incorrect`
 - `xpEarned` (Int) — Awarded XP
@@ -278,13 +278,13 @@ DELETE /api/v1/admin/deleteQuestion/:id      — Delete question (admin only)
 - `createdAt` (DateTime) — Timestamp
 
 **OtpVerification**
-- `id` (ObjectId)
+- `id` (cuid String)
 - `email` (String)
 - `otp` (String)
 - `expiresAt` (DateTime)
 
 **Question** (DSA Problems)
-- `id` (ObjectId)
+- `id` (cuid String)
 - `title`, `desc` (String) — Problem name and description
 - `level` (String) — "Easy", "Medium", "Hard"
 - `testcases` (Json[]) — Array of test cases with input/output
@@ -297,7 +297,7 @@ DELETE /api/v1/admin/deleteQuestion/:id      — Delete question (admin only)
 - **Relations**: Solutions[], Submissions[], Editorials[]
 
 **LinuxQuestion** (Bash Arena Challenges)
-- `id` (ObjectId)
+- `id` (cuid String)
 - `slug` (String, unique) — Reference slug
 - `title`, `description` (String) — Challenge details
 - `difficulty` (String) — "easy" | "medium" | "hard"
@@ -309,16 +309,16 @@ DELETE /api/v1/admin/deleteQuestion/:id      — Delete question (admin only)
 - `language` (String) — Default: "bash"
 
 **Solution** (Community Solutions)
-- `id` (ObjectId)
-- `questionId`, `userId` (ObjectId, foreign keys)
+- `id` (cuid String)
+- `questionId`, `userId` (cuid String, foreign keys)
 - `code` (String)
 - `language` (String) — Default: "javascript"
 - `upvotes` (Int) — Community votes
 - `createdAt`, `updatedAt` (DateTime)
 
 **Submission** (Problem Attempts)
-- `id` (ObjectId)
-- `questionId`, `userId` (ObjectId)
+- `id` (cuid String)
+- `questionId`, `userId` (cuid String)
 - `code` (String)
 - `language` (String)
 - `verdict` (String) — "accepted", "wrong_answer", "runtime_error", "compile_error", "error", "partial"
@@ -327,14 +327,14 @@ DELETE /api/v1/admin/deleteQuestion/:id      — Delete question (admin only)
 - `createdAt`, `updatedAt` (DateTime)
 
 **Editorial** (Problem Explanations)
-- `id` (ObjectId)
-- `questionId` (ObjectId, unique) — One editorial per question
+- `id` (cuid String)
+- `questionId` (cuid String, unique) — One editorial per question
 - `title`, `intuition`, `approach`, `algorithm`, `code` (String)
 - `timeComplexity`, `spaceComplexity` (String)
 - `createdAt`, `updatedAt` (DateTime)
 
 **Simulation** (Real-world Challenges)
-- `id` (ObjectId)
+- `id` (cuid String)
 - `title`, `description`, `incident` (String)
 - `category` (String) — "frontend", "backend", "fullstack", "devops"
 - `difficulty` (String) — "easy", "medium", "hard"
@@ -350,8 +350,8 @@ DELETE /api/v1/admin/deleteQuestion/:id      — Delete question (admin only)
 - **Relations**: UserSimulationProgress[]
 
 **UserSimulationProgress**
-- `id` (ObjectId)
-- `userId`, `simulationId` (ObjectId)
+- `id` (cuid String)
+- `userId`, `simulationId` (cuid String)
 - `solved` (Boolean)
 - `attempts` (Int)
 - `lastAttemptAt` (DateTime)
@@ -360,7 +360,7 @@ DELETE /api/v1/admin/deleteQuestion/:id      — Delete question (admin only)
 - **Unique**: userId + simulationId
 
 **SystemDesignSimulation** (Architecture Challenges)
-- `id` (ObjectId)
+- `id` (cuid String)
 - `title`, `description` (String)
 - `difficulty` (String)
 - `evaluationRules` (EvaluationRule[]) — Scoring rubric
@@ -370,8 +370,8 @@ DELETE /api/v1/admin/deleteQuestion/:id      — Delete question (admin only)
 - **Relations**: SystemDesignSubmission[]
 
 **SystemDesignSubmission** (Architecture Submissions)
-- `id` (ObjectId)
-- `simulationId`, `userId` (ObjectId)
+- `id` (cuid String)
+- `simulationId`, `userId` (cuid String)
 - `nodes`, `edges` (Json) — React Flow diagram export
 - `explanation` (String) — User's rationale
 - `replayEvents` (Json, optional) — Diagram drawing sequence
@@ -380,7 +380,7 @@ DELETE /api/v1/admin/deleteQuestion/:id      — Delete question (admin only)
 - `createdAt`, `updatedAt` (DateTime)
 
 **IncidentSimulation** (Production Outage Simulations)
-- `id` (ObjectId)
+- `id` (cuid String)
 - `title`, `description` (String)
 - `difficulty` (String) — "easy" | "medium" | "hard"
 - `durationSeconds` (Int) — Simulation active length
@@ -396,8 +396,8 @@ DELETE /api/v1/admin/deleteQuestion/:id      — Delete question (admin only)
 - **Relations**: IncidentSession[], IncidentTimelineEvent[]
 
 **IncidentSession** (Active Outage Attempt)
-- `id` (ObjectId)
-- `userId`, `incidentId` (ObjectId)
+- `id` (cuid String)
+- `userId`, `incidentId` (cuid String)
 - `elapsedTime` (Int) — Current running duration (seconds)
 - `isActive` (Boolean) — Session active state
 - `isCompleted` (Boolean) — Resolution state
@@ -411,8 +411,8 @@ DELETE /api/v1/admin/deleteQuestion/:id      — Delete question (admin only)
 - **Relations**: IncidentSessionState
 
 **IncidentSessionState** (Real-time Outage Tick Data)
-- `id` (ObjectId)
-- `sessionId` (ObjectId) — Links to IncidentSession
+- `id` (cuid String)
+- `sessionId` (cuid String) — Links to IncidentSession
 - `currentTime` (Int) — Running tick counter (seconds)
 - `services` (IncidentService[]) — Current service statuses
 - `metrics` (Json) — Dynamic metric states (CPU, Latency)
@@ -570,11 +570,11 @@ IncidentSimulation ──1:N── IncidentSession
   - Password reset confirmations
 - **Configuration**: `utils/resendEmail.js` (environment-based API key)
 
-### **Database (MongoDB)**
-- **Provider**: MongoDB Atlas (cloud NoSQL database)
+### **Database (PostgreSQL)**
+- **Provider**: PostgreSQL (self-hosted on Dokploy)
 - **Client**: Prisma ORM (`db/index.js`)
 - **Models**: Defined in `prisma/schema.prisma`
-- **Connection**: `DATABASE_URL` environment variable
+- **Connection**: `DATABASE_URL` environment variable (single connection string)
 
 ### **Cache & Queue (Redis)**
 - **Used For**:
@@ -838,7 +838,7 @@ When an incident is started:
 ### **Backend**
 - **Language**: Node.js (JavaScript/ES modules)
 - **Framework**: Express.js
-- **Database**: MongoDB + Prisma ORM
+- **Database**: PostgreSQL + Prisma ORM
 - **Real-time**: Socket.IO
 - **Package Manager**: npm
 - **Key Dependencies**:
@@ -969,7 +969,7 @@ When an incident is started:
 | **Real-time Events**            | 11+                                                           |
 | **Supported Languages**         | 6 (JS, Python, Java, C++, C, Bash)                            |
 | **Authentication Methods**      | 3 (Email, Google, GitHub)                                     |
-| **Third-party Services**        | 6 (Cloudinary, Resend, MongoDB, Botpress, compiler, xterm)    |
+| **Third-party Services**        | 6 (Cloudinary, Resend, PostgreSQL, Botpress, compiler, xterm)    |
 | **Analysis Complexity Classes** | 9                                                             |
 | **Algorithmic Patterns**        | 15+                                                           |
 

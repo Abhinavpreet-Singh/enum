@@ -13,26 +13,24 @@ free -h
 df -h
 ```
 
-## PostgreSQL / MongoDB / Redis Checks
+## PostgreSQL / Redis Checks
 Use the datastore-native monitoring available in your deployment stack.
+
+For PostgreSQL (Dokploy or containerized):
+
+```bash
+# Active connections
+psql "$DATABASE_URL" -c "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database();"
+
+# Slow queries (if pg_stat_statements is enabled)
+psql "$DATABASE_URL" -c "SELECT query, calls, mean_exec_time FROM pg_stat_statements ORDER BY mean_exec_time DESC LIMIT 10;"
+```
 
 For Redis (containerized):
 
 ```bash
 docker exec -it <redis-container> redis-cli INFO memory
 docker exec -it <redis-container> redis-cli INFO stats
-```
-
-For MongoDB Atlas, monitor:
-- Connections
-- Operation execution time
-- Read/write IOPS
-- CPU and memory utilization
-
-If running local MongoDB container:
-
-```bash
-docker exec -it <mongo-container> mongosh --eval "db.serverStatus().connections"
 ```
 
 ## What Indicates Saturation

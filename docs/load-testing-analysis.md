@@ -46,7 +46,7 @@ flowchart TD
 2. Prisma lookup (`user` first, then `organization` for email path).
 3. Password verify with bcrypt (`bcrypt.compare`).
 4. JWT signing (`jsonwebtoken.sign`) for access/refresh tokens.
-5. Refresh token persisted to MongoDB via Prisma update.
+5. Session row created in PostgreSQL via Prisma (`sessions` table).
 6. Cookies set (`httpOnly`, env-dependent `sameSite`/`secure`) and JSON body returns `accessToken`.
 
 ## JWT Creation And Verification
@@ -90,7 +90,7 @@ flowchart TD
 
 ## Performance Risks
 - No auth-specific rate limiting can permit brute-force or burst traffic to hit bcrypt + DB heavily.
-- Shared MongoDB cluster pressure from read-heavy and write-heavy routes during events.
+- Shared PostgreSQL connection pool pressure from read-heavy and write-heavy routes during events.
 - Token secret split (`JWT_SECRET` vs `ACCESS_TOKEN_SECRET`) can complicate incident handling/rotation.
 - If Redis is unavailable, complexity subsystem degrades gracefully but may increase CPU load from uncached analysis.
 

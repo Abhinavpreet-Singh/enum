@@ -3,7 +3,7 @@ import { ApiError } from "../utils/apiError.js";
 import prisma from "../db/index.js";
 import { summarizeEntitlements } from "../services/entitlement.service.js";
 
-const isValidObjectId = (value) => /^[a-f\d]{24}$/i.test(String(value || ""));
+import { isValidId } from "../utils/isValidId.js";
 
 // ── requireAdmin middleware ────────────────────────────────────────────────────
 export const requireAdmin = asyncHandler(async (req, res, next) => {
@@ -146,7 +146,7 @@ export const getAllUsers = asyncHandler(async (req, res) => {
 
 export const getUserById = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!id || !isValidObjectId(id)) {
+  if (!id || !isValidId(id)) {
     throw new ApiError(400, "Valid user id is required.");
   }
   const user = await prisma.user.findUnique({
@@ -211,7 +211,7 @@ export const getUserById = asyncHandler(async (req, res) => {
 
 export const deleteUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!id || !isValidObjectId(id)) {
+  if (!id || !isValidId(id)) {
     throw new ApiError(400, "Valid user id is required.");
   }
   const user = await prisma.user.findUnique({ where: { id } });
@@ -258,7 +258,7 @@ export const getAllOrganizations = asyncHandler(async (req, res) => {
 
 export const getOrganizationById = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!id || !isValidObjectId(id)) {
+  if (!id || !isValidId(id)) {
     throw new ApiError(400, "Valid organization id is required.");
   }
   const organization = await prisma.organization.findUnique({
@@ -292,7 +292,7 @@ export const getOrganizationById = asyncHandler(async (req, res) => {
 
 export const updateOrganizationApproval = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!id || !isValidObjectId(id)) {
+  if (!id || !isValidId(id)) {
     throw new ApiError(400, "Valid organization id is required.");
   }
   const { status } = req.body; // "approved" | "rejected" | "pending"
@@ -440,7 +440,7 @@ export const getRecentActivity = asyncHandler(async (req, res) => {
 
 export const deleteOrganization = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!id || !isValidObjectId(id)) {
+  if (!id || !isValidId(id)) {
     throw new ApiError(400, "Valid organization id is required.");
   }
   const organization = await prisma.organization.findUnique({ where: { id } });

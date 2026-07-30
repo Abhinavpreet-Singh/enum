@@ -134,7 +134,7 @@ async function storeMLData(hybridResult, language, userId) {
   // Add to in-memory classifier
   addTrainingSample(featureVector, label);
 
-  // Push to Redis queue for batch processing into MongoDB
+  // Push to Redis queue for batch processing
   await pushMLTrainingData({
     features: featureVector,
     label,
