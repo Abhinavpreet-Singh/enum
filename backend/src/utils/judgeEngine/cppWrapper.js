@@ -155,7 +155,16 @@ export const generateCppWrapper = ({
     return buildCppHarness(functionName, parameterTypes, returnType, userFunctionCode);
   }
 
-  // 2) Auto-detect function signature
+  // 2) Complete program with main — run as-is (class-based OOP questions)
+  const hasIncludes = /#include/.test(userFunctionCode);
+  const hasMain = /\bmain\s*\(/.test(userFunctionCode);
+
+  if (hasMain) {
+    const prefix = hasIncludes ? "" : "#include <bits/stdc++.h>\nusing namespace std;\n";
+    return prefix + userFunctionCode;
+  }
+
+  // 3) Auto-detect function signature
   const detected = parseCppSignature(userFunctionCode);
   if (detected && detected.parameterTypes.length > 0) {
     return buildCppHarness(
@@ -164,15 +173,6 @@ export const generateCppWrapper = ({
       detected.returnType,
       userFunctionCode,
     );
-  }
-
-  // 3) Script mode — add standard headers if missing and run as-is
-  const hasIncludes = /#include/.test(userFunctionCode);
-  const hasMain = /\bmain\s*\(/.test(userFunctionCode);
-
-  if (hasMain) {
-    const prefix = hasIncludes ? "" : "#include <bits/stdc++.h>\nusing namespace std;\n";
-    return prefix + userFunctionCode;
   }
 
   // Can't figure it out — wrap with a placeholder main

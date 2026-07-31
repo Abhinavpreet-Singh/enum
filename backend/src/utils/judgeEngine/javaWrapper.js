@@ -168,7 +168,18 @@ export const generateJavaWrapper = ({
     return buildJavaHarness(functionName, parameterTypes, returnType, userFunctionCode);
   }
 
-  // 2) No metadata — try to auto-detect the function signature from the code
+  // 2) Complete program with main — run as-is (class-based OOP questions)
+  if (/public\s+static\s+void\s+main\s*\(/.test(userFunctionCode)) {
+    if (/\bclass\s+Main\b/.test(userFunctionCode)) {
+      return userFunctionCode;
+    }
+    return `import java.util.*;
+import java.io.*;
+${userFunctionCode}
+`;
+  }
+
+  // 3) No metadata — try to auto-detect the function signature from the code
   const detected = parseJavaSignature(userFunctionCode);
   if (detected) {
     return buildJavaHarness(
@@ -177,18 +188,6 @@ export const generateJavaWrapper = ({
       detected.returnType,
       userFunctionCode,
     );
-  }
-
-  // 3) Code already contains a complete class with main — run as-is
-  if (/public\s+static\s+void\s+main\s*\(/.test(userFunctionCode)) {
-    // If it already declares class Main just return it; otherwise wrap
-    if (/\bclass\s+Main\b/.test(userFunctionCode)) {
-      return userFunctionCode;
-    }
-    return `import java.util.*;
-import java.io.*;
-${userFunctionCode}
-`;
   }
 
   // 4) Fallback: can't figure out the structure — tell the candidate to write a complete class

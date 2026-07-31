@@ -129,7 +129,12 @@ export const generatePythonWrapper = ({
     return buildPythonHarness(functionName, parameterTypes, returnType, userFunctionCode);
   }
 
-  // 2) Auto-detect function signature from code
+  // 2) Complete script with __main__ guard — run as-is (class-based OOP questions)
+  if (/if\s+__name__\s*==\s*['"]__main__['"]/.test(userFunctionCode)) {
+    return userFunctionCode;
+  }
+
+  // 3) Auto-detect function signature from code
   const detected = parsePythonSignature(userFunctionCode);
   if (detected && detected.parameterTypes.length > 0) {
     return buildPythonHarness(
@@ -140,6 +145,6 @@ export const generatePythonWrapper = ({
     );
   }
 
-  // 3) Script mode — run as-is (user reads stdin themselves via input() or sys.stdin)
+  // 4) Script mode — run as-is (user reads stdin themselves via input() or sys.stdin)
   return userFunctionCode;
 };

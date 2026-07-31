@@ -12,6 +12,7 @@
     "prisma:push": "npx prisma db push",
     "prisma:migrate": "npx prisma migrate deploy",
     "seed:questions": "node scripts/seed-questions.js",
+    "seed:oop-questions": "node scripts/seed-oop-questions.js",
     "seed:simulations": "node scripts/seed-simulations.js",
     "seed:system-design": "node scripts/seed-system-design.js",
     "seed:linux": "node scripts/seed-linux-questions.js",
