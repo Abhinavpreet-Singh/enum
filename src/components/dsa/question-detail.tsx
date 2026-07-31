@@ -2,6 +2,7 @@
 
 import { Question } from "@/data/dsa-questions";
 import { Clock, AlertCircle } from "lucide-react";
+import ProblemDescription from "./problem-description";
 
 interface QuestionDetailProps {
     question: Question;
@@ -45,9 +46,7 @@ export default function QuestionDetail({ question }: QuestionDetailProps) {
                     <h2 className="font-mono text-xs tracking-[0.2em] text-gray-500 mb-3">
                         DESCRIPTION
                     </h2>
-                    <p className="text-sm text-gray-700 leading-relaxed">
-                        {question.description}
-                    </p>
+                    <ProblemDescription text={question.description} />
                 </div>
 
                 {/* Examples */}

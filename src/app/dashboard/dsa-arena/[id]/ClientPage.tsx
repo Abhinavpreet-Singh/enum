@@ -1,6 +1,6 @@
 "use client";
 
-import ProblemTabs from "@/components/dsa/problem-tabs";
+import ProblemTabs, { type TabType } from "@/components/dsa/problem-tabs";
 import CodeEditor from "@/components/dsa/code-editor";
 import { Question, fetchQuestions } from "@/data/dsa-questions";
 import { useEffect, useState } from "react";
@@ -16,9 +16,7 @@ export default function DSAArenaClientPage() {
   const [isResizing, setIsResizing] = useState(false);
   const [refreshSolutions, setRefreshSolutions] = useState(0);
   const [refreshSubmissions, setRefreshSubmissions] = useState(0);
-  const [leftPanelTab, setLeftPanelTab] = useState<
-    "description" | "submissions" | "solutions"
-  >("description");
+  const [leftPanelTab, setLeftPanelTab] = useState<TabType>("description");
 
   useEffect(() => {
     const loadQuestion = async () => {

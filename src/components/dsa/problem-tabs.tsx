@@ -4,6 +4,8 @@ import { Question } from "@/data/dsa-questions";
 import { Clock, AlertCircle } from "lucide-react";
 import SolutionsList from "./solutions-list";
 import SubmissionsList from "./submissions-list";
+import ProblemDescription from "./problem-description";
+import ProblemWhiteboard from "./problem-whiteboard";
 
 interface ProblemTabsProps {
   question: Question;
@@ -13,7 +15,11 @@ interface ProblemTabsProps {
   onTabChange: (tab: TabType) => void;
 }
 
-type TabType = "description" | "submissions" | "solutions";
+export type TabType =
+  | "description"
+  | "submissions"
+  | "solutions"
+  | "whiteboard";
 
 const difficultyColors = {
   Easy: "text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10",
@@ -63,9 +69,24 @@ export default function ProblemTabs({
         >
           Solutions
         </button>
+        <button
+          onClick={() => onTabChange("whiteboard")}
+          className={`px-4 h-full font-mono text-sm tracking-wider transition-colors border-b-2 ${
+            activeTab === "whiteboard"
+              ? "text-black dark:text-white border-b-black dark:border-b-white"
+              : "text-gray-500 border-b-transparent hover:text-black dark:hover:text-white"
+          }`}
+        >
+          Whiteboard
+        </button>
       </div>
 
       {/* Content */}
+      {activeTab === "whiteboard" ? (
+        <div className="flex-1 min-h-0 overflow-hidden dark:bg-black">
+          <ProblemWhiteboard questionId={question.id} />
+        </div>
+      ) : (
       <div className="flex-1 overflow-auto p-6 space-y-6 dark-scrollbar dark:bg-black">
         {activeTab === "description" && (
           <>
@@ -99,9 +120,7 @@ export default function ProblemTabs({
               <h2 className="font-mono text-xs tracking-[0.2em] text-gray-500 mb-3">
                 DESCRIPTION
               </h2>
-              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                {question.description}
-              </p>
+              <ProblemDescription text={question.description} />
             </div>
 
             {/* Examples */}
@@ -116,14 +135,18 @@ export default function ProblemTabs({
                       key={idx}
                       className="border border-gray-300 dark:border-white/10 p-4 bg-gray-50 dark:bg-white/5"
                     >
-                      <p className="font-mono text-xs text-gray-600 dark:text-gray-300 mb-2">
-                        <span className="font-bold">Input:</span>{" "}
+                      <p className="mb-2 font-mono text-xs text-gray-600 dark:text-gray-300">
+                        <span className="font-bold">Input:</span>
+                      </p>
+                      <pre className="mb-3 overflow-x-auto rounded bg-gray-100 px-3 py-2 font-mono text-xs text-gray-800 dark:bg-white/10 dark:text-gray-200">
                         {String(example.input)}
+                      </pre>
+                      <p className="mb-2 font-mono text-xs text-gray-600 dark:text-gray-300">
+                        <span className="font-bold">Output:</span>
                       </p>
-                      <p className="font-mono text-xs text-gray-600 dark:text-gray-300 mb-2">
-                        <span className="font-bold">Output:</span>{" "}
+                      <pre className="overflow-x-auto rounded bg-gray-100 px-3 py-2 font-mono text-xs text-gray-800 dark:bg-white/10 dark:text-gray-200">
                         {String(example.output)}
-                      </p>
+                      </pre>
                     </div>
                   ))
                 ) : (
@@ -185,6 +208,7 @@ export default function ProblemTabs({
           />
         )}
       </div>
+      )}
     </div>
   );
 }
