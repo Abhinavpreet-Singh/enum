@@ -37,11 +37,12 @@ export default function ProblemTabs({
 }: ProblemTabsProps) {
   return (
     <div className="h-full flex flex-col bg-white dark:bg-black">
-      {/* Tabs */}
-      <div className="flex border-b dark:border-white/8 h-12 shrink-0 items-center">
+      {/* Tabs — scroll horizontally so Whiteboard stays reachable in narrow panels */}
+      <div className="flex h-12 shrink-0 items-stretch overflow-x-auto border-b border-gray-200 dark:border-white/8 [scrollbar-width:thin]">
         <button
+          type="button"
           onClick={() => onTabChange("description")}
-          className={`px-4 h-full font-mono text-sm tracking-wider transition-colors border-b-2 ${
+          className={`shrink-0 whitespace-nowrap px-4 h-full font-mono text-sm tracking-wider transition-colors border-b-2 ${
             activeTab === "description"
               ? "text-black dark:text-white border-b-black dark:border-b-white"
               : "text-gray-500 border-b-transparent hover:text-black dark:hover:text-white"
@@ -50,8 +51,20 @@ export default function ProblemTabs({
           Description
         </button>
         <button
+          type="button"
+          onClick={() => onTabChange("whiteboard")}
+          className={`shrink-0 whitespace-nowrap px-4 h-full font-mono text-sm tracking-wider transition-colors border-b-2 ${
+            activeTab === "whiteboard"
+              ? "text-black dark:text-white border-b-black dark:border-b-white"
+              : "text-gray-500 border-b-transparent hover:text-black dark:hover:text-white"
+          }`}
+        >
+          Whiteboard
+        </button>
+        <button
+          type="button"
           onClick={() => onTabChange("submissions")}
-          className={`px-4 h-full font-mono text-sm tracking-wider transition-colors border-b-2 ${
+          className={`shrink-0 whitespace-nowrap px-4 h-full font-mono text-sm tracking-wider transition-colors border-b-2 ${
             activeTab === "submissions"
               ? "text-black dark:text-white border-b-black dark:border-b-white"
               : "text-gray-500 border-b-transparent hover:text-black dark:hover:text-white"
@@ -60,24 +73,15 @@ export default function ProblemTabs({
           Submissions
         </button>
         <button
+          type="button"
           onClick={() => onTabChange("solutions")}
-          className={`px-4 h-full font-mono text-sm tracking-wider transition-colors border-b-2 ${
+          className={`shrink-0 whitespace-nowrap px-4 h-full font-mono text-sm tracking-wider transition-colors border-b-2 ${
             activeTab === "solutions"
               ? "text-black dark:text-white border-b-black dark:border-b-white"
               : "text-gray-500 border-b-transparent hover:text-black dark:hover:text-white"
           }`}
         >
           Solutions
-        </button>
-        <button
-          onClick={() => onTabChange("whiteboard")}
-          className={`px-4 h-full font-mono text-sm tracking-wider transition-colors border-b-2 ${
-            activeTab === "whiteboard"
-              ? "text-black dark:text-white border-b-black dark:border-b-white"
-              : "text-gray-500 border-b-transparent hover:text-black dark:hover:text-white"
-          }`}
-        >
-          Whiteboard
         </button>
       </div>
 

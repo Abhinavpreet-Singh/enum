@@ -116,7 +116,7 @@ export default function DSAArenaClientPage() {
       <div className="flex h-[calc(100vh/1.1)] overflow-hidden relative">
         {/* Left Panel - Problem */}
         <div
-          className="h-full overflow-hidden"
+          className="flex h-full min-w-0 flex-col overflow-hidden"
           style={{ width: `${leftPanelWidth}%` }}
         >
           <ProblemTabs
