@@ -7,6 +7,31 @@ import { Search, X, ChevronRight, CheckCircle2, Circle } from "lucide-react";
 
 const DIFFICULTIES = ["Easy", "Medium", "Hard"] as const;
 
+/** Preferred display order for topic tabs; unknown topics sort alphabetically after these. */
+const TOPIC_TAB_ORDER = [
+  "OOP",
+  "Arrays",
+  "String",
+  "Stack",
+  "Two Pointers",
+  "Sliding Window",
+  "Binary Search",
+  "Dynamic Programming",
+  "Greedy",
+  "Math",
+  "Deque",
+] as const;
+
+function sortTopics(topics: string[]): string[] {
+  const order = new Map(TOPIC_TAB_ORDER.map((t, i) => [t, i]));
+  return [...topics].sort((a, b) => {
+    const ai = order.get(a as (typeof TOPIC_TAB_ORDER)[number]) ?? 999;
+    const bi = order.get(b as (typeof TOPIC_TAB_ORDER)[number]) ?? 999;
+    if (ai !== bi) return ai - bi;
+    return a.localeCompare(b);
+  });
+}
+
 const DIFF_STYLE: Record<string, string> = {
   Easy: "text-emerald-500",
   Medium: "text-amber-400",
@@ -27,9 +52,7 @@ export default function QuestionsList() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeDiffs, setActiveDiffs] = useState<Set<string>>(new Set());
-  const [activeCategories, setActiveCategories] = useState<Set<string>>(
-    new Set(),
-  );
+  const [activeTab, setActiveTab] = useState<string>("All");
 
   useEffect(() => {
     fetchQuestions()
@@ -38,10 +61,18 @@ export default function QuestionsList() {
       .finally(() => setLoading(false));
   }, []);
 
-  const categories = useMemo(
-    () => [...new Set(questions.map((q) => q.category))].sort(),
+  const topics = useMemo(
+    () => sortTopics([...new Set(questions.map((q) => q.category))]),
     [questions],
   );
+
+  const topicCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const q of questions) {
+      counts[q.category] = (counts[q.category] ?? 0) + 1;
+    }
+    return counts;
+  }, [questions]);
 
   const toggleSet = (set: Set<string>, val: string): Set<string> => {
     const next = new Set(set);
@@ -65,37 +96,84 @@ export default function QuestionsList() {
     }
     if (activeDiffs.size)
       result = result.filter((p) => activeDiffs.has(p.difficulty));
-    if (activeCategories.size)
-      result = result.filter((p) => activeCategories.has(p.category));
+    if (activeTab !== "All")
+      result = result.filter((p) => p.category === activeTab);
     return result;
-  }, [questions, search, activeDiffs, activeCategories]);
+  }, [questions, search, activeDiffs, activeTab]);
 
-  const hasFilters = !!(search || activeDiffs.size || activeCategories.size);
+  const hasFilters = !!(search || activeDiffs.size || activeTab !== "All");
+
+  const tabQuestions = useMemo(
+    () =>
+      activeTab === "All"
+        ? questions
+        : questions.filter((q) => q.category === activeTab),
+    [questions, activeTab],
+  );
 
   const counts = useMemo(
     () => ({
-      Easy: questions.filter((q) => q.difficulty === "Easy").length,
-      Medium: questions.filter((q) => q.difficulty === "Medium").length,
-      Hard: questions.filter((q) => q.difficulty === "Hard").length,
+      Easy: tabQuestions.filter((q) => q.difficulty === "Easy").length,
+      Medium: tabQuestions.filter((q) => q.difficulty === "Medium").length,
+      Hard: tabQuestions.filter((q) => q.difficulty === "Hard").length,
     }),
-    [questions],
+    [tabQuestions],
   );
 
   const clearAll = () => {
     setSearch("");
     setActiveDiffs(new Set());
-    setActiveCategories(new Set());
+    setActiveTab("All");
   };
 
   return (
     <div className="space-y-4">
+      {/* Topic tabs */}
+      {!loading && topics.length > 0 && (
+        <div className="flex flex-wrap gap-0 border-b border-gray-200 dark:border-white/10 -mx-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab("All")}
+            className={`flex items-center gap-2 border px-3 py-2.5 font-mono text-[10px] tracking-wider uppercase transition-colors ${
+              activeTab === "All"
+                ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                : "border-gray-200 dark:border-white/8 bg-transparent text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-white/30 hover:text-black dark:hover:text-white"
+            }`}
+          >
+            <span>All</span>
+            <span className={activeTab === "All" ? "opacity-70" : "text-gray-400"}>
+              ({questions.length})
+            </span>
+          </button>
+          {topics.map((topic) => {
+            const active = activeTab === topic;
+            return (
+              <button
+                key={topic}
+                type="button"
+                onClick={() => setActiveTab(topic)}
+                className={`flex items-center gap-2 border px-3 py-2.5 font-mono text-[10px] tracking-wider uppercase transition-colors ${
+                  active
+                    ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                    : "border-gray-200 dark:border-white/8 bg-transparent text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-white/30 hover:text-black dark:hover:text-white"
+                }`}
+              >
+                <span>{topic}</span>
+                <span className={active ? "opacity-70" : "text-gray-400"}>
+                  ({topicCounts[topic] ?? 0})
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
       {/* Stats */}
       <div className="flex items-center gap-4 font-mono text-xs">
         <span className="text-gray-500 dark:text-gray-400">
           <span className="text-black dark:text-white font-bold">
-            {questions.length}
+            {tabQuestions.length}
           </span>{" "}
-          problems
+          problems{activeTab !== "All" ? ` in ${activeTab}` : ""}
         </span>
         <span className="text-emerald-500">
           <span className="font-bold">{counts.Easy}</span> Easy
@@ -160,42 +238,17 @@ export default function QuestionsList() {
         </div>
       </div>
 
-      {/* Category pills */}
-      {categories.length > 0 && (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {categories.map((cat) => {
-            const active = activeCategories.has(cat);
-            return (
-              <button
-                key={cat}
-                onClick={() =>
-                  setActiveCategories(toggleSet(activeCategories, cat))
-                }
-                className={`px-2.5 py-1 border font-mono text-[10px] tracking-widest uppercase transition-all duration-200 ${
-                  active
-                    ? "border-black dark:border-white bg-black dark:bg-white text-white dark:text-black"
-                    : "border-gray-200 dark:border-white/8 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-white/30 hover:text-black dark:hover:text-white"
-                }`}
-              >
-                {cat}
-              </button>
-            );
-          })}
-          {hasFilters && (
-            <button
-              onClick={clearAll}
-              className="px-2.5 py-1 font-mono text-[10px] tracking-widest text-gray-400 hover:text-black dark:hover:text-white transition-colors"
-            >
-              CLEAR
-            </button>
-          )}
-        </div>
-      )}
-
       {/* Active count */}
       {hasFilters && (
         <p className="font-mono text-[10px] text-gray-400 tracking-widest">
-          {filtered.length} of {questions.length} problems
+          {filtered.length} of {tabQuestions.length} problems
+          <button
+            type="button"
+            onClick={clearAll}
+            className="ml-3 text-gray-400 hover:text-black dark:hover:text-white underline transition-colors"
+          >
+            Clear filters
+          </button>
         </p>
       )}
 
