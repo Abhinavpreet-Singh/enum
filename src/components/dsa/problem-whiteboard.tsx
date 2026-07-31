@@ -14,6 +14,7 @@ const PEN_COLORS = [
 const PEN_SIZES = [2, 4, 6, 10] as const;
 
 type Tool = "pen" | "eraser";
+type PenColor = (typeof PEN_COLORS)[number]["value"];
 
 interface ProblemWhiteboardProps {
   questionId: string;
@@ -29,7 +30,7 @@ export default function ProblemWhiteboard({
   const savedDataUrlRef = useRef<string | null>(null);
 
   const [tool, setTool] = useState<Tool>("pen");
-  const [color, setColor] = useState(PEN_COLORS[0].value);
+  const [color, setColor] = useState<PenColor>(PEN_COLORS[0].value);
   const [size, setSize] = useState<number>(4);
 
   const storageKey = `dsa-whiteboard:${questionId}`;
