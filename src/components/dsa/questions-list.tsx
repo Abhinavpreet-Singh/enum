@@ -11,6 +11,7 @@ const DIFFICULTIES = ["Easy", "Medium", "Hard"] as const;
 const TOPIC_TAB_ORDER = [
   "OOP",
   "Arrays",
+  "Matrix",
   "String",
   "Stack",
   "Two Pointers",

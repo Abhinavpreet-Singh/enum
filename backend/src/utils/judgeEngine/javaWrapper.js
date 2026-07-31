@@ -5,6 +5,7 @@ const JAVA_TO_INTERNAL = {
   String: "String", string: "String",
   boolean: "bool", Boolean: "bool",
   "int[]": "int[]", "long[]": "int[]", "Integer[]": "int[]",
+  "int[][]": "int[][]",
   "double[]": "double[]", "float[]": "double[]", "Double[]": "double[]",
   "String[]": "String[]",
   void: "void",
@@ -98,6 +99,11 @@ function buildJavaHarness(functionName, parameterTypes, returnType, userFunction
       parsingCode += `    int _n${idx} = Integer.parseInt(_tok[_ti++]);\n`;
       parsingCode += `    String[] param${idx} = new String[_n${idx}];\n`;
       parsingCode += `    for(int _i=0;_i<_n${idx};_i++) param${idx}[_i] = _tok[_ti++];\n`;
+    } else if (type === "int[][]") {
+      parsingCode += `    int _rows${idx} = Integer.parseInt(_tok[_ti++]);\n`;
+      parsingCode += `    int _cols${idx} = Integer.parseInt(_tok[_ti++]);\n`;
+      parsingCode += `    int[][] param${idx} = new int[_rows${idx}][_cols${idx}];\n`;
+      parsingCode += `    for(int _r=0;_r<_rows${idx};_r++) for(int _c=0;_c<_cols${idx};_c++) param${idx}[_r][_c] = Integer.parseInt(_tok[_ti++]);\n`;
     } else {
       // Unknown type — treat as String token
       parsingCode += `    String param${idx} = _tok[_ti++];\n`;
@@ -110,7 +116,7 @@ function buildJavaHarness(functionName, parameterTypes, returnType, userFunction
   // Return type mapping
   const javaReturnTypeMap = {
     int: "int", double: "double", float: "double", String: "String", string: "String",
-    bool: "boolean", "int[]": "int[]", "double[]": "double[]", "float[]": "double[]",
+    bool: "boolean", "int[]": "int[]", "int[][]": "int[][]", "double[]": "double[]", "float[]": "double[]",
     "String[]": "String[]", void: "void",
   };
   const javaReturn = javaReturnTypeMap[returnType] || "Object";

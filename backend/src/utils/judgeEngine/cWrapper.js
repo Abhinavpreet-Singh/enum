@@ -42,6 +42,11 @@ function buildCHarness(functionName, parameterTypes, returnType, userFunctionCod
       inputParsing += `  int _n${idx} = atoi(_NEXT_TOK());\n`;
       inputParsing += `  double* param${idx} = (double*)calloc(_n${idx} > 0 ? _n${idx} : 1, sizeof(double));\n`;
       inputParsing += `  for(int _i=0;_i<_n${idx};_i++) param${idx}[_i] = atof(_NEXT_TOK());\n`;
+    } else if (type === "int[][]") {
+      inputParsing += `  int _rows${idx} = atoi(_NEXT_TOK());\n`;
+      inputParsing += `  int _cols${idx} = atoi(_NEXT_TOK());\n`;
+      inputParsing += `  int** param${idx} = (int**)calloc(_rows${idx} > 0 ? _rows${idx} : 1, sizeof(int*));\n`;
+      inputParsing += `  for(int _r=0;_r<_rows${idx};_r++){ param${idx}[_r]=(int*)calloc(_cols${idx}>0?_cols${idx}:1,sizeof(int)); for(int _c=0;_c<_cols${idx};_c++) param${idx}[_r][_c]=atoi(_NEXT_TOK()); }\n`;
     } else {
       inputParsing += `  char* param${idx} = _NEXT_TOK();\n`;
     }
@@ -49,6 +54,8 @@ function buildCHarness(functionName, parameterTypes, returnType, userFunctionCod
     // C passes arrays with their size
     if (type === "int[]" || type === "double[]" || type === "float[]") {
       functionParams += `param${idx}, _n${idx}`;
+    } else if (type === "int[][]") {
+      functionParams += `param${idx}, _rows${idx}, _cols${idx}`;
     } else {
       functionParams += `param${idx}`;
     }

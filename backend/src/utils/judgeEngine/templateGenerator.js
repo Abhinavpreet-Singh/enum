@@ -9,6 +9,7 @@ const cppTypeMap = {
   string: "string",
   bool: "bool",
   "int[]": "vector<int>",
+  "int[][]": "vector<vector<int>>",
   "string[]": "vector<string>",
   "float[]": "vector<double>",
 };
@@ -20,6 +21,7 @@ const javaTypeMap = {
   string: "String",
   bool: "boolean",
   "int[]": "int[]",
+  "int[][]": "int[][]",
   "string[]": "String[]",
   "float[]": "double[]",
 };
@@ -31,6 +33,7 @@ const pythonTypeMap = {
   string: "str",
   bool: "bool",
   "int[]": "List[int]",
+  "int[][]": "List[List[int]]",
   "string[]": "List[str]",
   "float[]": "List[float]",
 };
@@ -42,6 +45,7 @@ const cTypeMap = {
   string: "char*",
   bool: "int",
   "int[]": "int*",
+  "int[][]": "int**",
   "float[]": "double*",
 };
 
@@ -92,6 +96,9 @@ export const generateCTemplate = ({ functionName, parameterNames, parameterTypes
     const name = parameterNames?.[i] || `param${i}`;
     if (type === "int[]") {
       return `int* ${name}, int ${name}Size`;
+    }
+    if (type === "int[][]") {
+      return `int** ${name}, int ${name}Rows, int ${name}Cols`;
     }
     if (type === "float[]") {
       return `double* ${name}, int ${name}Size`;

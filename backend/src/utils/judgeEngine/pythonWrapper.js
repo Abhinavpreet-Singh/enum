@@ -2,6 +2,7 @@
 const PY_TO_INTERNAL = {
   int: "int", float: "double", str: "String", bool: "bool",
   "List[int]": "int[]", "list[int]": "int[]",
+  "List[List[int]]": "int[][]", "list[list[int]]": "int[][]",
   "List[float]": "double[]", "list[float]": "double[]",
   "List[str]": "String[]", "list[str]": "String[]",
 };
@@ -83,6 +84,15 @@ def _next_tok():
     } else if (type === "String[]" || type === "string[]") {
       inputParsing += `_n${idx} = int(_next_tok())\n`;
       inputParsing += `param${idx} = [_next_tok() for _ in range(_n${idx})]\n`;
+    } else if (type === "int[][]") {
+      inputParsing += `_rows${idx} = int(_next_tok())\n`;
+      inputParsing += `_cols${idx} = int(_next_tok())\n`;
+      inputParsing += `param${idx} = []\n`;
+      inputParsing += `for _r in range(_rows${idx}):\n`;
+      inputParsing += `    _row = []\n`;
+      inputParsing += `    for _c in range(_cols${idx}):\n`;
+      inputParsing += `        _row.append(int(_next_tok()))\n`;
+      inputParsing += `    param${idx}.append(_row)\n`;
     } else {
       inputParsing += `param${idx} = int(_next_tok())\n`;
     }

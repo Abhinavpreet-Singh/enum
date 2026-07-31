@@ -5,6 +5,7 @@ const CPP_TO_INTERNAL = {
   string: "String", "std::string": "String",
   bool: "bool",
   "int*": "int[]", "vector<int>": "int[]",
+  "vector<vector<int>>": "int[][]",
   "double*": "double[]", "float*": "double[]", "vector<double>": "double[]", "vector<float>": "double[]",
   "string*": "String[]", "vector<string>": "String[]",
   void: "void",
@@ -96,6 +97,11 @@ function buildCppHarness(functionName, parameterTypes, returnType, userFunctionC
       inputParsing += `  int _n${idx} = stoi(_next_tok());\n`;
       inputParsing += `  vector<string> param${idx}(_n${idx});\n`;
       inputParsing += `  for(int _i=0;_i<_n${idx};_i++) param${idx}[_i] = _next_tok();\n`;
+    } else if (type === "int[][]") {
+      inputParsing += `  int _rows${idx} = stoi(_next_tok());\n`;
+      inputParsing += `  int _cols${idx} = stoi(_next_tok());\n`;
+      inputParsing += `  vector<vector<int>> param${idx}(_rows${idx}, vector<int>(_cols${idx}));\n`;
+      inputParsing += `  for(int _r=0;_r<_rows${idx};_r++) for(int _c=0;_c<_cols${idx};_c++) param${idx}[_r][_c] = stoi(_next_tok());\n`;
     } else {
       inputParsing += `  string param${idx} = _next_tok();\n`;
     }

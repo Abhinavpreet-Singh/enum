@@ -82,7 +82,22 @@ function formatScalarParameter(val) {
   return String(val ?? "").trim().replace(/,/g, " ");
 }
 
+function formatMatrixParameter(val) {
+  if (Array.isArray(val) && val.length > 0 && Array.isArray(val[0])) {
+    const rows = val.length;
+    const cols = val[0].length;
+    const flat = val.flat().map((x) => String(x).trim());
+    return `${rows} ${cols} ${flat.join(" ")}`;
+  }
+
+  const str = String(val ?? "").trim();
+  return str;
+}
+
 function formatParameterInput(val, type) {
+  if (type === "int[][]") {
+    return formatMatrixParameter(val);
+  }
   if (type && type.endsWith("[]")) {
     return formatArrayParameter(val);
   }
@@ -97,7 +112,9 @@ function formatParameterInput(val, type) {
 export function normaliseJudgeTestCaseInput(rawInput, parameterTypes = []) {
   let input = rawInput;
   const singleArrayParam =
-    parameterTypes.length === 1 && parameterTypes[0]?.endsWith("[]");
+    parameterTypes.length === 1 &&
+    parameterTypes[0]?.endsWith("[]") &&
+    parameterTypes[0] !== "int[][]";
 
   if (typeof input === "string") {
     const parsed = tryParseJsonArray(input.trim());
