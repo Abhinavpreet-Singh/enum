@@ -22,29 +22,44 @@ const allowedOrigins = [
     .filter(Boolean)
     .map(normalizeOrigin);
 
-async function main() {
+const host = process.env.HOST || "0.0.0.0";
+const port = Number(process.env.PORT) || 8000;
+
+async function connectDatabase() {
     try {
         await prisma.$connect();
         console.log("Prisma connected to PostgreSQL successfully");
-
-        // Create an HTTP server from the Express app so Socket.IO can attach
-        const server = createServer(app);
-
-        // Attach Socket.IO to the HTTP server
-        setupSocket(server, allowedOrigins);
-
-        const port = Number(process.env.PORT) || 8000;
-        server.listen(port, () => {
-            console.log(`Server is listening on http://localhost:${port}`);
-            console.log(`Socket.IO is ready on the same port`);
-        });
     } catch (err) {
-        console.error("Prisma connection failed:", err);
-        process.exit(1);
+        console.error(
+            "Prisma connection failed (server will continue; API routes may fail until DB is reachable):",
+            err.message,
+        );
     }
 }
 
-main();
+function startServer() {
+    const server = createServer(app);
+
+    setupSocket(server, allowedOrigins);
+
+    server.listen(port, host, () => {
+        console.log(`Server is listening on http://${host}:${port}`);
+        console.log(`Socket.IO is ready on the same port`);
+    });
+
+    return server;
+}
+
+async function main() {
+    // Start HTTP immediately so Dokploy/Traefik health checks succeed even if DB is slow.
+    startServer();
+    await connectDatabase();
+}
+
+main().catch((err) => {
+    console.error("Fatal startup error:", err);
+    process.exit(1);
+});
 
 // Graceful shutdown
 process.on("SIGINT", async () => {

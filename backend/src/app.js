@@ -72,9 +72,12 @@ app.use(cookieParser())
 
 app.use(passport.initialize())
 
-app.get("/health", (_req, res) => {
-  res.status(200).json({ status: "ok", service: "enum-backend" });
-});
+const healthHandler = (_req, res) => {
+  res.status(200).json({ status: "ok" });
+};
+
+app.get("/health", healthHandler);
+app.get("/api/health", healthHandler);
 
 console.log("[app] Passport initialized");
 

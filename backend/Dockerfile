@@ -47,6 +47,8 @@ RUN apt-get update && \
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ENV PATH="$JAVA_HOME/bin:$PATH"
 ENV NODE_ENV=production
+ENV PORT=8000
+ENV HOST=0.0.0.0
 # Backend image already includes language toolchains; no Docker-in-Docker on Dokploy/DO.
 ENV COMPILER_RUNTIME=local
 

@@ -1,12 +1,46 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+/** @type {import("resend").Resend | null} */
+let resendClient = null;
+let emailDisabledWarningLogged = false;
+
 const resendFromEmail =
   process.env.RESEND_FROM_EMAIL ||
   process.env.RESEND_FROM ||
   "ENUM <onboarding@resend.dev>";
 
+function getResendClient() {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey) {
+    return null;
+  }
+
+  if (!resendClient) {
+    resendClient = new Resend(apiKey);
+  }
+
+  return resendClient;
+}
+
+function warnEmailDisabled() {
+  if (emailDisabledWarningLogged) return;
+  emailDisabledWarningLogged = true;
+  console.warn(
+    "[email] RESEND_API_KEY is not set — email delivery is disabled. OTP and password-reset emails will fail until configured.",
+  );
+}
+
+export function isEmailEnabled() {
+  return Boolean(process.env.RESEND_API_KEY?.trim());
+}
+
 export const sendOtpEmail = async (email, otp) => {
+  const resend = getResendClient();
+  if (!resend) {
+    warnEmailDisabled();
+    throw new Error("Email service is not configured.");
+  }
+
   const { error } = await resend.emails.send({
     from: resendFromEmail,
     to: email,
@@ -79,6 +113,12 @@ export const sendOtpEmail = async (email, otp) => {
 };
 
 export const sendPasswordResetEmail = async (email, resetUrl, expiresAt) => {
+  const resend = getResendClient();
+  if (!resend) {
+    warnEmailDisabled();
+    throw new Error("Email service is not configured.");
+  }
+
   const expiresLabel = new Intl.DateTimeFormat("en", {
     dateStyle: "medium",
     timeStyle: "short",
