@@ -1,18 +1,27 @@
 "use client";
 
-import { API_BASE_URL } from "@/lib/api-config";
 import api from "@/lib/api";
-import { useContext, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useContext, useEffect, useRef, useState } from "react";
 import { setMemoryToken } from "@/lib/tokenStore";
 import { AuthContext } from "@/providers/AuthProvider";
 
+function loginUrl(errorCode?: string) {
+  if (!errorCode) return "/login/";
+  return `/login/?error=${encodeURIComponent(errorCode)}`;
+}
+
 export default function OAuthSuccessPage() {
-  const router = useRouter();
   const authCtx = useContext(AuthContext);
+  const setAccessTokenRef = useRef(authCtx?.setAccessToken);
+  setAccessTokenRef.current = authCtx?.setAccessToken;
+
   const [error, setError] = useState<string>("");
+  const startedRef = useRef(false);
 
   useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+
     const run = async () => {
       const searchParams = new URLSearchParams(window.location.search);
       const returnTo = searchParams.get("returnTo") || "/dashboard";
@@ -23,13 +32,12 @@ export default function OAuthSuccessPage() {
 
       if (oauthError) {
         setError(decodeURIComponent(oauthError));
-        router.replace("/login");
+        window.location.replace(loginUrl());
         return;
       }
 
       try {
         // The backend set an HttpOnly refresh cookie on the OAuth callback redirect.
-        // Call /me to get the access token and user object.
         const res = await api.get("/api/v1/auth/me", {
           withCredentials: true,
         });
@@ -38,12 +46,9 @@ export default function OAuthSuccessPage() {
 
         if (accessToken) {
           setMemoryToken(accessToken);
-          if (authCtx) {
-            authCtx.setAccessToken(accessToken);
-          }
+          setAccessTokenRef.current?.(accessToken);
         }
 
-        // Access token stays in memory; identity comes from backend/AuthProvider.
         if (data?.avatar) localStorage.setItem("userAvatar", data.avatar);
 
         const destination =
@@ -53,15 +58,16 @@ export default function OAuthSuccessPage() {
               ? "/dashboard"
               : returnTo;
 
-        router.replace(destination);
+        // Full page navigation so AuthProvider re-initializes with the session cookie.
+        window.location.replace(destination);
       } catch {
         setError("OAuth login failed. Please try again.");
-        router.replace("/login");
+        window.location.replace(loginUrl("oauth_failed"));
       }
     };
 
     run();
-  }, [router, authCtx]);
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black px-4">

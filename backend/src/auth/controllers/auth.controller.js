@@ -221,22 +221,42 @@ export const handleOAuthSuccess = async (req, res, userId) => {
   const normalizeOrigin = (v) => v.replace(/\/+$/, "");
   const frontendBase = normalizeOrigin(process.env.FRONTEND_URL || "http://localhost:3000");
 
-  // Allow candidate-supplied redirect if it's in allowed origins
-  const allowedOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || "http://localhost:3000")
-    .split(",")
-    .map((s) => normalizeOrigin(s.trim()))
-    .filter(Boolean);
+  const allowedOrigins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://enum.live",
+    "https://www.enum.live",
+    "https://exam.enum.live",
+    "https://enum0.vercel.app",
+    frontendBase,
+    ...(process.env.FRONTEND_URLS || process.env.FRONTEND_URL || "http://localhost:3000")
+      .split(",")
+      .map((s) => normalizeOrigin(s.trim()))
+      .filter(Boolean),
+  ]
+    .filter(Boolean)
+    .map(normalizeOrigin);
 
-  let redirectBase = frontendBase;
-  const candidate = req.query.redirect || req.query.redirect_uri;
-  if (candidate) {
+  const isAllowedFrontendUrl = (value) => {
     try {
-      const { origin } = new URL(candidate);
-      if (allowedOrigins.includes(normalizeOrigin(origin))) {
-        redirectBase = normalizeOrigin(origin);
-      }
+      return allowedOrigins.includes(normalizeOrigin(new URL(value).origin));
+    } catch {
+      return false;
+    }
+  };
+
+  const candidates = [
+    req.query.redirect,
+    req.query.redirect_uri,
+    req.query.successRedirect,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string" || !isAllowedFrontendUrl(candidate)) continue;
+    try {
+      return res.redirect(new URL(candidate).toString());
     } catch { /* ignore */ }
   }
 
-  return res.redirect(`${redirectBase}/oauth-success`);
+  return res.redirect(`${frontendBase}/oauth-success`);
 };
