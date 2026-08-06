@@ -8,7 +8,12 @@
  */
 import axios, { AxiosError, isAxiosError, type InternalAxiosRequestConfig } from "axios";
 import { API_BASE_URL } from "@/lib/api-config";
-import { getMemoryToken, setMemoryToken, clearMemoryToken } from "@/lib/tokenStore";
+import {
+  getMemoryToken,
+  setMemoryToken,
+  clearMemoryToken,
+  notifyAuthSessionExpired,
+} from "@/lib/tokenStore";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -17,7 +22,7 @@ const api = axios.create({
 
 // Bare client for refresh — must NOT use the main `api` instance or its
 // response interceptor will deadlock when refresh itself returns 401.
-const refreshClient = axios.create({
+export const refreshClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
 });
@@ -38,16 +43,28 @@ function resolveQueue(token: string | null) {
   refreshQueue = [];
 }
 
-async function doRefresh(): Promise<string | null> {
+export async function silentRefreshFromCookie(): Promise<string | null> {
   try {
     const res = await refreshClient.post("/api/v1/auth/refresh", {});
     const newToken: string = res.data?.accessToken;
+    if (!newToken) {
+      clearMemoryToken();
+      notifyAuthSessionExpired();
+      return null;
+    }
     setMemoryToken(newToken);
     return newToken;
-  } catch {
+  } catch (error) {
     clearMemoryToken();
+    if (isAxiosError(error) && error.response?.status === 401) {
+      notifyAuthSessionExpired();
+    }
     return null;
   }
+}
+
+async function doRefresh(): Promise<string | null> {
+  return silentRefreshFromCookie();
 }
 
 // ─── Request interceptor ──────────────────────────────────────────────────────

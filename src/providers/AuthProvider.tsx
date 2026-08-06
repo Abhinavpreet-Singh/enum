@@ -1,6 +1,6 @@
 "use client";
 
-import api from "@/lib/api";
+import api, { silentRefreshFromCookie } from "@/lib/api";
 import React, {
   createContext,
   useCallback,
@@ -15,6 +15,8 @@ import {
   purgePersistedAccessToken,
   consumeOAuthHandoff,
   getMemoryToken,
+  restoreMemoryTokenFromSession,
+  AUTH_SESSION_EXPIRED_EVENT,
 } from "@/lib/tokenStore";
 import { mapBackendAccountType, type AccountType } from "@/lib/account-session";
 
@@ -157,12 +159,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Initialize: call /me with the refresh cookie ──────────────────────────
 
   const initialize = useCallback(async () => {
+    restoreMemoryTokenFromSession();
     const handoffToken = consumeOAuthHandoff();
     if (handoffToken) {
       setMemoryToken(handoffToken);
     }
 
-    try {
+    const loadMe = async () => {
       const res = await api.get("/api/v1/auth/me", {
         withCredentials: true,
       });
@@ -178,14 +181,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading: false,
         authenticated: !!accessToken,
       });
+    };
+
+    try {
+      await loadMe();
     } catch {
       if (!mountedRef.current) return;
+
+      const refreshed = await silentRefreshFromCookie();
+      if (refreshed) {
+        try {
+          await loadMe();
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
 
       if (getMemoryToken()) {
         const established = await trySessionWithAccessToken();
         if (established) return;
 
-        // OAuth may have set the in-memory token while /me was in flight.
         setState((prev) => ({
           ...prev,
           accessToken: getMemoryToken(),
@@ -214,6 +230,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mountedRef.current = false;
     };
   }, [initialize]);
+
+  // Keep the short-lived access token fresh (expires every 10 minutes on the server).
+  useEffect(() => {
+    if (!state.authenticated) return;
+
+    const interval = window.setInterval(() => {
+      void silentRefreshFromCookie().then((token) => {
+        if (!token || !mountedRef.current) return;
+        setState((prev) => ({
+          ...prev,
+          accessToken: token,
+          authenticated: true,
+          loading: false,
+        }));
+      });
+    }, 8 * 60 * 1000);
+
+    return () => window.clearInterval(interval);
+  }, [state.authenticated]);
+
+  useEffect(() => {
+    const onSessionExpired = () => {
+      if (!mountedRef.current) return;
+      clearMemoryToken();
+      setState({
+        user: null,
+        accountType: "student",
+        accessToken: null,
+        loading: false,
+        authenticated: false,
+      });
+    };
+
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, onSessionExpired);
+    return () => {
+      window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, onSessionExpired);
+    };
+  }, []);
 
   // ── Login ─────────────────────────────────────────────────────────────────
 
@@ -261,23 +315,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (refreshingRef.current) return null;
     refreshingRef.current = true;
     try {
-      const res = await api.post(
-        "/api/v1/auth/refresh",
-        {},
-        { withCredentials: true },
-      );
-      const { accessToken, accountType } = res.data;
-      if (accessToken) {
-        setMemoryToken(accessToken);
-        setState((prev) => ({
-          ...prev,
-          accessToken,
-          accountType: mapBackendAccountType(accountType, prev.user?.role as string),
-          authenticated: true,
-        }));
-        return accessToken;
+      const accessToken = await silentRefreshFromCookie();
+      if (!accessToken) {
+        throw new Error("Refresh failed");
       }
-      return null;
+      setState((prev) => ({
+        ...prev,
+        accessToken,
+        authenticated: true,
+        loading: false,
+      }));
+      return accessToken;
     } catch {
       clearMemoryToken();
       setState({

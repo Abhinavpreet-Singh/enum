@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useContext, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import useAuth from "@/hooks/useAuth";
+import { AuthContext } from "@/providers/AuthProvider";
+import { silentRefreshFromCookie } from "@/lib/api";
+import { restoreMemoryTokenFromSession } from "@/lib/tokenStore";
 
 export default function ProtectedRoute({
   children,
@@ -13,19 +16,49 @@ export default function ProtectedRoute({
   const router = useRouter();
   const pathname = usePathname();
   const isAuthenticated = useAuth();
+  const authCtx = useContext(AuthContext);
+  const recoveryAttemptedRef = useRef(false);
 
   useEffect(() => {
-    if (isAuthenticated === false) {
+    if (isAuthenticated !== false) {
+      recoveryAttemptedRef.current = false;
+      return;
+    }
+
+    if (recoveryAttemptedRef.current) {
       const query =
         typeof window !== "undefined" ? window.location.search : "";
       const returnTo = query ? `${pathname}${query}` : pathname;
-
       router.push(`/login/?returnTo=${encodeURIComponent(returnTo)}`);
+      return;
     }
-  }, [isAuthenticated, router, pathname]);
 
-  // Show loading while checking authentication
-  if (isAuthenticated === null) {
+    recoveryAttemptedRef.current = true;
+    let cancelled = false;
+
+    (async () => {
+      restoreMemoryTokenFromSession();
+      const token = await silentRefreshFromCookie();
+      if (cancelled) return;
+
+      if (token) {
+        authCtx?.setAccessToken(token);
+        recoveryAttemptedRef.current = false;
+        return;
+      }
+
+      const query =
+        typeof window !== "undefined" ? window.location.search : "";
+      const returnTo = query ? `${pathname}${query}` : pathname;
+      router.push(`/login/?returnTo=${encodeURIComponent(returnTo)}`);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, router, pathname, authCtx]);
+
+  if (isAuthenticated === null || isAuthenticated === false) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -34,11 +67,6 @@ export default function ProtectedRoute({
         </div>
       </div>
     );
-  }
-
-  // Don't render content if not authenticated
-  if (isAuthenticated === false) {
-    return null;
   }
 
   return <>{children}</>;
