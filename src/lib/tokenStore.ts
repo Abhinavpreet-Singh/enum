@@ -6,6 +6,8 @@
 
 let _accessToken: string | null = null;
 
+const OAUTH_HANDOFF_KEY = "enum:oauth-handoff";
+
 export function purgePersistedAccessToken(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem("accessToken");
@@ -31,4 +33,17 @@ export function setMemoryToken(token: string | null): void {
 export function clearMemoryToken(): void {
   purgePersistedAccessToken();
   _accessToken = null;
+}
+
+/** Short-lived bridge across OAuth full-page redirects (sessionStorage only). */
+export function persistOAuthHandoff(token: string): void {
+  if (typeof window === "undefined" || !token) return;
+  sessionStorage.setItem(OAUTH_HANDOFF_KEY, token);
+}
+
+export function consumeOAuthHandoff(): string | null {
+  if (typeof window === "undefined") return null;
+  const token = sessionStorage.getItem(OAUTH_HANDOFF_KEY);
+  if (token) sessionStorage.removeItem(OAUTH_HANDOFF_KEY);
+  return token;
 }

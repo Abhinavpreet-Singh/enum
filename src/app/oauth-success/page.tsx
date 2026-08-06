@@ -2,9 +2,15 @@
 
 import { apiUrl } from "@/lib/api-config";
 import { useContext, useEffect, useRef, useState } from "react";
-import { getMemoryToken, setMemoryToken } from "@/lib/tokenStore";
+import { useRouter } from "next/navigation";
+import {
+  getMemoryToken,
+  setMemoryToken,
+  persistOAuthHandoff,
+} from "@/lib/tokenStore";
 import { AuthContext } from "@/providers/AuthProvider";
 import { mapBackendAccountType } from "@/lib/account-session";
+import type { AuthUser } from "@/providers/AuthProvider";
 
 function loginUrl(errorCode?: string) {
   if (!errorCode) return "/login/";
@@ -28,7 +34,7 @@ function readAccessTokenFromHash(): string | null {
 }
 
 type OAuthSession = {
-  data: Record<string, unknown> | null;
+  data: AuthUser | null;
   accessToken: string;
   accountType: string;
 };
@@ -50,7 +56,7 @@ async function establishOAuthSession(
   if (meRes.ok) {
     const body = await meRes.json();
     return {
-      data: body.data ?? null,
+      data: (body.data as AuthUser | null) ?? null,
       accessToken: body.accessToken || token || "",
       accountType: body.accountType || "student",
     };
@@ -72,9 +78,9 @@ async function establishOAuthSession(
   const json = await sessionRes.json();
   const sessionData = json.data;
   const user =
-    sessionData?.user ??
-    sessionData?.organization ??
-    sessionData?.admin ??
+    (sessionData?.user as AuthUser | undefined) ??
+    (sessionData?.organization as AuthUser | undefined) ??
+    (sessionData?.admin as AuthUser | undefined) ??
     null;
 
   return {
@@ -85,9 +91,10 @@ async function establishOAuthSession(
 }
 
 export default function OAuthSuccessPage() {
+  const router = useRouter();
   const authCtx = useContext(AuthContext);
-  const setAccessTokenRef = useRef(authCtx?.setAccessToken);
-  setAccessTokenRef.current = authCtx?.setAccessToken;
+  const establishSessionRef = useRef(authCtx?.establishSession);
+  establishSessionRef.current = authCtx?.establishSession;
 
   const [error, setError] = useState<string>("");
   const startedRef = useRef(false);
@@ -106,7 +113,7 @@ export default function OAuthSuccessPage() {
 
       if (oauthError) {
         setError(decodeURIComponent(oauthError));
-        window.location.replace(loginUrl());
+        router.replace(loginUrl());
         return;
       }
 
@@ -114,21 +121,26 @@ export default function OAuthSuccessPage() {
         const hashToken = readAccessTokenFromHash();
         if (hashToken) {
           setMemoryToken(hashToken);
-          setAccessTokenRef.current?.(hashToken);
         }
 
         const { data, accessToken, accountType } = await establishOAuthSession(
           hashToken,
         );
 
-        if (accessToken) {
-          setMemoryToken(accessToken);
-          setAccessTokenRef.current?.(accessToken);
+        if (!accessToken) {
+          throw new Error("OAuth session not established.");
         }
+
+        persistOAuthHandoff(accessToken);
+        establishSessionRef.current?.({
+          user: data,
+          accessToken,
+          accountType,
+        });
 
         const resolvedAccountType = mapBackendAccountType(
           accountType,
-          (data?.role as string | undefined),
+          data?.role,
         );
 
         if (data?.avatar) {
@@ -137,20 +149,22 @@ export default function OAuthSuccessPage() {
 
         const destination =
           resolvedAccountType === "admin"
-            ? "/dashboard/admin/overview"
+            ? "/dashboard/admin/overview/"
             : returnTo.startsWith("/dashboard/admin")
-              ? "/dashboard"
-              : returnTo;
+              ? "/dashboard/"
+              : returnTo.endsWith("/")
+                ? returnTo
+                : `${returnTo}/`;
 
-        window.location.replace(destination);
+        router.replace(destination);
       } catch {
         setError("OAuth login failed. Please try again.");
-        window.location.replace(loginUrl("oauth_failed"));
+        router.replace(loginUrl("oauth_failed"));
       }
     };
 
     run();
-  }, []);
+  }, [router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black px-4">

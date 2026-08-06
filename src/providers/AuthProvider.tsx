@@ -1,6 +1,5 @@
 "use client";
 
-import { API_BASE_URL } from "@/lib/api-config";
 import api from "@/lib/api";
 import React, {
   createContext,
@@ -14,6 +13,8 @@ import {
   setMemoryToken,
   clearMemoryToken,
   purgePersistedAccessToken,
+  consumeOAuthHandoff,
+  getMemoryToken,
 } from "@/lib/tokenStore";
 import { mapBackendAccountType, type AccountType } from "@/lib/account-session";
 
@@ -58,6 +59,11 @@ export interface AuthContextValue extends AuthState {
   logoutAll: () => Promise<void>;
   refresh: () => Promise<string | null>;
   setAccessToken: (token: string | null) => void;
+  establishSession: (payload: {
+    user: AuthUser | null;
+    accessToken: string;
+    accountType?: string | null;
+  }) => void;
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -94,9 +100,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  const establishSession = useCallback(
+    (payload: {
+      user: AuthUser | null;
+      accessToken: string;
+      accountType?: string | null;
+    }) => {
+      setMemoryToken(payload.accessToken);
+      setState({
+        user: payload.user,
+        accountType: mapBackendAccountType(
+          payload.accountType,
+          payload.user?.role,
+        ),
+        accessToken: payload.accessToken,
+        loading: false,
+        authenticated: true,
+      });
+    },
+    [],
+  );
+
+  const trySessionWithAccessToken = useCallback(async () => {
+    const token = getMemoryToken();
+    if (!token) return false;
+
+    try {
+      const res = await api.get("/api/v1/auth/session", {
+        withCredentials: true,
+      });
+      if (!mountedRef.current) return false;
+
+      const sessionData = res.data?.data;
+      const user =
+        (sessionData?.user as AuthUser | undefined) ??
+        (sessionData?.organization as AuthUser | undefined) ??
+        (sessionData?.admin as AuthUser | undefined) ??
+        null;
+
+      setState({
+        user,
+        accountType: mapBackendAccountType(
+          sessionData?.accountType,
+          user?.role ?? sessionData?.role,
+        ),
+        accessToken: token,
+        loading: false,
+        authenticated: true,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   // ── Initialize: call /me with the refresh cookie ──────────────────────────
 
   const initialize = useCallback(async () => {
+    const handoffToken = consumeOAuthHandoff();
+    if (handoffToken) {
+      setMemoryToken(handoffToken);
+    }
+
     try {
       const res = await api.get("/api/v1/auth/me", {
         withCredentials: true,
@@ -115,6 +180,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch {
       if (!mountedRef.current) return;
+
+      if (getMemoryToken()) {
+        const established = await trySessionWithAccessToken();
+        if (established) return;
+
+        // OAuth may have set the in-memory token while /me was in flight.
+        setState((prev) => ({
+          ...prev,
+          accessToken: getMemoryToken(),
+          loading: false,
+          authenticated: true,
+        }));
+        return;
+      }
+
       clearMemoryToken();
       setState({
         user: null,
@@ -124,7 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         authenticated: false,
       });
     }
-  }, []);
+  }, [trySessionWithAccessToken]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -258,6 +338,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logoutAll,
     refresh,
     setAccessToken,
+    establishSession,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

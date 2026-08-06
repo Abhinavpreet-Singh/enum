@@ -20,7 +20,7 @@ export default function ProtectedRoute({
         typeof window !== "undefined" ? window.location.search : "";
       const returnTo = query ? `${pathname}${query}` : pathname;
 
-      router.push(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+      router.push(`/login/?returnTo=${encodeURIComponent(returnTo)}`);
     }
   }, [isAuthenticated, router, pathname]);
 
