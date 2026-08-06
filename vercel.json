@@ -1,0 +1,49 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build",
+  "functions": {
+    "src/app/api/run/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/judge/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/complexity/analyze/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/submissions/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/simulations/run/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/simulations/engine/run/route.ts": {
+      "maxDuration": 60
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
+    }
+  ]
+}
