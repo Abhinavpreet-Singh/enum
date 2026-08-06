@@ -12,6 +12,10 @@ import {
   logUserActivity,
   outcomeFromDsaVerdict,
 } from "../services/activityLogService.js";
+import {
+  assertCanSubmitInCompetition,
+  tryDeclareWinner,
+} from "../services/competition.service.js";
 
 const saveSubmission = asyncHandler(async (req, res) => {
   const {
@@ -32,6 +36,8 @@ const saveSubmission = asyncHandler(async (req, res) => {
     where: { id: questionId },
   });
   if (!question) throw new ApiError(404, "Question not found");
+
+  await assertCanSubmitInCompetition(questionId, req.user.id);
 
   const normaliseVerdict = (v) => {
     if (v === "accepted") return "accepted";
@@ -86,6 +92,17 @@ const saveSubmission = asyncHandler(async (req, res) => {
       };
     });
 
+  let competitionResult = null;
+  if (fullSuccess) {
+    const username =
+      req.user.displayName || req.user.username || req.user.email || "Anonymous";
+    competitionResult = await tryDeclareWinner({
+      questionId,
+      userId: req.user.id,
+      username,
+    });
+  }
+
   return res.status(201).json({
     message: "Submission saved successfully",
     data: {
@@ -93,6 +110,8 @@ const saveSubmission = asyncHandler(async (req, res) => {
       xpEarned,
       alreadySolved,
       totalXp,
+      competition: competitionResult?.competition ?? null,
+      competitionWon: competitionResult?.won ?? false,
     },
   });
 });

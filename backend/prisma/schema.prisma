@@ -39,6 +39,8 @@ model User {
   currentStreak        Int      @default(0)
   lastActivityDate     DateTime?
 
+  competitionParticipants QuestionCompetitionParticipant[]
+
   certs                   UserCert[]
   solutions               Solution[]
   submissions             Submission[]
@@ -53,6 +55,7 @@ model User {
   paymentOrders           PaymentOrder[]
   paymentEvents           PaymentEvent[]
 
+  @@index([showOnLeaderboard, xp])
   @@map("users")
 }
 
@@ -103,6 +106,8 @@ model UserActivityLog {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+  @@index([createdAt])
+  @@index([activityType, createdAt])
   @@map("useractivitylogs")
 }
 
@@ -114,6 +119,8 @@ model OtpVerification {
   otp       String
   expiresAt DateTime
 
+  @@index([email])
+  @@index([expiresAt])
   @@map("otp_verifications")
 }
 
@@ -171,6 +178,10 @@ model Session {
   organizationId       String?
   accountType          String // "student" | "admin" | "organization"
   refreshTokenHash     String    @unique
+  /// SHA-256 of the refresh token — deterministic so a session can be found with a
+  /// single indexed lookup instead of bcrypt-comparing every active row. The bcrypt
+  /// hash above is still the authority for verification.
+  refreshTokenLookup   String?   @unique
   accessTokenHash      String?
   accessTokenExpiresAt DateTime?
   userAgent            String    @default("")
@@ -189,6 +200,8 @@ model Session {
   @@index([organizationId])
   @@index([expiresAt])
   @@index([accessTokenExpiresAt])
+  @@index([userId, revoked, expiresAt])
+  @@index([organizationId, revoked, expiresAt])
   @@map("sessions")
 }
 
@@ -198,6 +211,8 @@ model OrganizationOtpVerification {
   otp       String
   expiresAt DateTime
 
+  @@index([email])
+  @@index([expiresAt])
   @@map("organization_otp_verifications")
 }
 
@@ -228,6 +243,7 @@ model Assessment {
   attempts     CandidateAttempt[]
 
   @@index([organizationId])
+  @@index([organizationId, status])
   @@map("assessments")
 }
 
@@ -355,6 +371,8 @@ model AssessmentQuestion {
   simulation   Simulation?   @relation(fields: [simulationId], references: [id])
 
   @@index([assessmentId])
+  @@index([assessmentId, order])
+  @@index([bankQuestionId])
   @@map("assessmentquestions")
 }
 
@@ -369,6 +387,8 @@ model AssessmentInvite {
   assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
   @@index([assessmentId])
+  @@index([assessmentId, email])
+  @@index([email])
   @@map("assessmentinvites")
 }
 
@@ -393,6 +413,8 @@ model CandidateAttempt {
 
   @@index([assessmentId])
   @@index([userId])
+  @@index([assessmentId, status])
+  @@index([assessmentId, email])
   @@map("candidateattempts")
 }
 
@@ -432,6 +454,7 @@ model Violation {
   attempt CandidateAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
 
   @@index([attemptId])
+  @@index([attemptId, severity])
   @@map("violations")
 }
 
@@ -455,8 +478,45 @@ model Question {
   solutions   Solution[]
   submissions Submission[]
   editorials  Editorial[]
+  competitions QuestionCompetition[]
 
   @@map("questions")
+}
+
+// ─── Question Competition (race to solve) ────────────────────────────────────
+
+model QuestionCompetition {
+  id              String    @id @default(cuid())
+  questionId      String
+  maxParticipants Int       @default(10)
+  status          String    @default("active") // active | completed
+  winnerId        String?
+  winnerUsername  String?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  question     Question                         @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  participants QuestionCompetitionParticipant[]
+
+  @@index([questionId, status])
+  @@map("question_competitions")
+}
+
+model QuestionCompetitionParticipant {
+  id            String   @id @default(cuid())
+  competitionId String
+  userId        String
+  username      String
+  joinedAt      DateTime @default(now())
+
+  competition QuestionCompetition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([competitionId, userId])
+  @@index([competitionId])
+  @@index([userId])
+  @@map("question_competition_participants")
 }
 
 model QuestionTestCase {
@@ -534,6 +594,8 @@ model Solution {
   question Question @relation(fields: [questionId], references: [id])
   user     User     @relation(fields: [userId], references: [id])
 
+  @@index([questionId, createdAt])
+  @@index([userId, createdAt])
   @@map("solutions")
 }
 
@@ -555,6 +617,10 @@ model Submission {
   question Question @relation(fields: [questionId], references: [id])
   user     User     @relation(fields: [userId], references: [id])
 
+  @@index([userId, questionId, createdAt])
+  @@index([userId, createdAt])
+  @@index([questionId])
+  @@index([verdict, userId, questionId])
   @@map("submissions")
 }
 
@@ -649,6 +715,7 @@ model UserSimulationProgress {
   simulation Simulation @relation(fields: [simulationId], references: [id])
 
   @@unique([userId, simulationId])
+  @@index([solved, userId])
   @@map("usersimulationprogresses")
 }
 
@@ -704,6 +771,9 @@ model SystemDesignSubmission {
   user          User                       @relation(fields: [userId], references: [id])
   feedbackItems SystemDesignFeedbackItem[]
 
+  @@index([userId, simulationId])
+  @@index([userId, createdAt])
+  @@index([simulationId])
   @@map("systemdesignsubmissions")
 }
 

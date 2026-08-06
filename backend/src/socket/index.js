@@ -1,4 +1,5 @@
 import { Server } from "socket.io";
+import { setIo, competitionRoomId } from "./io.js";
 
 // ─── In-memory state ────────────────────────────────────────────────────────
 // rooms: Map<roomId, Map<socketId, { userId, username, color, tabId }>>
@@ -155,6 +156,18 @@ export function setupSocket(httpServer, allowedOrigins = []) {
             socket.to(roomId).emit("typing:stop", { socketId: socket.id });
         });
 
+        // ── competition:join ────────────────────────────────────────────
+        // Join a question-competition room for live winner/participant updates.
+        socket.on("competition:join", ({ competitionId }) => {
+            if (!competitionId) return;
+            socket.join(competitionRoomId(competitionId));
+        });
+
+        socket.on("competition:leave", ({ competitionId }) => {
+            if (!competitionId) return;
+            socket.leave(competitionRoomId(competitionId));
+        });
+
         // ── disconnect ────────────────────────────────────────────────────
         // Clean up all rooms this socket was in.
         socket.on("disconnect", (reason) => {
@@ -167,5 +180,6 @@ export function setupSocket(httpServer, allowedOrigins = []) {
     });
 
     console.log("[socket] Socket.IO server attached");
+    setIo(io);
     return io;
 }

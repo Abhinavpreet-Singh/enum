@@ -2,6 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { spawn } from "child_process";
+import { codeExecutionGate } from "../executionGate.js";
 
 const JUDGE_TMP_ROOT =
   process.env.ENUM_JUDGE_TMPDIR || path.join(os.tmpdir(), "enum-judge");
@@ -96,11 +97,23 @@ export function runCommandWithInput(command, args, input, timeoutMs = DEFAULT_TI
   });
 }
 
+/**
+ * Every language judge wraps its whole run in this helper, so it is the single
+ * place to bound execution concurrency. One slot is held for the entire
+ * submission — compile plus every test case — because a submission, not an
+ * individual spawn, is the unit that consumes a compiler's worth of CPU and RAM.
+ *
+ * Gating here and *not* in runCommandWithInput is deliberate: acquiring at both
+ * levels would let a submission holding the outer slot wait on an inner slot that
+ * only it could release.
+ */
 export async function withJudgeWorkdir(run) {
-  const workdir = createJudgeWorkdir();
-  try {
-    return await run(workdir);
-  } finally {
-    cleanupJudgeWorkdir(workdir);
-  }
+  return codeExecutionGate.run(async () => {
+    const workdir = createJudgeWorkdir();
+    try {
+      return await run(workdir);
+    } finally {
+      cleanupJudgeWorkdir(workdir);
+    }
+  });
 }

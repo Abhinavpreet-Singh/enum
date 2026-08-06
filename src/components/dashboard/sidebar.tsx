@@ -1,7 +1,8 @@
 "use client";
 
-import { API_BASE_URL } from "@/lib/api-config";
+import { API_BASE_URL, apiUrl } from "@/lib/api-config";
 import api from "@/lib/api";
+import { getMemoryToken } from "@/lib/tokenStore";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -32,6 +33,8 @@ import {
   LineChart,
   ClipboardList,
   Crown,
+  Swords,
+  Loader2,
 } from "lucide-react";
 import { useTheme } from "@/providers/theme-provider";
 import useAccountType, {
@@ -134,6 +137,7 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
   }, [accountType, access.isPro]);
   const [hovered, setHovered] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isQuickMatching, setIsQuickMatching] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   const expanded = pinned || hovered;
@@ -202,6 +206,41 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
     const target = normalizePath(item.href);
     if ("matchExact" in item && item.matchExact) return current === target;
     return current.startsWith(target);
+  };
+
+  const isStudent = accountType === "student";
+
+  const handleQuickRace = async () => {
+    if (isQuickMatching) return;
+    setIsQuickMatching(true);
+    try {
+      const token = getMemoryToken();
+      const res = await fetch(apiUrl("/api/v1/competitions/quick-match"), {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.message || "Could not start a race");
+      }
+      const questionId = json.data?.questionId;
+      if (!questionId) {
+        throw new Error("No question was selected for the race");
+      }
+      if (!pinned) setHovered(false);
+      router.push(`/dashboard/dsa-arena/${questionId}`);
+    } catch (err) {
+      window.alert(
+        err instanceof Error ? err.message : "Could not start a race",
+      );
+    } finally {
+      setIsQuickMatching(false);
+    }
   };
 
   return (
@@ -302,6 +341,30 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
                 </Link>
               );
             })}
+            {isStudent && (
+              <button
+                type="button"
+                onClick={handleQuickRace}
+                disabled={isQuickMatching}
+                title="Join a random coding race"
+                className={`group relative flex items-center w-full ${
+                  expanded ? "gap-3 pl-4 pr-3" : "justify-center px-0"
+                } py-2.5 rounded-lg font-mono text-sm tracking-wide transition-all duration-200 whitespace-nowrap border border-transparent text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-500/10 hover:border-amber-300 dark:hover:border-amber-500/40 disabled:opacity-60 disabled:cursor-not-allowed`}
+              >
+                {isQuickMatching ? (
+                  <Loader2 className="w-4.5 h-4.5 shrink-0 animate-spin" />
+                ) : (
+                  <Swords className="w-4.5 h-4.5 shrink-0" />
+                )}
+                <span
+                  className={`transition-opacity duration-300 ${
+                    expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
+                  }`}
+                >
+                  {isQuickMatching ? "Finding race..." : "Quick Race"}
+                </span>
+              </button>
+            )}
           </nav>
 
           {/* Separator */}
@@ -534,6 +597,21 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
               </Link>
             );
           })}
+          {isStudent && (
+            <button
+              type="button"
+              onClick={handleQuickRace}
+              disabled={isQuickMatching}
+              className="relative flex flex-col items-center gap-1 px-3 py-1 rounded-md text-amber-600 dark:text-amber-400 disabled:opacity-60"
+            >
+              {isQuickMatching ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Swords className="w-5 h-5" />
+              )}
+              <span className="font-mono text-[10px] tracking-wide">Race</span>
+            </button>
+          )}
         </div>
       </nav>
     </>

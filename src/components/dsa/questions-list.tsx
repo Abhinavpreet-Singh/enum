@@ -2,8 +2,21 @@
 
 import Link from "next/link";
 import { Question, fetchQuestions } from "@/data/dsa-questions";
-import { useEffect, useState, useMemo } from "react";
-import { Search, X, ChevronRight, CheckCircle2, Circle } from "lucide-react";
+import {
+  useEffect,
+  useState,
+  useMemo,
+  useRef,
+  useLayoutEffect,
+} from "react";
+import {
+  Search,
+  X,
+  ChevronRight,
+  ChevronDown,
+  CheckCircle2,
+  Circle,
+} from "lucide-react";
 
 const DIFFICULTIES = ["Easy", "Medium", "Hard"] as const;
 
@@ -47,6 +60,209 @@ const DIFF_ACTIVE_STYLE: Record<string, string> = {
 
 const DIFF_INACTIVE =
   "border-gray-200 dark:border-white/8 text-black dark:text-white bg-white dark:bg-[#111] hover:border-gray-400 dark:hover:border-white/30";
+
+type TopicTabItem = {
+  key: string;
+  label: string;
+  count: number;
+};
+
+const MORE_BUTTON_WIDTH = 44;
+
+function topicTabClass(active: boolean) {
+  return `flex items-center gap-2 border px-3 py-2.5 font-mono text-[10px] tracking-wider uppercase transition-colors shrink-0 whitespace-nowrap ${
+    active
+      ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+      : "border-gray-200 dark:border-white/8 bg-transparent text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-white/30 hover:text-black dark:hover:text-white"
+  }`;
+}
+
+function TopicTabButton({
+  item,
+  active,
+  onClick,
+}: {
+  item: TopicTabItem;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={topicTabClass(active)}
+    >
+      <span>{item.label}</span>
+      <span className={active ? "opacity-70" : "text-gray-400"}>
+        ({item.count})
+      </span>
+    </button>
+  );
+}
+
+function TopicTabsBar({
+  items,
+  activeTab,
+  onSelect,
+}: {
+  items: TopicTabItem[];
+  activeTab: string;
+  onSelect: (key: string) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [visibleCount, setVisibleCount] = useState(items.length);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const container = containerRef.current;
+      const measureRow = measureRef.current;
+      if (!container || !measureRow) return;
+
+      const buttons = Array.from(measureRow.children) as HTMLElement[];
+      const available = container.clientWidth;
+      let used = 0;
+      let fit = 0;
+
+      for (let i = 0; i < buttons.length; i++) {
+        const width = buttons[i].offsetWidth;
+        const hasMoreAfter = i < buttons.length - 1;
+        const reserve = hasMoreAfter ? MORE_BUTTON_WIDTH : 0;
+        if (used + width + reserve > available) break;
+        used += width;
+        fit = i + 1;
+      }
+
+      setVisibleCount(Math.max(1, fit));
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (containerRef.current) observer.observe(containerRef.current);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [items]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
+
+  const hasOverflow = visibleCount < items.length;
+
+  const { visibleItems, overflowItems } = useMemo(() => {
+    if (!hasOverflow) {
+      return { visibleItems: items, overflowItems: [] as TopicTabItem[] };
+    }
+
+    let visible = items.slice(0, visibleCount);
+    let overflow = items.slice(visibleCount);
+    const activeIdx = items.findIndex((item) => item.key === activeTab);
+
+    if (activeIdx >= visibleCount && activeIdx !== -1) {
+      const activeItem = items[activeIdx];
+      visible = [...items.slice(0, visibleCount - 1), activeItem];
+      overflow = items.filter(
+        (item) => !visible.some((v) => v.key === item.key),
+      );
+    }
+
+    return { visibleItems: visible, overflowItems: overflow };
+  }, [items, visibleCount, hasOverflow, activeTab]);
+
+  const menuHasActive = overflowItems.some((item) => item.key === activeTab);
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative flex items-stretch gap-0 border-b border-gray-200 dark:border-white/10 -mx-1"
+    >
+      {/* Hidden row for width measurement */}
+      <div
+        ref={measureRef}
+        className="invisible absolute top-0 left-0 flex flex-nowrap gap-0 pointer-events-none"
+        aria-hidden
+      >
+        {items.map((item) => (
+          <TopicTabButton
+            key={`measure-${item.key}`}
+            item={item}
+            active={false}
+            onClick={() => {}}
+          />
+        ))}
+      </div>
+
+      <div className="flex flex-nowrap items-stretch min-w-0 overflow-hidden">
+        {visibleItems.map((item) => (
+          <TopicTabButton
+            key={item.key}
+            item={item}
+            active={activeTab === item.key}
+            onClick={() => onSelect(item.key)}
+          />
+        ))}
+      </div>
+
+      {hasOverflow && (
+        <div ref={menuRef} className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-expanded={menuOpen}
+            aria-haspopup="true"
+            aria-label="Show more topics"
+            className={`flex h-full items-center justify-center border px-2.5 py-2.5 transition-colors ${
+              menuOpen || menuHasActive
+                ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                : "border-gray-200 dark:border-white/8 bg-transparent text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-white/30 hover:text-black dark:hover:text-white"
+            }`}
+          >
+            <ChevronDown
+              className={`w-4 h-4 transition-transform ${menuOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          {menuOpen && (
+            <div className="absolute right-0 top-full z-20 mt-0.5 min-w-48 max-h-72 overflow-y-auto border border-gray-200 dark:border-white/10 bg-white dark:bg-[#111] shadow-lg">
+              <div className="flex flex-wrap gap-0 p-1">
+                {items.map((item) => (
+                  <TopicTabButton
+                    key={`menu-${item.key}`}
+                    item={item}
+                    active={activeTab === item.key}
+                    onClick={() => {
+                      onSelect(item.key);
+                      setMenuOpen(false);
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function QuestionsList() {
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -121,6 +337,18 @@ export default function QuestionsList() {
     [tabQuestions],
   );
 
+  const topicTabItems = useMemo<TopicTabItem[]>(
+    () => [
+      { key: "All", label: "All", count: questions.length },
+      ...topics.map((topic) => ({
+        key: topic,
+        label: topic,
+        count: topicCounts[topic] ?? 0,
+      })),
+    ],
+    [topics, questions.length, topicCounts],
+  );
+
   const clearAll = () => {
     setSearch("");
     setActiveDiffs(new Set());
@@ -129,44 +357,13 @@ export default function QuestionsList() {
 
   return (
     <div className="space-y-4">
-      {/* Topic tabs */}
+      {/* Topic tabs — single row with overflow dropdown */}
       {!loading && topics.length > 0 && (
-        <div className="flex flex-wrap gap-0 border-b border-gray-200 dark:border-white/10 -mx-1">
-          <button
-            type="button"
-            onClick={() => setActiveTab("All")}
-            className={`flex items-center gap-2 border px-3 py-2.5 font-mono text-[10px] tracking-wider uppercase transition-colors ${
-              activeTab === "All"
-                ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-                : "border-gray-200 dark:border-white/8 bg-transparent text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-white/30 hover:text-black dark:hover:text-white"
-            }`}
-          >
-            <span>All</span>
-            <span className={activeTab === "All" ? "opacity-70" : "text-gray-400"}>
-              ({questions.length})
-            </span>
-          </button>
-          {topics.map((topic) => {
-            const active = activeTab === topic;
-            return (
-              <button
-                key={topic}
-                type="button"
-                onClick={() => setActiveTab(topic)}
-                className={`flex items-center gap-2 border px-3 py-2.5 font-mono text-[10px] tracking-wider uppercase transition-colors ${
-                  active
-                    ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-                    : "border-gray-200 dark:border-white/8 bg-transparent text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-white/30 hover:text-black dark:hover:text-white"
-                }`}
-              >
-                <span>{topic}</span>
-                <span className={active ? "opacity-70" : "text-gray-400"}>
-                  ({topicCounts[topic] ?? 0})
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <TopicTabsBar
+          items={topicTabItems}
+          activeTab={activeTab}
+          onSelect={setActiveTab}
+        />
       )}
       {/* Stats */}
       <div className="flex items-center gap-4 font-mono text-xs">

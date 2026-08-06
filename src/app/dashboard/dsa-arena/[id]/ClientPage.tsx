@@ -2,7 +2,13 @@
 
 import ProblemTabs, { type TabType } from "@/components/dsa/problem-tabs";
 import CodeEditor from "@/components/dsa/code-editor";
+import CompetitionPanel from "@/components/dsa/competition-panel";
 import { Question, fetchQuestions } from "@/data/dsa-questions";
+import {
+  useQuestionCompetition,
+  type CompetitionState,
+} from "@/hooks/useQuestionCompetition";
+import { useAuthContext } from "@/providers/AuthProvider";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -10,13 +16,27 @@ import Link from "next/link";
 export default function DSAArenaClientPage() {
   const params = useParams();
   const id = params.id as string;
+  const { user } = useAuthContext();
   const [question, setQuestion] = useState<Question | null>(null);
   const [loading, setLoading] = useState(true);
-  const [leftPanelWidth, setLeftPanelWidth] = useState(50); // percentage
+  const [leftPanelWidth, setLeftPanelWidth] = useState(50);
   const [isResizing, setIsResizing] = useState(false);
   const [refreshSolutions, setRefreshSolutions] = useState(0);
   const [refreshSubmissions, setRefreshSubmissions] = useState(0);
   const [leftPanelTab, setLeftPanelTab] = useState<TabType>("description");
+
+  const {
+    competition,
+    loading: competitionLoading,
+    editorLocked,
+    isWinner,
+    isParticipant,
+    handleCompetitionSubmitResult,
+  } = useQuestionCompetition({
+    questionId: id,
+    userId: user?.id,
+    enabled: Boolean(user?.id),
+  });
 
   useEffect(() => {
     const loadQuestion = async () => {
@@ -38,7 +58,11 @@ export default function DSAArenaClientPage() {
     setLeftPanelTab("submissions");
   };
 
-  // Lock page-level scroll — only individual panels scroll internally
+  const competitionLockedMessage =
+    competition?.winner && !isWinner
+      ? `${competition.winner.username} won this race. You can no longer edit or submit code.`
+      : undefined;
+
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -60,7 +84,7 @@ export default function DSAArenaClientPage() {
       }
 
       animationFrameId = requestAnimationFrame(() => {
-        const containerWidth = window.innerWidth - 64; // minus sidebar
+        const containerWidth = window.innerWidth - 64;
         const deltaX = e.clientX - startX;
         const deltaPercent = (deltaX / containerWidth) * 100;
         const newWidth = Math.min(Math.max(20, startWidth + deltaPercent), 80);
@@ -111,10 +135,16 @@ export default function DSAArenaClientPage() {
   }
 
   return (
-    <>
-      {/* Content Grid — height compensates for zoom:110% on parent layout (100vh/1.1 = visually fills viewport exactly) */}
-      <div className="flex h-[calc(100vh/1.1)] overflow-hidden relative">
-        {/* Left Panel - Problem */}
+    <div className="flex flex-col h-[calc(100vh/1.1)] overflow-hidden">
+      <CompetitionPanel
+        competition={competition}
+        loading={competitionLoading}
+        isParticipant={isParticipant}
+        isWinner={isWinner}
+        editorLocked={editorLocked}
+      />
+
+      <div className="flex flex-1 overflow-hidden relative min-h-0">
         <div
           className="flex h-full min-w-0 flex-col overflow-hidden"
           style={{ width: `${leftPanelWidth}%` }}
@@ -128,7 +158,6 @@ export default function DSAArenaClientPage() {
           />
         </div>
 
-        {/* Vertical Resize Handle */}
         <div
           onMouseDown={handleMouseDown}
           className={`w-1 cursor-col-resize shrink-0 ${
@@ -139,8 +168,7 @@ export default function DSAArenaClientPage() {
           style={{ minWidth: "1px" }}
         />
 
-        {/* Right Panel - Code Editor & Console */}
-        <div className="overflow-hidden flex-1">
+        <div className="overflow-hidden flex-1 min-h-0">
           <CodeEditor
             initialCode={question.initialCode}
             testCases={question.examples.map((tc) => ({
@@ -150,9 +178,14 @@ export default function DSAArenaClientPage() {
             questionId={question.id}
             onSolutionPublished={handleSolutionPublished}
             onSubmitSuccess={handleSubmitSuccess}
+            competitionLocked={isParticipant && editorLocked}
+            competitionLockedMessage={competitionLockedMessage}
+            onCompetitionResult={({ competition: next }) => {
+              handleCompetitionSubmitResult(next as CompetitionState | null);
+            }}
           />
         </div>
       </div>
-    </>
+    </div>
   );
 }

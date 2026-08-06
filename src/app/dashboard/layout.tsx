@@ -29,8 +29,13 @@ export default function DashboardLayout({
     pathname?.match(/^\/dashboard\/simulations\/[^/]+/) &&
     !pathname?.includes("/system-design/")
   );
+  const isDsaQuestionPage = Boolean(pathname?.match(/^\/dashboard\/dsa-arena\/[^/]+/));
   const isFullscreenWorkspace =
-    isCollabRoom || isIncidentWorkspace || isLinuxArena || isBrowserSandbox;
+    isCollabRoom ||
+    isIncidentWorkspace ||
+    isLinuxArena ||
+    isBrowserSandbox ||
+    isDsaQuestionPage;
 
   useEffect(() => {
     purgeSpoofedAccountType();

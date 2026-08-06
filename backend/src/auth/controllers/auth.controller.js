@@ -1,4 +1,3 @@
-import bcrypt from "bcrypt";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiError } from "../../utils/apiError.js";
 import {
@@ -21,24 +20,13 @@ import {
   getAccessTokenExpiryDate,
   hashAccessToken,
 } from "../utils/tokens.js";
-import { rotateSession } from "../services/session.service.js";
+import { rotateSession, findSessionByRefreshToken } from "../services/session.service.js";
 import prisma from "../../db/index.js";
 
 // ─── Session lookup helper ────────────────────────────────────────────────────
 
 async function findSessionByToken(refreshToken, { onlyActive = true } = {}) {
-  const where = onlyActive
-    ? { revoked: false, expiresAt: { gt: new Date() } }
-    : { revoked: false };
-
-  const sessions = await prisma.session.findMany({ where });
-
-  for (const s of sessions) {
-    if (await bcrypt.compare(refreshToken, s.refreshTokenHash)) {
-      return s;
-    }
-  }
-  return null;
+  return findSessionByRefreshToken(refreshToken, { onlyActive });
 }
 
 function getIp(req) {

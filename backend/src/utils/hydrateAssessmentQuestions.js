@@ -11,13 +11,29 @@ export async function hydrateAssessmentQuestions(assessmentId) {
     orderBy: { order: "asc" },
   });
 
-  return Promise.all(
-    rows.map(async (aq) => {
+  // Fetch every referenced bank question in one query. Doing it per row turned a
+  // 40-question exam into 41 queries fired concurrently, which alone could
+  // exhaust the connection pool while candidates were starting their exam.
+  const bankQuestionIds = [
+    ...new Set(
+      rows
+        .filter((aq) => aq.questionType === "bank" && aq.bankQuestionId)
+        .map((aq) => aq.bankQuestionId),
+    ),
+  ];
+
+  const bankQuestions = bankQuestionIds.length
+    ? await prisma.bankQuestion.findMany({
+        where: { id: { in: bankQuestionIds } },
+        include: bankQuestionInclude,
+      })
+    : [];
+
+  const bankQuestionById = new Map(bankQuestions.map((bq) => [bq.id, bq]));
+
+  return rows.map((aq) => {
       if (aq.questionType === "bank" && aq.bankQuestionId) {
-        const bq = await prisma.bankQuestion.findUnique({
-          where: { id: aq.bankQuestionId },
-          include: bankQuestionInclude,
-        });
+        const bq = bankQuestionById.get(aq.bankQuestionId);
         if (bq) {
           const serialized = serializeBankQuestion(bq);
           const safeOptions = Array.isArray(serialized.options)
@@ -58,6 +74,5 @@ export async function hydrateAssessmentQuestions(assessmentId) {
         type: aq.questionType,
         simulationId: aq.simulationId,
       };
-    }),
-  );
+  });
 }

@@ -5,6 +5,7 @@ import path from "path";
 import { promisify } from "util";
 
 import { ApiError } from "../utils/apiError.js";
+import { codeExecutionGate } from "../utils/executionGate.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -296,6 +297,16 @@ export async function executeCompilerCode({ language, code }) {
     throw new ApiError(400, "Code is required");
   }
 
+  // Gate at this level only. Acquiring per-spawn instead would let a queued
+  // compile step wait on slots held by its own callers, which can deadlock, and
+  // a capacity error raised inside executeInDocker would be misread by the
+  // fallback handler below as compiler output.
+  return codeExecutionGate.run(() =>
+    runCompilerPipeline({ requestedLanguage, filename, code }),
+  );
+}
+
+async function runCompilerPipeline({ requestedLanguage, filename, code }) {
   const runnerLanguage = getRunnerLanguage(requestedLanguage);
   const workdir = fs.mkdtempSync(path.join(os.tmpdir(), "enum-run-"));
   const filePath = path.join(workdir, filename);

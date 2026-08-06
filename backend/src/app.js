@@ -1,6 +1,7 @@
 import express from "express"
 import cookieParser from "cookie-parser"
 import cors from "cors"
+import compression from "compression"
 import passport from "passport"
 import { env } from "./config/env.js"
 
@@ -66,18 +67,36 @@ app.use((req, res, next) => {
     next();
 })
 
-app.use(express.json({ limit: "1mb" }))
-app.use(express.urlencoded({ extended: true, limit: "1mb" }))
-app.use(cookieParser())
-
-app.use(passport.initialize())
-
+// Health checks are registered before the body parsers, cookie parser and
+// Passport so the container probe (every 30s) does no avoidable work. They stay
+// after the CORS middleware so a browser can still read them cross-origin.
 const healthHandler = (_req, res) => {
   res.status(200).json({ status: "ok" });
 };
 
 app.get("/health", healthHandler);
 app.get("/api/health", healthHandler);
+
+// gzip responses. This API returns large JSON (question sets with test cases and
+// starter code, simulation file contents, leaderboards, submission history with
+// full source), which compresses by roughly 70-85%.
+app.use(
+    compression({
+        // Below ~1KB the header and CPU overhead outweigh the saving.
+        threshold: 1024,
+        filter: (req, res) => {
+            // Escape hatch for clients that need an identity-encoded response.
+            if (req.headers["x-no-compression"]) return false;
+            return compression.filter(req, res);
+        },
+    }),
+)
+
+app.use(express.json({ limit: "1mb" }))
+app.use(express.urlencoded({ extended: true, limit: "1mb" }))
+app.use(cookieParser())
+
+app.use(passport.initialize())
 
 console.log("[app] Passport initialized");
 
@@ -113,6 +132,7 @@ import assessmentInviteRouter from "./routes/assessment-invite.route.js";
 import desktopRouter from "./routes/desktop.route.js";
 import maintenanceRouter from "./routes/maintenance.route.js";
 import billingRouter from "./routes/billing.route.js";
+import competitionRouter from "./routes/competition.route.js";
 import { getPublicSettings, getPublicAnnouncements } from "./middlewares/feature-gate.middleware.js";
 
 app.use("/api/auth", authRouter)
@@ -148,6 +168,7 @@ app.use("/api/v1/organization-dashboard", organizationDashboardRouter);
 app.use("/api/v1/desktop", desktopRouter);
 app.use("/api/v1/maintenance", maintenanceRouter);
 app.use("/api/v1/billing", billingRouter);
+app.use("/api/v1/competitions", competitionRouter);
 
 // Public platform-settings + announcements (no auth required)
 app.get("/api/v1/platform/settings", getPublicSettings);

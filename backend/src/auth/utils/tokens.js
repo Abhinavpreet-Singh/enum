@@ -12,6 +12,16 @@ export function hashAccessToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
+/**
+ * Deterministic index key for a refresh token, so a session can be located with a
+ * single indexed query. Safe as a lookup key because refresh tokens are 384-bit
+ * random values, not user-chosen secrets — the bcrypt hash remains the authority
+ * that actually authenticates the token.
+ */
+export function hashRefreshTokenLookup(token) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
 export function generateAccessToken(payload) {
   const secret = process.env.ACCESS_TOKEN_SECRET;
   if (!secret) throw new Error("ACCESS_TOKEN_SECRET is not set");

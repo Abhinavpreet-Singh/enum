@@ -45,6 +45,13 @@ interface CodeEditorProps {
   questionId?: string;
   onSolutionPublished?: () => void;
   onSubmitSuccess?: () => void;
+  /** When true, editor and submit are disabled (competition lost). */
+  competitionLocked?: boolean;
+  competitionLockedMessage?: string;
+  onCompetitionResult?: (data: {
+    competitionWon: boolean;
+    competition: Record<string, unknown> | null;
+  }) => void;
 }
 
 const languageOptions = [
@@ -80,6 +87,9 @@ export default function CodeEditor({
   questionId,
   onSolutionPublished,
   onSubmitSuccess,
+  competitionLocked = false,
+  competitionLockedMessage,
+  onCompetitionResult,
 }: CodeEditorProps) {
   const [language, setLanguage] = useState<Language>("python");
   const [code, setCode] = useState("");
@@ -280,6 +290,10 @@ export default function CodeEditor({
       return;
     }
 
+    if (competitionLocked) {
+      return;
+    }
+
     setIsRunning(true);
     setBottomTab("result");
     setOverallVerdict("running");
@@ -330,6 +344,10 @@ export default function CodeEditor({
   const handleSubmit = async () => {
     if (!questionId) {
       handleRun();
+      return;
+    }
+
+    if (competitionLocked) {
       return;
     }
 
@@ -394,6 +412,18 @@ export default function CodeEditor({
             new CustomEvent("userXpUpdated", { detail: { xp: totalXp } }),
           );
         }
+        if (onCompetitionResult && saveJson?.data) {
+          onCompetitionResult({
+            competitionWon: Boolean(saveJson.data.competitionWon),
+            competition: saveJson.data.competition ?? null,
+          });
+        }
+      } else if (saveRes.status === 423 && onCompetitionResult) {
+        const saveJson = await saveRes.json().catch(() => null);
+        onCompetitionResult({
+          competitionWon: false,
+          competition: saveJson?.data?.competition ?? null,
+        });
       }
       if (onSubmitSuccess) onSubmitSuccess();
     } catch {
@@ -449,16 +479,31 @@ export default function CodeEditor({
   };
 
   const isProcessing = isRunning || isSubmitting;
+  const editorDisabled = competitionLocked;
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-slate-950">
+    <div className="h-full flex flex-col bg-white dark:bg-slate-950 relative">
+      {editorDisabled && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 dark:bg-black/75 backdrop-blur-[1px] pointer-events-none">
+          <div className="max-w-sm text-center px-6 py-4 border border-red-200 dark:border-red-500/30 bg-white dark:bg-slate-900 shadow-sm">
+            <p className="font-mono text-sm font-medium text-red-700 dark:text-red-300 mb-1">
+              Competition ended
+            </p>
+            <p className="font-mono text-xs text-gray-600 dark:text-gray-400">
+              {competitionLockedMessage ||
+                "Another competitor won. You can no longer edit or submit code."}
+            </p>
+          </div>
+        </div>
+      )}
       {/* ═══════ Top Controls ═══════ */}
       <div className="flex items-center justify-between px-4 h-12 shrink-0 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 sticky top-0 z-10">
         <div>
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value as Language)}
-            className="px-2 py-1 bg-gray-100 dark:bg-white/8 text-gray-700 dark:text-white rounded text-xs outline-none cursor-pointer"
+            disabled={editorDisabled}
+            className="px-2 py-1 bg-gray-100 dark:bg-white/8 text-gray-700 dark:text-white rounded text-xs outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {languageOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -480,7 +525,7 @@ export default function CodeEditor({
           {/* RUN */}
           <button
             onClick={handleRun}
-            disabled={isProcessing}
+            disabled={isProcessing || editorDisabled}
             className="px-4 py-1.5 bg-black dark:bg-white/10 text-white dark:text-white text-xs rounded flex items-center gap-2 hover:bg-gray-800 dark:hover:bg-white/20 border border-black dark:border-white/15 disabled:opacity-50 transition-colors"
           >
             {isRunning ? (
@@ -494,7 +539,7 @@ export default function CodeEditor({
           {/* SUBMIT */}
           <button
             onClick={handleSubmit}
-            disabled={isProcessing}
+            disabled={isProcessing || editorDisabled}
             className="px-4 py-1.5 bg-black dark:bg-white text-white dark:text-black text-xs rounded flex items-center gap-2 hover:bg-gray-800 dark:hover:bg-gray-100 border border-black dark:border-white disabled:opacity-50 transition-colors"
           >
             {isSubmitting ? (
@@ -560,6 +605,7 @@ export default function CodeEditor({
           value={code}
           onChange={handleCodeChange}
           options={{
+            readOnly: editorDisabled,
             fontSize: 14,
             fontFamily: "'Fira Code', 'Consolas', 'Monaco', monospace",
             minimap: { enabled: false },
