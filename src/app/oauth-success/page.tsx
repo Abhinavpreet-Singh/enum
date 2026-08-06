@@ -2,12 +2,86 @@
 
 import { apiUrl } from "@/lib/api-config";
 import { useContext, useEffect, useRef, useState } from "react";
-import { setMemoryToken } from "@/lib/tokenStore";
+import { getMemoryToken, setMemoryToken } from "@/lib/tokenStore";
 import { AuthContext } from "@/providers/AuthProvider";
+import { mapBackendAccountType } from "@/lib/account-session";
 
 function loginUrl(errorCode?: string) {
   if (!errorCode) return "/login/";
   return `/login/?error=${encodeURIComponent(errorCode)}`;
+}
+
+function readAccessTokenFromHash(): string | null {
+  const hash = window.location.hash.replace(/^#/, "");
+  if (!hash) return null;
+
+  const params = new URLSearchParams(hash);
+  const token = params.get("accessToken");
+  if (!token) return null;
+
+  window.history.replaceState(
+    null,
+    "",
+    window.location.pathname + window.location.search,
+  );
+  return token;
+}
+
+type OAuthSession = {
+  data: Record<string, unknown> | null;
+  accessToken: string;
+  accountType: string;
+};
+
+async function establishOAuthSession(
+  preferredAccessToken?: string | null,
+): Promise<OAuthSession> {
+  const token = preferredAccessToken || getMemoryToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const meRes = await fetch(apiUrl("/api/v1/auth/me"), {
+    credentials: "include",
+    headers,
+  });
+
+  if (meRes.ok) {
+    const body = await meRes.json();
+    return {
+      data: body.data ?? null,
+      accessToken: body.accessToken || token || "",
+      accountType: body.accountType || "student",
+    };
+  }
+
+  if (!token) {
+    throw new Error("OAuth session not established.");
+  }
+
+  const sessionRes = await fetch(apiUrl("/api/v1/auth/session"), {
+    credentials: "include",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!sessionRes.ok) {
+    throw new Error("OAuth session not established.");
+  }
+
+  const json = await sessionRes.json();
+  const sessionData = json.data;
+  const user =
+    sessionData?.user ??
+    sessionData?.organization ??
+    sessionData?.admin ??
+    null;
+
+  return {
+    data: user,
+    accessToken: token,
+    accountType: sessionData?.accountType || "student",
+  };
 }
 
 export default function OAuthSuccessPage() {
@@ -37,34 +111,37 @@ export default function OAuthSuccessPage() {
       }
 
       try {
-        // Use fetch (not the shared axios client) so a missing refresh cookie
-        // cannot deadlock in the 401→refresh interceptor loop.
-        const res = await fetch(apiUrl("/api/v1/auth/me"), {
-          credentials: "include",
-        });
-
-        if (!res.ok) {
-          throw new Error("OAuth session not established.");
+        const hashToken = readAccessTokenFromHash();
+        if (hashToken) {
+          setMemoryToken(hashToken);
+          setAccessTokenRef.current?.(hashToken);
         }
 
-        const body = await res.json();
-        const { data, accessToken, accountType } = body;
+        const { data, accessToken, accountType } = await establishOAuthSession(
+          hashToken,
+        );
 
         if (accessToken) {
           setMemoryToken(accessToken);
           setAccessTokenRef.current?.(accessToken);
         }
 
-        if (data?.avatar) localStorage.setItem("userAvatar", data.avatar);
+        const resolvedAccountType = mapBackendAccountType(
+          accountType,
+          (data?.role as string | undefined),
+        );
+
+        if (data?.avatar) {
+          localStorage.setItem("userAvatar", String(data.avatar));
+        }
 
         const destination =
-          accountType === "admin"
+          resolvedAccountType === "admin"
             ? "/dashboard/admin/overview"
             : returnTo.startsWith("/dashboard/admin")
               ? "/dashboard"
               : returnTo;
 
-        // Full page navigation so AuthProvider re-initializes with the session cookie.
         window.location.replace(destination);
       } catch {
         setError("OAuth login failed. Please try again.");

@@ -71,7 +71,7 @@ const getFrontendRedirectUrl = (req, fallbackPath, fallbackParams = {}) => {
 
 // On OAuth failure, redirect to the frontend login page with a clear error code.
 const buildFailureRedirectUrl = (req, provider) => {
-  return getFrontendRedirectUrl(req, "/login", {
+  return getFrontendRedirectUrl(req, "/login/", {
     error: provider === "github" ? "github_auth_failed" : "google_auth_failed",
   }).toString();
 };

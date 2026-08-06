@@ -13,13 +13,16 @@ import {
   setAuthCookies,
   clearRefreshCookie,
   getRefreshTokenFromRequest,
+  getAccessTokenFromRequest,
 } from "../utils/cookies.js";
 import {
   generateAccessToken,
   generateRefreshToken,
   getAccessTokenExpiryDate,
   hashAccessToken,
+  verifyAccessToken,
 } from "../utils/tokens.js";
+import { assertAccessTokenSession } from "../services/access-token.service.js";
 import { rotateSession, findSessionByRefreshToken } from "../services/session.service.js";
 import prisma from "../../db/index.js";
 
@@ -123,23 +126,41 @@ export const refresh = asyncHandler(async (req, res) => {
 
 // ─── GET /api/v1/auth/me ──────────────────────────────────────────────────────
 
-export const me = asyncHandler(async (req, res) => {
-  const refreshToken = getRefreshTokenFromRequest(req);
-  if (!refreshToken) throw new ApiError(401, "Not authenticated.");
-
-  const session = await findSessionByToken(refreshToken);
-  if (!session) throw new ApiError(401, "Session expired. Please log in.");
-
-  const result = await getMe({ sessionId: session.id });
-
+async function respondWithMe(req, res, sessionId) {
+  const result = await getMe({ sessionId });
   setAuthCookies(res, { accessToken: result.accessToken });
-
   return res.status(200).json({
     message: "Authenticated.",
     data: result.user,
     accessToken: result.accessToken,
     accountType: result.accountType,
   });
+}
+
+export const me = asyncHandler(async (req, res) => {
+  const refreshToken = getRefreshTokenFromRequest(req);
+  if (refreshToken) {
+    const session = await findSessionByToken(refreshToken);
+    if (!session) throw new ApiError(401, "Session expired. Please log in.");
+    return respondWithMe(req, res, session.id);
+  }
+
+  const accessToken = getAccessTokenFromRequest(req);
+  if (accessToken) {
+    let decoded;
+    try {
+      decoded = verifyAccessToken(accessToken);
+    } catch {
+      throw new ApiError(401, "Not authenticated.");
+    }
+
+    await assertAccessTokenSession({ token: accessToken, decoded });
+    const sessionId = decoded?.sid || decoded?.sessionId;
+    if (!sessionId) throw new ApiError(401, "Not authenticated.");
+    return respondWithMe(req, res, sessionId);
+  }
+
+  throw new ApiError(401, "Not authenticated.");
 });
 
 // ─── POST /api/v1/auth/logout ─────────────────────────────────────────────────
@@ -213,8 +234,8 @@ export const handleOAuthSuccess = async (req, res, userId) => {
 
   setAuthCookies(res, { accessToken, refreshToken });
 
-  // Redirect to /oauth-success WITHOUT any token in the URL.
-  // The frontend page will call GET /api/v1/auth/me with the cookie.
+  // Redirect to /oauth-success/; access token is passed in the URL hash as a
+  // fallback when cross-subdomain cookies are not yet available in the browser.
   const normalizeOrigin = (v) => v.replace(/\/+$/, "");
   const frontendBase = normalizeOrigin(process.env.FRONTEND_URL || "http://localhost:3000");
 
@@ -249,12 +270,18 @@ export const handleOAuthSuccess = async (req, res, userId) => {
     req.query.successRedirect,
   ];
 
+  const appendAccessTokenHash = (targetUrl) => {
+    const url = new URL(targetUrl);
+    url.hash = `accessToken=${encodeURIComponent(accessToken)}`;
+    return url.toString();
+  };
+
   for (const candidate of candidates) {
     if (typeof candidate !== "string" || !isAllowedFrontendUrl(candidate)) continue;
     try {
-      return res.redirect(new URL(candidate).toString());
+      return res.redirect(appendAccessTokenHash(new URL(candidate).toString()));
     } catch { /* ignore */ }
   }
 
-  return res.redirect(`${frontendBase}/oauth-success/`);
+  return res.redirect(appendAccessTokenHash(`${frontendBase}/oauth-success/`));
 };

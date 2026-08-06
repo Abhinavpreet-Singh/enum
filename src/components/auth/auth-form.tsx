@@ -110,8 +110,8 @@ export default function AuthForm({
     }
     setError("");
     setIsLoading(true);
-    const successRedirect = `${window.location.origin}/oauth-success?returnTo=${encodeURIComponent(returnTo)}`;
-    const failureRedirect = `${window.location.origin}/login?error=${provider}_auth_failed`;
+    const successRedirect = `${window.location.origin}/oauth-success/?returnTo=${encodeURIComponent(returnTo)}`;
+    const failureRedirect = `${window.location.origin}/login/?error=${provider}_auth_failed`;
     const url = new URL(`/auth/${provider}`, API_BASE_URL);
 
     url.searchParams.set("redirect", successRedirect);
