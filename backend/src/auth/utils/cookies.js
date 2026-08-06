@@ -25,9 +25,38 @@ const isCrossSiteDeployment = () => {
   });
 };
 
+function inferCookieDomain() {
+  const explicit = process.env.COOKIE_DOMAIN?.trim();
+  if (explicit) return explicit;
+
+  if (!isCrossSiteDeployment()) return undefined;
+
+  const candidates = [
+    process.env.BACKEND_URL,
+    process.env.FRONTEND_URL,
+    ...(process.env.FRONTEND_URLS || "").split(","),
+  ]
+    .map((value) => value?.trim())
+    .filter(Boolean);
+
+  for (const value of candidates) {
+    try {
+      const { hostname } = new URL(value);
+      const parts = hostname.split(".");
+      if (parts.length >= 2) {
+        return `.${parts.slice(-2).join(".")}`;
+      }
+    } catch {
+      // ignore malformed URLs
+    }
+  }
+
+  return undefined;
+}
+
 function getBaseCookieOptions() {
   const crossSite = isCrossSiteDeployment();
-  const cookieDomain = process.env.COOKIE_DOMAIN?.trim();
+  const cookieDomain = inferCookieDomain();
 
   return {
     httpOnly: true,

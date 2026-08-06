@@ -36,6 +36,15 @@ function getIp(req) {
     .trim();
 }
 
+function decodeOAuthState(state) {
+  if (!state || typeof state !== "string") return null;
+  try {
+    return JSON.parse(Buffer.from(state, "base64url").toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
 // ─── POST /api/v1/auth/login ──────────────────────────────────────────────────
 
 export const login = asyncHandler(async (req, res) => {
@@ -234,6 +243,7 @@ export const handleOAuthSuccess = async (req, res, userId) => {
   };
 
   const candidates = [
+    decodeOAuthState(req.query.state)?.redirect,
     req.query.redirect,
     req.query.redirect_uri,
     req.query.successRedirect,
@@ -246,5 +256,5 @@ export const handleOAuthSuccess = async (req, res, userId) => {
     } catch { /* ignore */ }
   }
 
-  return res.redirect(`${frontendBase}/oauth-success`);
+  return res.redirect(`${frontendBase}/oauth-success/`);
 };

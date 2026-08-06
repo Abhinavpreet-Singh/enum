@@ -15,6 +15,18 @@ const api = axios.create({
   withCredentials: true,
 });
 
+// Bare client for refresh — must NOT use the main `api` instance or its
+// response interceptor will deadlock when refresh itself returns 401.
+const refreshClient = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+});
+
+function isRefreshRequest(config?: InternalAxiosRequestConfig) {
+  const url = config?.url ?? "";
+  return url.includes("/api/v1/auth/refresh");
+}
+
 // ─── Refresh queue ────────────────────────────────────────────────────────────
 
 type Resolver = (token: string | null) => void;
@@ -28,7 +40,7 @@ function resolveQueue(token: string | null) {
 
 async function doRefresh(): Promise<string | null> {
   try {
-    const res = await api.post("/api/v1/auth/refresh", {});
+    const res = await refreshClient.post("/api/v1/auth/refresh", {});
     const newToken: string = res.data?.accessToken;
     setMemoryToken(newToken);
     return newToken;
@@ -57,7 +69,11 @@ api.interceptors.response.use(
       _retried?: boolean;
     };
 
-    if (error.response?.status !== 401 || originalRequest._retried) {
+    if (
+      error.response?.status !== 401 ||
+      originalRequest._retried ||
+      isRefreshRequest(originalRequest)
+    ) {
       return Promise.reject(error);
     }
 

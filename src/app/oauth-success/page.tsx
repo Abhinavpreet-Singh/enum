@@ -1,6 +1,6 @@
 "use client";
 
-import api from "@/lib/api";
+import { apiUrl } from "@/lib/api-config";
 import { useContext, useEffect, useRef, useState } from "react";
 import { setMemoryToken } from "@/lib/tokenStore";
 import { AuthContext } from "@/providers/AuthProvider";
@@ -37,12 +37,18 @@ export default function OAuthSuccessPage() {
       }
 
       try {
-        // The backend set an HttpOnly refresh cookie on the OAuth callback redirect.
-        const res = await api.get("/api/v1/auth/me", {
-          withCredentials: true,
+        // Use fetch (not the shared axios client) so a missing refresh cookie
+        // cannot deadlock in the 401→refresh interceptor loop.
+        const res = await fetch(apiUrl("/api/v1/auth/me"), {
+          credentials: "include",
         });
 
-        const { data, accessToken, accountType } = res.data;
+        if (!res.ok) {
+          throw new Error("OAuth session not established.");
+        }
+
+        const body = await res.json();
+        const { data, accessToken, accountType } = body;
 
         if (accessToken) {
           setMemoryToken(accessToken);

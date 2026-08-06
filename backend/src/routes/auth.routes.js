@@ -76,6 +76,29 @@ const buildFailureRedirectUrl = (req, provider) => {
   }).toString();
 };
 
+function encodeOAuthState(req) {
+  const redirectTarget = [
+    req.query.successRedirect,
+    req.query.redirect,
+    req.query.redirect_uri,
+  ].find((value) => typeof value === "string");
+
+  if (!redirectTarget) return undefined;
+
+  return Buffer.from(JSON.stringify({ redirect: redirectTarget })).toString(
+    "base64url",
+  );
+}
+
+function decodeOAuthState(state) {
+  if (!state || typeof state !== "string") return null;
+  try {
+    return JSON.parse(Buffer.from(state, "base64url").toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
 // On successful OAuth login, create a session (refresh cookie) and redirect
 // to /oauth-success without putting any token in the URL.
 const respondWithOAuthSuccess = (req, res, userId) => {
@@ -132,10 +155,14 @@ router.get(
     });
     next();
   },
-  passport.authenticate("google", {
-    session: false,
-    scope: ["profile", "email"],
-  }),
+  (req, res, next) => {
+    const state = encodeOAuthState(req);
+    passport.authenticate("google", {
+      session: false,
+      scope: ["profile", "email"],
+      ...(state ? { state } : {}),
+    })(req, res, next);
+  },
 );
 
 router.get("/google/callback", oauthSignupGate, (req, res, next) => {
@@ -179,10 +206,14 @@ router.get(
   "/github",
   oauthSignupGate,
   ensureGithubConfigured,
-  passport.authenticate("github", {
-    session: false,
-    scope: ["user:email"],
-  }),
+  (req, res, next) => {
+    const state = encodeOAuthState(req);
+    passport.authenticate("github", {
+      session: false,
+      scope: ["user:email"],
+      ...(state ? { state } : {}),
+    })(req, res, next);
+  },
 );
 
 router.get("/github/callback", oauthSignupGate, (req, res, next) => {
