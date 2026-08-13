@@ -13,7 +13,8 @@ import {
   Search,
   X,
   ChevronRight,
-  ChevronDown,
+  ChevronsDown,
+  ChevronsUp,
   CheckCircle2,
   Circle,
 } from "lucide-react";
@@ -67,17 +68,10 @@ type TopicTabItem = {
   count: number;
 };
 
-const MORE_BUTTON_WIDTH = 44;
+/** One line of topic chips — matches LeetCode's collapsed topics row. */
+const TOPIC_ROW_HEIGHT_PX = 36;
 
-function topicTabClass(active: boolean) {
-  return `flex items-center gap-2 border px-3 py-2.5 font-mono text-[10px] tracking-wider uppercase transition-colors shrink-0 whitespace-nowrap ${
-    active
-      ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-      : "border-gray-200 dark:border-white/8 bg-transparent text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-white/30 hover:text-black dark:hover:text-white"
-  }`;
-}
-
-function TopicTabButton({
+function TopicChip({
   item,
   active,
   onClick,
@@ -90,11 +84,21 @@ function TopicTabButton({
     <button
       type="button"
       onClick={onClick}
-      className={topicTabClass(active)}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-1.5 py-1 text-sm transition-colors ${
+        active
+          ? "font-medium text-black dark:text-white"
+          : "text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white"
+      }`}
     >
       <span>{item.label}</span>
-      <span className={active ? "opacity-70" : "text-gray-400"}>
-        ({item.count})
+      <span
+        className={`rounded-full px-1.5 py-px text-[10px] leading-4 tabular-nums ${
+          active
+            ? "bg-black text-white dark:bg-white dark:text-black"
+            : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
+        }`}
+      >
+        {item.count}
       </span>
     </button>
   );
@@ -109,111 +113,38 @@ function TopicTabsBar({
   activeTab: string;
   onSelect: (key: string) => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const measureRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [visibleCount, setVisibleCount] = useState(items.length);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [canExpand, setCanExpand] = useState(false);
 
   useLayoutEffect(() => {
+    const el = rowRef.current;
+    if (!el) return;
+
     const measure = () => {
-      const container = containerRef.current;
-      const measureRow = measureRef.current;
-      if (!container || !measureRow) return;
-
-      const buttons = Array.from(measureRow.children) as HTMLElement[];
-      const available = container.clientWidth;
-      let used = 0;
-      let fit = 0;
-
-      for (let i = 0; i < buttons.length; i++) {
-        const width = buttons[i].offsetWidth;
-        const hasMoreAfter = i < buttons.length - 1;
-        const reserve = hasMoreAfter ? MORE_BUTTON_WIDTH : 0;
-        if (used + width + reserve > available) break;
-        used += width;
-        fit = i + 1;
-      }
-
-      setVisibleCount(Math.max(1, fit));
+      setCanExpand(el.scrollHeight > TOPIC_ROW_HEIGHT_PX + 4);
     };
 
     measure();
     const observer = new ResizeObserver(measure);
-    if (containerRef.current) observer.observe(containerRef.current);
+    observer.observe(el);
     window.addEventListener("resize", measure);
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, [items]);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onPointerDown = (e: MouseEvent) => {
-      if (!menuRef.current?.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [menuOpen]);
-
-  const hasOverflow = visibleCount < items.length;
-
-  const { visibleItems, overflowItems } = useMemo(() => {
-    if (!hasOverflow) {
-      return { visibleItems: items, overflowItems: [] as TopicTabItem[] };
-    }
-
-    let visible = items.slice(0, visibleCount);
-    let overflow = items.slice(visibleCount);
-    const activeIdx = items.findIndex((item) => item.key === activeTab);
-
-    if (activeIdx >= visibleCount && activeIdx !== -1) {
-      const activeItem = items[activeIdx];
-      visible = [...items.slice(0, visibleCount - 1), activeItem];
-      overflow = items.filter(
-        (item) => !visible.some((v) => v.key === item.key),
-      );
-    }
-
-    return { visibleItems: visible, overflowItems: overflow };
-  }, [items, visibleCount, hasOverflow, activeTab]);
-
-  const menuHasActive = overflowItems.some((item) => item.key === activeTab);
+  }, [items, expanded]);
 
   return (
-    <div
-      ref={containerRef}
-      className="relative flex items-stretch gap-0 border-b border-gray-200 dark:border-white/10 -mx-1"
-    >
-      {/* Hidden row for width measurement */}
+    <div className="relative">
       <div
-        ref={measureRef}
-        className="invisible absolute top-0 left-0 flex flex-nowrap gap-0 pointer-events-none"
-        aria-hidden
+        ref={rowRef}
+        className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${
+          expanded ? "pb-1 pr-24" : "max-h-9 overflow-hidden pr-24"
+        }`}
       >
         {items.map((item) => (
-          <TopicTabButton
-            key={`measure-${item.key}`}
-            item={item}
-            active={false}
-            onClick={() => {}}
-          />
-        ))}
-      </div>
-
-      <div className="flex flex-nowrap items-stretch min-w-0 overflow-hidden">
-        {visibleItems.map((item) => (
-          <TopicTabButton
+          <TopicChip
             key={item.key}
             item={item}
             active={activeTab === item.key}
@@ -222,42 +153,31 @@ function TopicTabsBar({
         ))}
       </div>
 
-      {hasOverflow && (
-        <div ref={menuRef} className="relative shrink-0">
+      {canExpand && (
+        <div
+          className={`absolute right-0 flex items-center ${
+            expanded ? "bottom-0" : "top-0 h-9"
+          }`}
+        >
+          {!expanded && (
+            <div
+              className="h-full w-8 bg-gradient-to-r from-transparent to-white dark:to-black"
+              aria-hidden
+            />
+          )}
           <button
             type="button"
-            onClick={() => setMenuOpen((open) => !open)}
-            aria-expanded={menuOpen}
-            aria-haspopup="true"
-            aria-label="Show more topics"
-            className={`flex h-full items-center justify-center border px-2.5 py-2.5 transition-colors ${
-              menuOpen || menuHasActive
-                ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-                : "border-gray-200 dark:border-white/8 bg-transparent text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-white/30 hover:text-black dark:hover:text-white"
-            }`}
+            onClick={() => setExpanded((open) => !open)}
+            aria-expanded={expanded}
+            className="flex h-9 items-center gap-1 bg-white pl-0.5 text-sm text-gray-500 hover:text-black dark:bg-black dark:text-gray-400 dark:hover:text-white"
           >
-            <ChevronDown
-              className={`w-4 h-4 transition-transform ${menuOpen ? "rotate-180" : ""}`}
-            />
+            {expanded ? "Collapse" : "Expand"}
+            {expanded ? (
+              <ChevronsUp className="h-4 w-4" />
+            ) : (
+              <ChevronsDown className="h-4 w-4" />
+            )}
           </button>
-
-          {menuOpen && (
-            <div className="absolute right-0 top-full z-20 mt-0.5 min-w-48 max-h-72 overflow-y-auto border border-gray-200 dark:border-white/10 bg-white dark:bg-[#111] shadow-lg">
-              <div className="flex flex-wrap gap-0 p-1">
-                {items.map((item) => (
-                  <TopicTabButton
-                    key={`menu-${item.key}`}
-                    item={item}
-                    active={activeTab === item.key}
-                    onClick={() => {
-                      onSelect(item.key);
-                      setMenuOpen(false);
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -357,7 +277,7 @@ export default function QuestionsList() {
 
   return (
     <div className="space-y-4">
-      {/* Topic tabs — single row with overflow dropdown */}
+      {/* Topics — one row, Expand/Collapse like LeetCode */}
       {!loading && topics.length > 0 && (
         <TopicTabsBar
           items={topicTabItems}
