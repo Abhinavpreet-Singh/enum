@@ -12,7 +12,10 @@ import { useAuthContext } from "@/providers/AuthProvider";
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { getStoredRaceUsername } from "@/components/race/race-landing";
+import {
+  buildRaceLobbyPath,
+  getStoredRaceUsername,
+} from "@/components/race/race-landing";
 
 export default function DSAArenaClientPage() {
   const params = useParams();
@@ -25,6 +28,7 @@ export default function DSAArenaClientPage() {
   const [loading, setLoading] = useState(true);
   const [leftPanelWidth, setLeftPanelWidth] = useState(50);
   const [isResizing, setIsResizing] = useState(false);
+  const [editorExpanded, setEditorExpanded] = useState(false);
   const [refreshSolutions, setRefreshSolutions] = useState(0);
   const [refreshSubmissions, setRefreshSubmissions] = useState(0);
   const [leftPanelTab, setLeftPanelTab] = useState<TabType>("description");
@@ -35,6 +39,9 @@ export default function DSAArenaClientPage() {
     editorLocked,
     isWinner,
     isParticipant,
+    canEnd,
+    ending,
+    end,
     join,
     joining,
     handleCompetitionSubmitResult,
@@ -46,6 +53,14 @@ export default function DSAArenaClientPage() {
   });
 
   const joinAttemptedRef = useRef<string | null>(null);
+
+  // Waiting races belong on the dedicated lobby page (NeetCode-style).
+  useEffect(() => {
+    if (!raceId || competitionLoading) return;
+    if (competition?.status === "waiting") {
+      router.replace(buildRaceLobbyPath(raceId));
+    }
+  }, [raceId, competition?.status, competitionLoading, router]);
 
   // Invite link deep-link: ensure name first, then join the targeted race.
   useEffect(() => {
@@ -180,33 +195,44 @@ export default function DSAArenaClientPage() {
         isParticipant={isParticipant}
         isWinner={isWinner}
         editorLocked={editorLocked}
+        canEnd={canEnd}
+        ending={ending}
+        onEndRace={end}
       />
 
       <div className="flex flex-1 overflow-hidden relative min-h-0">
-        <div
-          className="flex h-full min-w-0 flex-col overflow-hidden"
-          style={{ width: `${leftPanelWidth}%` }}
-        >
-          <ProblemTabs
-            question={question}
-            refreshSolutions={refreshSolutions}
-            refreshSubmissions={refreshSubmissions}
-            activeTab={leftPanelTab}
-            onTabChange={setLeftPanelTab}
-          />
-        </div>
+        {!editorExpanded && (
+          <>
+            <div
+              className="flex h-full min-w-0 flex-col overflow-hidden"
+              style={{ width: `${leftPanelWidth}%` }}
+            >
+              <ProblemTabs
+                question={question}
+                refreshSolutions={refreshSolutions}
+                refreshSubmissions={refreshSubmissions}
+                activeTab={leftPanelTab}
+                onTabChange={setLeftPanelTab}
+              />
+            </div>
+
+            <div
+              onMouseDown={handleMouseDown}
+              className={`w-1 cursor-col-resize shrink-0 ${
+                isResizing
+                  ? "bg-white dark:bg-white"
+                  : "bg-transparent hover:bg-gray-300 dark:hover:bg-white/20"
+              }`}
+              style={{ minWidth: "1px" }}
+            />
+          </>
+        )}
 
         <div
-          onMouseDown={handleMouseDown}
-          className={`w-1 cursor-col-resize shrink-0 ${
-            isResizing
-              ? "bg-white dark:bg-white"
-              : "bg-transparent hover:bg-gray-300 dark:hover:bg-white/20"
+          className={`overflow-hidden min-h-0 ${
+            editorExpanded ? "w-full flex-1" : "flex-1"
           }`}
-          style={{ minWidth: "1px" }}
-        />
-
-        <div className="overflow-hidden flex-1 min-h-0">
+        >
           <CodeEditor
             initialCode={question.initialCode}
             testCases={question.examples.map((tc) => ({
@@ -221,6 +247,8 @@ export default function DSAArenaClientPage() {
             onCompetitionResult={({ competition: next }) => {
               handleCompetitionSubmitResult(next as CompetitionState | null);
             }}
+            editorExpanded={editorExpanded}
+            onToggleEditorExpand={() => setEditorExpanded((v) => !v)}
           />
         </div>
       </div>

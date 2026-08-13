@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DashboardPageShell, DashboardPageHeader } from "@/components/dashboard/dashboard-page-shell";
 import { TestLinkCopy } from "@/components/dashboard/organization/test-link-copy";
-import { ChevronLeft, CheckCircle, Save } from "lucide-react";
+import { ChevronLeft, CheckCircle, Save, Globe, Square } from "lucide-react";
 import TestQuestionsTab from "./test-questions-tab";
 import {
   type TestEditorTab,
@@ -142,6 +142,8 @@ export default function TestEditor({ mode, assessmentId, initialTab }: TestEdito
   const [activeTab, setActiveTab] = useState<TestEditorTab>(initialTab ?? "general");
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [endConfirm, setEndConfirm] = useState(false);
   const [error, setError] = useState("");
   const [created, setCreated] = useState<CreatedAssessment | null>(null);
 
@@ -279,6 +281,41 @@ export default function TestEditor({ mode, assessmentId, initialTab }: TestEdito
       setError(msg);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePublish() {
+    if (!assessmentId) return;
+    setActionLoading(true);
+    setError("");
+    try {
+      await api.put(`/api/v1/assessments/${assessmentId}/publish`);
+      setStatus("published");
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Failed to publish test.";
+      setError(msg);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleEndTest() {
+    if (!assessmentId) return;
+    setActionLoading(true);
+    setError("");
+    try {
+      await api.put(`/api/v1/assessments/${assessmentId}/end`);
+      setEndConfirm(false);
+      await loadAssessment();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Failed to end test.";
+      setError(msg);
+    } finally {
+      setActionLoading(false);
     }
   }
 
@@ -723,7 +760,37 @@ export default function TestEditor({ mode, assessmentId, initialTab }: TestEdito
             ? "Update assessment details, questions and proctoring settings."
             : "Configure your new assessment. A unique test link will be generated on creation."
         }
-      />
+      >
+        {isEdit && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-[10px] uppercase tracking-wider text-gray-400">
+              {status}
+            </span>
+            {status === "draft" && (
+              <button
+                type="button"
+                onClick={handlePublish}
+                disabled={actionLoading}
+                className="inline-flex items-center gap-1.5 px-4 py-2 font-mono text-[11px] tracking-wider bg-black dark:bg-white text-white dark:text-black hover:opacity-90 disabled:opacity-50"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                {actionLoading ? "…" : "Publish"}
+              </button>
+            )}
+            {status === "published" && (
+              <button
+                type="button"
+                onClick={() => setEndConfirm(true)}
+                disabled={actionLoading}
+                className="inline-flex items-center gap-1.5 px-4 py-2 font-mono text-[11px] tracking-wider bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+                {actionLoading ? "…" : "End test"}
+              </button>
+            )}
+          </div>
+        )}
+      </DashboardPageHeader>
 
       {error && (
         <p className="font-mono text-xs text-red-500 mb-4">{error}</p>
@@ -793,6 +860,37 @@ export default function TestEditor({ mode, assessmentId, initialTab }: TestEdito
           </div>
         )}
       </form>
+
+      {endConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60">
+          <div className={`${panelSurface} p-6 w-full max-w-sm mx-4 bg-white dark:bg-black shadow-2xl`}>
+            <h3 className="font-mono text-xs font-bold text-black dark:text-white uppercase mb-2">
+              End Test?
+            </h3>
+            <p className="font-mono text-xs text-gray-500 mb-5">
+              This closes the test for everyone. Candidates still in progress will
+              be force-submitted and cannot continue.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setEndConfirm(false)}
+                className={`px-4 py-2 font-mono text-[10px] tracking-wider ${panelBorder} text-gray-500`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleEndTest}
+                disabled={actionLoading}
+                className="px-4 py-2 font-mono text-[10px] tracking-wider bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {actionLoading ? "Ending…" : "End test"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardPageShell>
   );
 }

@@ -6,6 +6,8 @@ import {
   joinCompetition,
   leaveCompetition,
   createRace,
+  startRace,
+  endRace,
   quickMatch,
   DEFAULT_MAX_PARTICIPANTS,
 } from "../services/competition.service.js";
@@ -86,13 +88,43 @@ const leave = asyncHandler(async (req, res) => {
   });
 });
 
+const start = asyncHandler(async (req, res) => {
+  const { competitionId } = req.body;
+  if (!competitionId) throw new ApiError(400, "Competition ID is required");
+
+  const competition = await startRace({
+    competitionId,
+    userId: req.user.id,
+  });
+
+  return res.status(200).json({
+    message: "Race started",
+    data: { competition },
+  });
+});
+
+const end = asyncHandler(async (req, res) => {
+  const { competitionId } = req.body;
+  if (!competitionId) throw new ApiError(400, "Competition ID is required");
+
+  const competition = await endRace({
+    competitionId,
+    userId: req.user.id,
+  });
+
+  return res.status(200).json({
+    message: "Race ended",
+    data: { competition },
+  });
+});
+
 const create = asyncHandler(async (req, res) => {
   const username = resolveUsername(req);
 
   const result = await createRace({
     userId: req.user.id,
     username,
-    maxParticipants: req.body?.maxParticipants ?? 2,
+    maxParticipants: req.body?.maxParticipants ?? 5,
   });
 
   return res.status(200).json({
@@ -109,7 +141,7 @@ const match = asyncHandler(async (req, res) => {
   const result = await quickMatch({
     userId: req.user.id,
     username,
-    maxParticipants: req.body?.maxParticipants ?? 2,
+    maxParticipants: req.body?.maxParticipants ?? 5,
   });
 
   return res.status(200).json({
@@ -120,4 +152,4 @@ const match = asyncHandler(async (req, res) => {
   });
 });
 
-export { getStatus, getById, join, leave, create, match };
+export { getStatus, getById, join, leave, start, end, create, match };

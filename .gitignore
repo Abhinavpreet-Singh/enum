@@ -33,6 +33,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# Local Postgres only. Production uses the Dokploy-managed DB via DATABASE_URL.
+/backend/docker-compose.yml
+
 # vercel
 .vercel
 

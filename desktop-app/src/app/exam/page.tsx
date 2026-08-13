@@ -49,6 +49,7 @@ export default function ExamPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [submitConfirmText, setSubmitConfirmText] = useState("");
   const [showRefreshConfirm, setShowRefreshConfirm] = useState(false);
   const [loadingQuestions, setLoadingQuestions] = useState(true);
@@ -145,11 +146,20 @@ export default function ExamPage() {
 
   useEffect(() => {
     if (!attemptId) return;
-    startHeartbeat(attemptId, () => ({
-      timeRemainingSeconds: useExamStore.getState().timeRemainingSeconds,
-      currentQuestionIndex: useExamStore.getState().currentQuestionIndex,
-    }));
+    startHeartbeat(
+      attemptId,
+      () => ({
+        timeRemainingSeconds: useExamStore.getState().timeRemainingSeconds,
+        currentQuestionIndex: useExamStore.getState().currentQuestionIndex,
+      }),
+      {
+        onForceEnd: () => {
+          void submitExam("force");
+        },
+      },
+    );
     return () => stopHeartbeat();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attemptId]);
 
   useEffect(() => {
@@ -208,7 +218,7 @@ export default function ExamPage() {
     setView("question");
   }
 
-  async function submitExam(reason: "manual" | "auto" = "manual") {
+  async function submitExam(reason: "manual" | "auto" | "force" = "manual") {
     if (submitting || !attemptId) return;
     setSubmitting(true);
     stopHeartbeat();
@@ -227,10 +237,32 @@ export default function ExamPage() {
 
       const result = data.data as { totalScore: number; maxScore: number; passed: boolean };
       router.push(
-        `/submitted?score=${result.totalScore}&max=${result.maxScore}&passed=${result.passed}`,
+        `/submitted?score=${result.totalScore}&max=${result.maxScore}&passed=${result.passed}${
+          reason === "force" ? "&ended=1" : ""
+        }`,
       );
     } catch {
-      router.push("/submitted");
+      router.push(reason === "force" ? "/submitted?ended=1" : "/submitted");
+    } finally {
+      setSubmitting(false);
+      teardownSecurity();
+    }
+  }
+
+  async function exitExam() {
+    if (submitting || !attemptId) return;
+    setSubmitting(true);
+    stopHeartbeat();
+    stopAutosave();
+
+    try {
+      await flushAll();
+      await desktopApi.exit(attemptId, useExamStore.getState().answers, []);
+      clearLocalDraft(attemptId);
+      setExamStatus("submitted");
+      router.push("/exited");
+    } catch {
+      router.push("/exited");
     } finally {
       setSubmitting(false);
       teardownSecurity();
@@ -375,6 +407,14 @@ export default function ExamPage() {
           <ViolationBadge count={violationCount} level={suspicionLevel} />
           <ExamTimer seconds={timeRemainingSeconds} />
           <button
+            type="button"
+            onClick={() => setShowExitConfirm(true)}
+            disabled={submitting}
+            className="rounded border border-black/20 bg-transparent px-3 py-1.5 font-mono text-[11px] font-semibold tracking-[0.16em] text-gray-600 transition-colors hover:border-black hover:text-black disabled:opacity-50 dark:border-white/20 dark:text-gray-300 dark:hover:border-white dark:hover:text-white"
+          >
+            EXIT TEST
+          </button>
+          <button
             onClick={() => {
               setSubmitConfirmText("");
               setShowConfirm(true);
@@ -465,6 +505,40 @@ export default function ExamPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Exit Confirmation Modal ── */}
+      {showExitConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-lg border border-black/20 bg-white p-6 shadow-2xl animate-fade-slide-up dark:border-white/10 dark:bg-[#101010]">
+            <h3 className="text-base font-bold text-black dark:text-white">
+              Exit Test?
+            </h3>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              You will leave without finishing. This attempt will be marked as
+              abandoned and you may not be able to resume, depending on attempt
+              limits.
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => setShowExitConfirm(false)}
+                className="btn-ghost flex-1 py-2.5"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowExitConfirm(false);
+                  void exitExam();
+                }}
+                disabled={submitting}
+                className="flex-1 border border-red-500 bg-red-600 py-2.5 font-mono text-xs font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+              >
+                {submitting ? "Exiting…" : "Exit test"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Submit Confirmation Modal ── */}
       {showConfirm && (

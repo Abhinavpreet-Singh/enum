@@ -108,12 +108,23 @@ export const desktopApi = {
     attemptId: string,
     answers: import("@/types").Answer[],
     codeSubmissions?: unknown[],
-    reason?: "manual" | "auto",
+    reason?: "manual" | "auto" | "force" | "abandoned",
   ) =>
     api.post(`/attempt/${attemptId}/submit`, {
       answers,
       codeSubmissions,
       reason,
+    }),
+
+  /** Participant exits without finishing */
+  exit: (
+    attemptId: string,
+    answers?: import("@/types").Answer[],
+    codeSubmissions?: unknown[],
+  ) =>
+    api.post(`/attempt/${attemptId}/exit`, {
+      answers,
+      codeSubmissions,
     }),
 
   /** Fetch attempt details */

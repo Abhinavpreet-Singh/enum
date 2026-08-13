@@ -14,6 +14,10 @@ import {
   CircleX,
   Loader2,
   Brain,
+  ChevronDown,
+  ChevronUp,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import Editor from "@monaco-editor/react";
 import PublishSolutionModal from "./publish-solution-modal";
@@ -52,6 +56,9 @@ interface CodeEditorProps {
     competitionWon: boolean;
     competition: Record<string, unknown> | null;
   }) => void;
+  /** Editor spans the full arena width (problem panel hidden). */
+  editorExpanded?: boolean;
+  onToggleEditorExpand?: () => void;
 }
 
 const languageOptions = [
@@ -90,6 +97,8 @@ export default function CodeEditor({
   competitionLocked = false,
   competitionLockedMessage,
   onCompetitionResult,
+  editorExpanded = false,
+  onToggleEditorExpand,
 }: CodeEditorProps) {
   const [language, setLanguage] = useState<Language>("python");
   const [code, setCode] = useState("");
@@ -102,6 +111,8 @@ export default function CodeEditor({
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [consoleHeight, setConsoleHeight] = useState(280);
+  const [consoleCollapsed, setConsoleCollapsed] = useState(false);
+  const [savedConsoleHeight, setSavedConsoleHeight] = useState(280);
   const [isResizing, setIsResizing] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [showComplexityModal, setShowComplexityModal] = useState(false);
@@ -186,6 +197,7 @@ export default function CodeEditor({
 
   // ---------- Resize ----------
   const handleConsoleResize = (e: React.MouseEvent) => {
+    if (consoleCollapsed) return;
     e.preventDefault();
     setIsResizing(true);
     document.body.classList.add("resize-active");
@@ -211,6 +223,28 @@ export default function CodeEditor({
 
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
+  };
+
+  const collapseConsole = () => {
+    if (consoleCollapsed) return;
+    setSavedConsoleHeight(consoleHeight);
+    setConsoleCollapsed(true);
+  };
+
+  const expandConsole = () => {
+    if (!consoleCollapsed) return;
+    setConsoleHeight(savedConsoleHeight || 280);
+    setConsoleCollapsed(false);
+  };
+
+  const toggleConsole = () => {
+    if (consoleCollapsed) expandConsole();
+    else collapseConsole();
+  };
+
+  const selectBottomTab = (tab: BottomTab) => {
+    setBottomTab(tab);
+    if (consoleCollapsed) expandConsole();
   };
 
   // ---------- Judge API call ----------
@@ -296,6 +330,10 @@ export default function CodeEditor({
 
     setIsRunning(true);
     setBottomTab("result");
+    if (consoleCollapsed) {
+      setConsoleHeight(savedConsoleHeight || 280);
+      setConsoleCollapsed(false);
+    }
     setOverallVerdict("running");
     setTestResults([]);
     setActiveResultIdx(0);
@@ -353,6 +391,11 @@ export default function CodeEditor({
 
     setIsSubmitting(true);
     setShowSubmitOverlay(true);
+    if (consoleCollapsed) {
+      setConsoleHeight(savedConsoleHeight || 280);
+      setConsoleCollapsed(false);
+    }
+    setBottomTab("result");
     setSubmitPhase("evaluating");
     setSubmitResultData(null);
     setWasSubmission(true);
@@ -503,10 +546,14 @@ export default function CodeEditor({
             value={language}
             onChange={(e) => setLanguage(e.target.value as Language)}
             disabled={editorDisabled}
-            className="px-2 py-1 bg-gray-100 dark:bg-white/8 text-gray-700 dark:text-white rounded text-xs outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-2 py-1 rounded text-xs outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-700 dark:border-white/20 dark:bg-slate-800 dark:text-white dark:[color-scheme:dark]"
           >
             {languageOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
+              <option
+                key={opt.value}
+                value={opt.value}
+                className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white"
+              >
                 {opt.label}
               </option>
             ))}
@@ -514,6 +561,20 @@ export default function CodeEditor({
         </div>
 
         <div className="flex items-center gap-2">
+          {onToggleEditorExpand && (
+            <button
+              type="button"
+              onClick={onToggleEditorExpand}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded text-gray-500 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors"
+              title={editorExpanded ? "Show problem panel" : "Expand editor"}
+            >
+              {editorExpanded ? (
+                <Minimize2 className="w-4 h-4" />
+              ) : (
+                <Maximize2 className="w-4 h-4" />
+              )}
+            </button>
+          )}
           <button
             onClick={() => navigator.clipboard.writeText(code)}
             className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded text-gray-500 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors"
@@ -631,25 +692,29 @@ export default function CodeEditor({
       </div>
 
       {/* ═══════ Resize Handle ═══════ */}
-      <div
-        onMouseDown={handleConsoleResize}
-        className={`h-1 cursor-row-resize shrink-0 ${
-          isResizing
-            ? "bg-black dark:bg-white"
-            : "bg-transparent hover:bg-gray-200 dark:hover:bg-white/20"
-        }`}
-        style={{ minHeight: "1px" }}
-      />
+      {!consoleCollapsed && (
+        <div
+          onMouseDown={handleConsoleResize}
+          className={`h-1 cursor-row-resize shrink-0 ${
+            isResizing
+              ? "bg-black dark:bg-white"
+              : "bg-transparent hover:bg-gray-200 dark:hover:bg-white/20"
+          }`}
+          style={{ minHeight: "1px" }}
+        />
+      )}
 
       {/* ═══════ Bottom Panel ═══════ */}
       <div
-        style={{ height: `${consoleHeight}px` }}
-        className="bg-white dark:bg-black flex flex-col border-t border-gray-200 dark:border-white/10"
+        style={{ height: consoleCollapsed ? undefined : `${consoleHeight}px` }}
+        className={`bg-white dark:bg-black flex flex-col border-t border-gray-200 dark:border-white/10 ${
+          consoleCollapsed ? "shrink-0" : ""
+        }`}
       >
         {/* Bottom Tabs */}
-        <div className="flex items-center border-b border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-[#0d0d0d] px-2">
+        <div className="flex items-center border-b border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-[#0d0d0d] px-2 shrink-0">
           <button
-            onClick={() => setBottomTab("testcase")}
+            onClick={() => selectBottomTab("testcase")}
             className={`px-4 py-2 font-mono text-xs tracking-wider transition-colors border-b-2 ${
               bottomTab === "testcase"
                 ? "text-black dark:text-white border-black dark:border-white font-bold"
@@ -659,7 +724,7 @@ export default function CodeEditor({
             Testcase
           </button>
           <button
-            onClick={() => setBottomTab("result")}
+            onClick={() => selectBottomTab("result")}
             className={`px-4 py-2 font-mono text-xs tracking-wider transition-colors border-b-2 flex items-center gap-2 ${
               bottomTab === "result"
                 ? "text-black dark:text-white border-black dark:border-white font-bold"
@@ -677,7 +742,7 @@ export default function CodeEditor({
           </button>
 
           {/* Verdict summary in header */}
-          {overallVerdict !== "idle" && bottomTab === "result" && (
+          {overallVerdict !== "idle" && bottomTab === "result" && !consoleCollapsed && (
             <div className="ml-auto pr-2 flex items-center gap-2">
               {overallVerdict === "running" && (
                 <Loader2 className="w-3 h-3 animate-spin text-gray-500" />
@@ -694,9 +759,27 @@ export default function CodeEditor({
               )}
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={toggleConsole}
+            className={`p-1.5 rounded text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-white/10 transition-colors ${
+              overallVerdict !== "idle" && bottomTab === "result" && !consoleCollapsed
+                ? ""
+                : "ml-auto"
+            }`}
+            title={consoleCollapsed ? "Expand test cases" : "Minimize test cases"}
+          >
+            {consoleCollapsed ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+          </button>
         </div>
 
         {/* Tab Content */}
+        {!consoleCollapsed && (
         <div className="flex-1 overflow-auto dark-scrollbar">
           {/* ═══ TESTCASE TAB ═══ */}
           {bottomTab === "testcase" && (
@@ -723,8 +806,8 @@ export default function CodeEditor({
                             onClick={() => setActiveTestCaseIdx(idx)}
                             className={`px-3 py-1.5 font-mono text-xs rounded-t transition-colors ${
                               activeTestCaseIdx === idx
-                                ? "bg-black text-white"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                ? "bg-black dark:bg-white text-white dark:text-black"
+                                : "bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/15 hover:text-black dark:hover:text-white"
                             }`}
                           >
                             {isCustom
@@ -985,6 +1068,7 @@ export default function CodeEditor({
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* ═══════ Submit Overlay ═══════ */}

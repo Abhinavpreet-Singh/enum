@@ -489,7 +489,7 @@ model QuestionCompetition {
   id              String    @id @default(cuid())
   questionId      String
   maxParticipants Int       @default(10)
-  status          String    @default("active") // active | completed
+  status          String    @default("waiting") // waiting | active | completed
   winnerId        String?
   winnerUsername  String?
   completedAt     DateTime?

@@ -30,22 +30,19 @@ function extractInviteId(value: string) {
     const isUrlLike = /^https?:\/\//i.test(raw) || raw.startsWith("/");
     if (isUrlLike) {
       const parsed = new URL(raw, window.location.origin);
-      const raceParam =
+      const pathMatch = parsed.pathname.match(
+        /\/dashboard\/race\/([^/?#]+)/,
+      );
+      if (pathMatch?.[1]) {
+        return normalizeInviteId(pathMatch[1]);
+      }
+
+      const arenaRace =
         parsed.searchParams.get("race") ||
         parsed.searchParams.get("invite") ||
         parsed.searchParams.get("competitionId") ||
         parsed.searchParams.get("code");
-      if (raceParam) return normalizeInviteId(raceParam);
-
-      const pathMatch = parsed.pathname.match(
-        /\/dashboard\/(?:race|dsa-arena)\/([^/?#]+)/,
-      );
-      if (pathMatch?.[1] && pathMatch[1] !== "race") {
-        // Prefer query race id when present; otherwise treat path segment as id only for /race/:id
-        if (parsed.pathname.includes("/dashboard/race/")) {
-          return normalizeInviteId(pathMatch[1]);
-        }
-      }
+      if (arenaRace) return normalizeInviteId(arenaRace);
     }
   } catch {
     // Fall through to plain code handling.
@@ -65,9 +62,13 @@ export function storeRaceUsername(name: string) {
 
 export function buildRaceInviteUrl(competitionId: string) {
   if (typeof window === "undefined") {
-    return `/dashboard/race?invite=${competitionId}`;
+    return `/dashboard/race/${competitionId}`;
   }
-  return `${window.location.origin}/dashboard/race?invite=${competitionId}`;
+  return `${window.location.origin}/dashboard/race/${competitionId}`;
+}
+
+export function buildRaceLobbyPath(competitionId: string) {
+  return `/dashboard/race/${competitionId}`;
 }
 
 export function buildRaceArenaPath(questionId: string, competitionId: string) {
@@ -157,14 +158,19 @@ export default function RaceLanding() {
     try {
       const json = await authFetch("/api/v1/competitions/create", {
         method: "POST",
-        body: JSON.stringify({ username, maxParticipants: 2 }),
+        body: JSON.stringify({ username, maxParticipants: 5 }),
       });
       const questionId = json.data?.questionId as string | undefined;
       const competitionId = json.data?.competition?.id as string | undefined;
       if (!questionId || !competitionId) {
         throw new Error("Could not create race");
       }
-      router.push(buildRaceArenaPath(questionId, competitionId));
+      // Existing live races go straight to the arena; new lobbies wait first.
+      if (json.data?.competition?.status === "active") {
+        router.push(buildRaceArenaPath(questionId, competitionId));
+      } else {
+        router.push(buildRaceLobbyPath(competitionId));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create race");
     } finally {
@@ -180,27 +186,10 @@ export default function RaceLanding() {
     }
 
     const username = ensureUsername();
-    if (!username || joining) return;
+    if (!username) return;
 
-    setJoining(true);
-    setError("");
-    try {
-      const json = await authFetch("/api/v1/competitions/join", {
-        method: "POST",
-        body: JSON.stringify({ competitionId: inviteId, username }),
-      });
-      const competition = json.data?.competition;
-      const questionId = competition?.questionId as string | undefined;
-      const competitionId = competition?.id as string | undefined;
-      if (!questionId || !competitionId) {
-        throw new Error("Could not join race");
-      }
-      router.push(buildRaceArenaPath(questionId, competitionId));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not join race");
-    } finally {
-      setJoining(false);
-    }
+    // Lobby page handles join + waiting UI (NeetCode-style).
+    router.push(buildRaceLobbyPath(inviteId));
   }
 
   function handleJoinRace(event: FormEvent<HTMLFormElement>) {
@@ -231,14 +220,14 @@ export default function RaceLanding() {
     if (!inviteId || autoJoinedInviteRef.current === inviteId) return;
 
     autoJoinedInviteRef.current = inviteId;
-    setJoinValue(inviteId);
-
-    const stored = getStoredRaceUsername();
-    if (stored) {
-      void joinFromValue(inviteId);
+    // Old invite query links → dedicated lobby page.
+    const username = getStoredRaceUsername();
+    if (username) {
+      router.replace(buildRaceLobbyPath(inviteId));
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    setJoinValue(inviteId);
+  }, [router]);
 
   return (
     <section className="flex flex-col gap-6 border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-black md:p-8">
@@ -307,7 +296,9 @@ export default function RaceLanding() {
               Create a race
             </h2>
             <p className="font-mono text-sm leading-6 text-gray-600 dark:text-gray-400">
-              Start a 1v1 coding race and share the invite link with a friend.
+              Start a coding race (up to 5 people) and share the invite link
+              with friends — wait in the lobby, then race.
+
             </p>
           </div>
           <div className="mt-auto pt-6">

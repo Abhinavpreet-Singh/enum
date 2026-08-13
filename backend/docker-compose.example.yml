@@ -1,0 +1,28 @@
+# Local development only. Copy to docker-compose.yml (gitignored) and run:
+#   docker compose up -d
+#
+# Do not use this file on Dokploy. Production Postgres is the Dokploy-managed
+# database, connected via DATABASE_URL on the backend service.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: enum-postgres
+    restart: unless-stopped
+    ports:
+      # 5433 avoids clashing with an existing local Postgres on 5432
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: enum
+      POSTGRES_PASSWORD: enum
+      POSTGRES_DB: enum
+    volumes:
+      - enum_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U enum -d enum"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  enum_pg_data:

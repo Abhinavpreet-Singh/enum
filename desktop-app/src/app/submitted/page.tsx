@@ -12,6 +12,7 @@ function SubmittedContent() {
   const score = Number(params.get("score") ?? 0);
   const max = Number(params.get("max") ?? 0);
   const passed = params.get("passed") === "true";
+  const endedByAdmin = params.get("ended") === "1";
   const percent = max > 0 ? Math.round((score / max) * 100) : 0;
 
   useEffect(() => {
@@ -40,10 +41,12 @@ function SubmittedContent() {
         </div>
 
         <h1 className="text-3xl font-black tracking-tight text-[#0a0a0a] dark:text-white">
-          {passed ? "Passed" : "Submitted"}
+          {endedByAdmin ? "Test ended" : passed ? "Passed" : "Submitted"}
         </h1>
         <p className="mt-2 text-sm text-gray-500">
-          Your exam has been submitted successfully.
+          {endedByAdmin
+            ? "The administrator ended this test. Your answers were submitted automatically."
+            : "Your exam has been submitted successfully."}
         </p>
 
         {max > 0 && (

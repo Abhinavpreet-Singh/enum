@@ -51,6 +51,8 @@ ENV PORT=8000
 ENV HOST=0.0.0.0
 # Backend image already includes language toolchains; no Docker-in-Docker on Dokploy/DO.
 ENV COMPILER_RUNTIME=local
+# Postgres is the Dokploy-managed database. Inject DATABASE_URL at runtime.
+# Do not start backend/docker-compose.yml in production.
 
 # Global modules used by in-container code execution (/tmp sandboxes)
 RUN npm install -g express cors axios dotenv body-parser

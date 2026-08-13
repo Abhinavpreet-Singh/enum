@@ -10,7 +10,7 @@ export default function RaceLandingPage() {
       <DashboardPageHeader
         breadcrumb="Dashboard / Quick Race"
         title="Quick Race"
-        description="Enter a display name, create a race, and share the invite link with a friend."
+        description="Create a lobby, invite friends, then race — first to pass every test wins."
       />
       <RaceLanding />
     </DashboardPageShell>

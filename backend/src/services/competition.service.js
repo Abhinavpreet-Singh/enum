@@ -24,8 +24,13 @@ export function serializeCompetition(competition, currentUserId) {
   );
   const isWinner = competition.winnerId === currentUserId;
   const isCompleted = competition.status === "completed";
+  const isWaiting = competition.status === "waiting";
+  const isActive = competition.status === "active";
   const isFull =
     competition.participants.length >= competition.maxParticipants;
+  const hostUserId = competition.participants[0]?.userId ?? null;
+  const isHost =
+    currentUserId != null && hostUserId != null && currentUserId === hostUserId;
 
   return {
     id: competition.id,
@@ -45,15 +50,32 @@ export function serializeCompetition(competition, currentUserId) {
     participants: competition.participants,
     isParticipant,
     isWinner,
-    editorLocked: isCompleted && isParticipant && !isWinner,
+    isWaiting,
+    isActive,
+    hostUserId,
+    isHost,
+    // Locked in lobby and for losers after someone wins (not host-cancelled).
+    editorLocked:
+      (isWaiting && isParticipant) ||
+      (isCompleted &&
+        Boolean(competition.winnerId) &&
+        isParticipant &&
+        !isWinner),
     canJoin:
       !isCompleted && !isFull && !isParticipant && currentUserId != null,
+    canStart:
+      isWaiting &&
+      isHost &&
+      competition.participants.length >= 2,
+    canEnd: isHost && (isWaiting || isActive),
   };
 }
 
+const OPEN_STATUSES = ["waiting", "active"];
+
 export async function getActiveCompetition(questionId, currentUserId) {
   const competition = await prisma.questionCompetition.findFirst({
-    where: { questionId, status: "active" },
+    where: { questionId, status: { in: OPEN_STATUSES } },
     include: competitionInclude,
     orderBy: { createdAt: "desc" },
   });
@@ -94,7 +116,7 @@ export async function getCompetitionStatus(
   }
 
   const active = await prisma.questionCompetition.findFirst({
-    where: { questionId, status: "active" },
+    where: { questionId, status: { in: OPEN_STATUSES } },
     include: competitionInclude,
     orderBy: { createdAt: "desc" },
   });
@@ -174,7 +196,7 @@ export async function joinCompetition({
       if (!question) throw new ApiError(404, "Question not found");
 
       competition = await tx.questionCompetition.findFirst({
-        where: { questionId, status: "active" },
+        where: { questionId, status: { in: OPEN_STATUSES } },
         include: competitionInclude,
         orderBy: { createdAt: "desc" },
       });
@@ -184,6 +206,7 @@ export async function joinCompetition({
           data: {
             questionId,
             maxParticipants: cappedMax,
+            status: "waiting",
           },
           include: competitionInclude,
         });
@@ -199,6 +222,10 @@ export async function joinCompetition({
 
     if (competition.status === "completed") {
       throw new ApiError(409, "This competition has already ended");
+    }
+
+    if (competition.status === "active") {
+      throw new ApiError(409, "This race has already started");
     }
 
     if (competition.participants.length >= competition.maxParticipants) {
@@ -224,7 +251,13 @@ export async function joinCompetition({
     return serializeCompetition(updated, userId);
   });
 
-  emitCompetitionState(result.id, result);
+  const latest = await prisma.questionCompetition.findUnique({
+    where: { id: result.id },
+    include: competitionInclude,
+  });
+  if (latest) {
+    emitCompetitionState(result.id, serializeCompetition(latest, null));
+  }
   return result;
 }
 
@@ -255,9 +288,79 @@ export async function leaveCompetition({ competitionId, userId }) {
     include: competitionInclude,
   });
 
-  const state = serializeCompetition(updated, userId);
+  // Broadcast a neutral state; clients recompute per-user flags.
+  const state = serializeCompetition(updated, null);
   emitCompetitionState(competitionId, state);
-  return state;
+  return serializeCompetition(updated, userId);
+}
+
+/**
+ * Host starts a waiting race (requires at least 2 participants).
+ */
+export async function startRace({ competitionId, userId }) {
+  const competition = await prisma.questionCompetition.findUnique({
+    where: { id: competitionId },
+    include: competitionInclude,
+  });
+
+  if (!competition) throw new ApiError(404, "Race not found");
+  if (competition.status !== "waiting") {
+    throw new ApiError(409, "Race is not waiting to start");
+  }
+
+  const hostUserId = competition.participants[0]?.userId;
+  if (!hostUserId || hostUserId !== userId) {
+    throw new ApiError(403, "Only the race host can start the race");
+  }
+
+  if (competition.participants.length < 2) {
+    throw new ApiError(400, "Need at least 2 players to start the race");
+  }
+
+  const updated = await prisma.questionCompetition.update({
+    where: { id: competitionId },
+    data: { status: "active" },
+    include: competitionInclude,
+  });
+
+  const broadcast = serializeCompetition(updated, null);
+  emitCompetitionState(competitionId, broadcast);
+  return serializeCompetition(updated, userId);
+}
+
+/**
+ * Host ends a waiting or active race without declaring a winner.
+ */
+export async function endRace({ competitionId, userId }) {
+  const competition = await prisma.questionCompetition.findUnique({
+    where: { id: competitionId },
+    include: competitionInclude,
+  });
+
+  if (!competition) throw new ApiError(404, "Race not found");
+  if (competition.status === "completed") {
+    throw new ApiError(409, "Race has already ended");
+  }
+
+  const hostUserId = competition.participants[0]?.userId;
+  if (!hostUserId || hostUserId !== userId) {
+    throw new ApiError(403, "Only the race host can end the race");
+  }
+
+  const updated = await prisma.questionCompetition.update({
+    where: { id: competitionId },
+    data: {
+      status: "completed",
+      winnerId: null,
+      winnerUsername: null,
+      completedAt: new Date(),
+    },
+    include: competitionInclude,
+  });
+
+  const broadcast = serializeCompetition(updated, null);
+  emitCompetitionState(competitionId, broadcast);
+  return serializeCompetition(updated, userId);
 }
 
 /**
@@ -299,6 +402,14 @@ export async function tryDeclareWinner({
       };
     }
 
+    if (current.status !== "active") {
+      return {
+        won: false,
+        competition: serializeCompetition(current, userId),
+        reason: "not_started",
+      };
+    }
+
     const claim = await tx.questionCompetition.updateMany({
       where: { id: competitionId, status: "active" },
       data: {
@@ -334,7 +445,13 @@ export async function tryDeclareWinner({
   });
 
   if (result.competition) {
-    emitCompetitionState(competitionId, result.competition);
+    const latest = await prisma.questionCompetition.findUnique({
+      where: { id: competitionId },
+      include: competitionInclude,
+    });
+    if (latest) {
+      emitCompetitionState(competitionId, serializeCompetition(latest, null));
+    }
   }
 
   return result;
@@ -355,6 +472,10 @@ export async function assertCanSubmitInCompetition(questionId, userId) {
   });
 
   if (!participant) return { allowed: true, reason: "not_in_competition" };
+
+  if (participant.competition.status === "waiting") {
+    throw new ApiError(423, "Race has not started yet — wait in the lobby");
+  }
 
   if (participant.competition.status === "active") {
     return { allowed: true, competitionId: participant.competitionId };
@@ -388,17 +509,17 @@ async function pickRandomQuestionId() {
 
 /**
  * Create a private invite race on a random question (host only).
- * Rejoins an existing active race if the user already has one.
+ * Rejoins an existing open race if the user already has one.
  */
 export async function createRace({
   userId,
   username,
-  maxParticipants = 2,
+  maxParticipants = 5,
 }) {
   const existing = await prisma.questionCompetitionParticipant.findFirst({
     where: {
       userId,
-      competition: { status: "active" },
+      competition: { status: { in: OPEN_STATUSES } },
     },
     include: {
       competition: { include: competitionInclude },
@@ -407,10 +528,29 @@ export async function createRace({
   });
 
   if (existing) {
+    let competition = existing.competition;
+
+    // Older invite races were capped at 2 — raise to current default.
+    if (competition.maxParticipants < maxParticipants) {
+      competition = await prisma.questionCompetition.update({
+        where: { id: competition.id },
+        data: { maxParticipants },
+        include: competitionInclude,
+      });
+      const serialized = serializeCompetition(competition, userId);
+      emitCompetitionState(competition.id, serializeCompetition(competition, null));
+      return {
+        questionId: competition.questionId,
+        questionTitle: null,
+        competition: serialized,
+        matchedExisting: true,
+      };
+    }
+
     return {
-      questionId: existing.competition.questionId,
+      questionId: competition.questionId,
       questionTitle: null,
-      competition: serializeCompetition(existing.competition, userId),
+      competition: serializeCompetition(competition, userId),
       matchedExisting: true,
     };
   }
@@ -418,12 +558,11 @@ export async function createRace({
   const randomQuestion = await pickRandomQuestionId();
   const cappedMax = Math.min(Math.max(2, maxParticipants), 50);
 
-  // Nested create avoids multi-step interactive transactions that hang when
-  // the remote Postgres drops a pooled socket mid-flight.
   const competition = await prisma.questionCompetition.create({
     data: {
       questionId: randomQuestion.id,
       maxParticipants: cappedMax,
+      status: "waiting",
       participants: {
         create: {
           userId,
@@ -435,7 +574,7 @@ export async function createRace({
   });
 
   const serialized = serializeCompetition(competition, userId);
-  emitCompetitionState(serialized.id, serialized);
+  emitCompetitionState(competition.id, serializeCompetition(competition, null));
 
   return {
     questionId: randomQuestion.id,

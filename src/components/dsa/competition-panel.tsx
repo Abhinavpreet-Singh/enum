@@ -9,6 +9,7 @@ import {
   Lock,
   Copy,
   Check,
+  Square,
 } from "lucide-react";
 import { useState } from "react";
 import type { CompetitionState } from "@/hooks/useQuestionCompetition";
@@ -20,6 +21,9 @@ interface CompetitionPanelProps {
   isParticipant: boolean;
   isWinner: boolean;
   editorLocked: boolean;
+  canEnd?: boolean;
+  ending?: boolean;
+  onEndRace?: () => void | Promise<void>;
 }
 
 export default function CompetitionPanel({
@@ -28,8 +32,12 @@ export default function CompetitionPanel({
   isParticipant,
   isWinner,
   editorLocked,
+  canEnd = false,
+  ending = false,
+  onEndRace,
 }: CompetitionPanelProps) {
   const [copied, setCopied] = useState(false);
+  const [confirmEnd, setConfirmEnd] = useState(false);
 
   if (loading) {
     return (
@@ -42,9 +50,13 @@ export default function CompetitionPanel({
     );
   }
 
-  if (!competition || !isParticipant) return null;
+  // Waiting state is handled on /dashboard/race/[id] lobby.
+  if (!competition || !isParticipant || competition.status === "waiting") {
+    return null;
+  }
 
   const isCompleted = competition.status === "completed";
+  const endedByHost = isCompleted && !competition.winner;
 
   async function handleCopyInvite() {
     const url = buildRaceInviteUrl(competition!.id);
@@ -54,6 +66,16 @@ export default function CompetitionPanel({
       setTimeout(() => setCopied(false), 2000);
     } catch {
       window.prompt("Copy invite link:", url);
+    }
+  }
+
+  async function handleConfirmEnd() {
+    if (!onEndRace) return;
+    try {
+      await onEndRace();
+      setConfirmEnd(false);
+    } catch {
+      // Error surfaced via hook / parent
     }
   }
 
@@ -87,9 +109,11 @@ export default function CompetitionPanel({
               {isCompleted
                 ? isWinner
                   ? "You won the race!"
-                  : editorLocked
-                    ? "Race over"
-                    : "Race completed"
+                  : endedByHost
+                    ? "Race ended"
+                    : editorLocked
+                      ? "Race over"
+                      : "Race completed"
                 : "Live race"}
             </span>
           </div>
@@ -109,12 +133,15 @@ export default function CompetitionPanel({
             </p>
           )}
 
+          {endedByHost && (
+            <p className="font-mono text-xs text-gray-700 dark:text-gray-300 mb-2">
+              The host ended this race. No winner was declared.
+            </p>
+          )}
+
           {!isCompleted && (
             <p className="font-mono text-[11px] text-gray-600 dark:text-gray-400 mb-2">
               First to pass all test cases wins. Others get locked out.
-              {competition.participantCount < 2
-                ? " Share the invite link so a friend can join."
-                : ""}
             </p>
           )}
 
@@ -150,25 +177,73 @@ export default function CompetitionPanel({
         </div>
 
         {!isCompleted && (
-          <button
-            type="button"
-            onClick={() => void handleCopyInvite()}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-amber-300 dark:border-amber-500/40 bg-white dark:bg-black px-2.5 py-1.5 font-mono text-[10px] font-medium text-amber-800 dark:text-amber-200 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
-          >
-            {copied ? (
-              <>
-                <Check className="w-3.5 h-3.5" />
-                Copied
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5" />
-                Copy invite
-              </>
-            )}
-          </button>
+          <div className="shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void handleCopyInvite()}
+              className="inline-flex items-center justify-center gap-1.5 rounded-md border border-amber-300 dark:border-amber-500/40 bg-white dark:bg-black px-2.5 py-1.5 font-mono text-[10px] font-medium text-amber-800 dark:text-amber-200 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3.5 h-3.5" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  Copy invite
+                </>
+              )}
+            </button>
+            {canEnd && onEndRace ? (
+              <button
+                type="button"
+                onClick={() => setConfirmEnd(true)}
+                disabled={ending}
+                className="inline-flex items-center justify-center gap-1.5 rounded-md bg-red-600 px-2.5 py-1.5 font-mono text-[10px] font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                {ending ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Square className="w-3.5 h-3.5 fill-current" />
+                )}
+                End race
+              </button>
+            ) : null}
+          </div>
         )}
       </div>
+
+      {confirmEnd && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60">
+          <div className="w-full max-w-sm mx-4 border border-black/20 dark:border-white/20 bg-white dark:bg-black p-6 shadow-2xl">
+            <h3 className="font-mono text-xs font-bold text-black dark:text-white uppercase mb-2">
+              End race?
+            </h3>
+            <p className="font-mono text-xs text-gray-500 mb-5">
+              This stops the live race for everyone. No winner will be declared.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setConfirmEnd(false)}
+                disabled={ending}
+                className="px-4 py-2 font-mono text-[10px] tracking-wider border border-black/20 dark:border-white/20 text-gray-500"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmEnd()}
+                disabled={ending}
+                className="px-4 py-2 font-mono text-[10px] tracking-wider bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {ending ? "Ending…" : "End race"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

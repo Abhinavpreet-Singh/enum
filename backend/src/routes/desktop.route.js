@@ -281,17 +281,46 @@ router.put(
   verifyExamJWT,
   asyncHandler(async (req, res) => {
     const { attemptId } = req.params;
-    const { timeRemaining, currentQuestionIndex, deviceInfo } = req.body;
+    const { timeRemaining, currentQuestionIndex } = req.body;
 
     const attempt = await prisma.candidateAttempt.findUnique({
       where: { id: attemptId },
-      include: candidateAttemptInclude,
+      include: {
+        ...candidateAttemptInclude,
+        assessment: {
+          select: { id: true, status: true, endDate: true, startDate: true },
+        },
+      },
     });
     if (!attempt) throw new ApiError(404, "Attempt not found.");
     if (attempt.userId !== req.user?.id) throw new ApiError(403, "Access denied.");
-    if (attempt.status !== "in_progress") throw new ApiError(400, "Attempt is already submitted.");
 
-    return res.status(200).json({ message: "Heartbeat received.", data: { timeRemaining } });
+    if (attempt.status !== "in_progress") {
+      return res.status(200).json({
+        message: "Attempt already closed.",
+        data: {
+          timeRemaining,
+          forceEnd: true,
+          reason: attempt.status,
+        },
+      });
+    }
+
+    const assessment = attempt.assessment;
+    const now = new Date();
+    const endedByAdmin =
+      assessment.status !== "published" ||
+      (assessment.endDate && now > new Date(assessment.endDate));
+
+    return res.status(200).json({
+      message: "Heartbeat received.",
+      data: {
+        timeRemaining,
+        currentQuestionIndex,
+        forceEnd: Boolean(endedByAdmin),
+        reason: endedByAdmin ? "assessment_ended" : null,
+      },
+    });
   }),
 );
 
@@ -443,7 +472,14 @@ router.post(
       return tx.candidateAttempt.update({
         where: { id: attemptId },
         data: {
-          status: reason === "auto" ? "auto_submitted" : "submitted",
+          status:
+            reason === "auto"
+              ? "auto_submitted"
+              : reason === "force"
+                ? "force_submitted"
+                : reason === "abandoned"
+                  ? "abandoned"
+                  : "submitted",
           submittedAt: new Date(),
           totalScore,
           maxScore,
@@ -461,6 +497,72 @@ router.post(
         passingScore: attempt.assessment.passingScore,
         passed: maxScore > 0 && (totalScore / maxScore) * 100 >= attempt.assessment.passingScore,
         submittedAt: submitted.submittedAt,
+      },
+    });
+  }),
+);
+
+// POST /api/v1/desktop/attempt/:attemptId/exit
+// Participant leaves without finishing — marks attempt abandoned.
+router.post(
+  "/attempt/:attemptId/exit",
+  verifyExamJWT,
+  asyncHandler(async (req, res) => {
+    const { attemptId } = req.params;
+    const { answers, codeSubmissions } = req.body || {};
+
+    const attempt = await prisma.candidateAttempt.findUnique({
+      where: { id: attemptId },
+      include: {
+        ...candidateAttemptInclude,
+        assessment: { include: { questions: true } },
+      },
+    });
+    if (!attempt) throw new ApiError(404, "Attempt not found.");
+    if (attempt.userId !== req.user?.id) throw new ApiError(403, "Access denied.");
+    if (attempt.status !== "in_progress") {
+      return res.status(200).json({
+        message: "Attempt already closed.",
+        data: { id: attempt.id, status: attempt.status },
+      });
+    }
+
+    const serializedAttempt = serializeCandidateAttempt(attempt);
+    const finalAnswers = answers ?? serializedAttempt.answers ?? [];
+    const maxScore = attempt.assessment.questions.reduce(
+      (sum, q) => sum + (q.points || 0),
+      0,
+    );
+
+    const exited = await prisma.$transaction(async (tx) => {
+      if (finalAnswers) {
+        await replaceCandidateAttemptAnswers(tx, attemptId, finalAnswers);
+      }
+      if (codeSubmissions !== undefined) {
+        await replaceCandidateAttemptCodeSubmissions(
+          tx,
+          attemptId,
+          codeSubmissions,
+        );
+      }
+      return tx.candidateAttempt.update({
+        where: { id: attemptId },
+        data: {
+          status: "abandoned",
+          submittedAt: new Date(),
+          totalScore: 0,
+          maxScore,
+        },
+        include: candidateAttemptInclude,
+      });
+    });
+
+    return res.status(200).json({
+      message: "You have exited the test.",
+      data: {
+        id: exited.id,
+        status: exited.status,
+        submittedAt: exited.submittedAt,
       },
     });
   }),

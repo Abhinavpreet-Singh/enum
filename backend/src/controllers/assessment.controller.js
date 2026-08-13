@@ -226,3 +226,55 @@ export const archiveAssessment = asyncHandler(async (req, res) => {
 
   return res.status(200).json({ message: "Assessment archived.", data: assessment });
 });
+
+/**
+ * Force-end a live test: close the window and auto-submit every in-progress attempt.
+ */
+export const endAssessment = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const organizationId = req.organization.id;
+
+  const existing = await prisma.assessment.findUnique({
+    where: { id },
+    include: { questions: true },
+  });
+  if (!existing) throw new ApiError(404, "Assessment not found.");
+  if (existing.organizationId !== organizationId) throw new ApiError(403, "Access denied.");
+  if (existing.status !== "published") {
+    throw new ApiError(400, "Only published tests can be ended.");
+  }
+
+  const now = new Date();
+  const assessment = await prisma.assessment.update({
+    where: { id },
+    data: { endDate: now },
+    include: { settings: true },
+  });
+
+  const inProgress = await prisma.candidateAttempt.findMany({
+    where: { assessmentId: id, status: "in_progress" },
+    include: {
+      answers: true,
+    },
+  });
+
+  let endedAttempts = 0;
+  for (const attempt of inProgress) {
+    const maxScore = existing.questions.reduce((sum, q) => sum + (q.points || 0), 0);
+    // Keep whatever score was already computed on the attempt (usually 0 until submit).
+    await prisma.candidateAttempt.update({
+      where: { id: attempt.id },
+      data: {
+        status: "force_submitted",
+        submittedAt: now,
+        maxScore: attempt.maxScore || maxScore,
+      },
+    });
+    endedAttempts += 1;
+  }
+
+  return res.status(200).json({
+    message: "Test ended. In-progress attempts were force-submitted.",
+    data: { assessment, endedAttempts },
+  });
+});

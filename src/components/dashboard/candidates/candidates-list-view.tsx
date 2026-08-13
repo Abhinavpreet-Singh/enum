@@ -16,6 +16,7 @@ import {
   TrendingUp,
   Activity,
   ArrowLeft,
+  Square,
 } from "lucide-react";
 
 const panelBorder = "border border-black/20 dark:border-white/25";
@@ -70,6 +71,8 @@ const statusChip = (s: string) => {
   const map: Record<string, string> = {
     submitted: "text-emerald-600 dark:text-emerald-400 border-emerald-400/40",
     auto_submitted: "text-blue-600 dark:text-blue-400 border-blue-400/40",
+    force_submitted: "text-violet-600 dark:text-violet-400 border-violet-400/40",
+    abandoned: "text-gray-500 dark:text-gray-400 border-gray-400/40",
     in_progress: "text-amber-600 dark:text-amber-400 border-amber-400/40",
     flagged: "text-red-600 dark:text-red-400 border-red-400/40",
   };
@@ -96,6 +99,8 @@ export function CandidatesListView({ assessmentId, detailBasePath, backHref, bac
   const [attempts, setAttempts] = useState<AttemptRow[]>([]);
   const [stats, setStats] = useState<CandidatesStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [ending, setEnding] = useState(false);
+  const [endConfirm, setEndConfirm] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -119,6 +124,22 @@ export function CandidatesListView({ assessmentId, detailBasePath, backHref, bac
   }, [assessmentId]);
 
   useEffect(() => { load(); }, [load]);
+
+  async function handleEndTest() {
+    setEnding(true);
+    try {
+      await api.put(`/api/v1/assessments/${assessmentId}/end`);
+      setEndConfirm(false);
+      await load();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Could not end test.";
+      window.alert(msg);
+    } finally {
+      setEnding(false);
+    }
+  }
 
   const filtered = attempts.filter((a) => {
     const matchSearch =
@@ -158,13 +179,26 @@ export function CandidatesListView({ assessmentId, detailBasePath, backHref, bac
         </Link>
       </div>
 
-      <div className="mb-6">
-        <h1 className="text-lg font-bold text-black dark:text-white tracking-tight">
-          {assessment?.title}
-        </h1>
-        <p className="font-mono text-[10px] text-gray-400 mt-0.5">
-          Candidate submissions &amp; proctoring data
-        </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-lg font-bold text-black dark:text-white tracking-tight">
+            {assessment?.title}
+          </h1>
+          <p className="font-mono text-[10px] text-gray-400 mt-0.5">
+            Candidate submissions &amp; proctoring data
+          </p>
+        </div>
+        {assessment?.status === "published" && (
+          <button
+            type="button"
+            onClick={() => setEndConfirm(true)}
+            disabled={ending}
+            className="inline-flex items-center gap-1.5 px-4 py-2 font-mono text-[11px] tracking-wider bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            <Square className="w-3.5 h-3.5 fill-current" />
+            {ending ? "…" : "End test"}
+          </button>
+        )}
       </div>
 
       {/* Stats row */}
@@ -211,6 +245,8 @@ export function CandidatesListView({ assessmentId, detailBasePath, backHref, bac
           <option value="all">All Statuses</option>
           <option value="submitted">Submitted</option>
           <option value="auto_submitted">Auto-submitted</option>
+          <option value="force_submitted">Force-submitted</option>
+          <option value="abandoned">Abandoned</option>
           <option value="in_progress">In Progress</option>
           <option value="flagged">Flagged</option>
         </select>
@@ -330,6 +366,37 @@ export function CandidatesListView({ assessmentId, detailBasePath, backHref, bac
             <p className="font-mono text-[9px] text-gray-400">
               {filtered.length} of {attempts.length} candidate{attempts.length !== 1 ? "s" : ""}
             </p>
+          </div>
+        </div>
+      )}
+
+      {endConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60">
+          <div className={`${panelSurface} p-6 w-full max-w-sm mx-4 bg-white dark:bg-black shadow-2xl`}>
+            <h3 className="font-mono text-xs font-bold text-black dark:text-white uppercase mb-2">
+              End Test?
+            </h3>
+            <p className="font-mono text-xs text-gray-500 mb-5">
+              This closes the test for everyone. Candidates still in progress will
+              be force-submitted and cannot continue.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setEndConfirm(false)}
+                className={`px-4 py-2 font-mono text-[10px] tracking-wider ${panelBorder} text-gray-500`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleEndTest}
+                disabled={ending}
+                className="px-4 py-2 font-mono text-[10px] tracking-wider bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {ending ? "Ending…" : "End test"}
+              </button>
+            </div>
           </div>
         </div>
       )}
