@@ -5,31 +5,31 @@ import { Strategy as GithubStrategy } from "passport-github2";
 import { env, requireEnv } from "../config/env.js";
 import { findOrCreateOAuthUser } from "./oauthUser.service.js";
 
-// Google strategy must use the exact callback URL configured in GOOGLE_CALLBACK_URL.
-// This prevents redirect_uri_mismatch errors and ensures the backend callback route
-// matches the OAuth client settings in Google Cloud Console.
-const googleCallbackUrl = env.GOOGLE_CALLBACK_URL;
+// Strategies use normalized callback URLs from env.js (no trailing / , no // paths).
+// Google Cloud / GitHub must list the exact same callback URL.
 
-if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET || !googleCallbackUrl) {
-  // Don't crash deploy if OAuth is not configured, but log clearly.
-  // In production, these values should be set exactly to avoid redirect_uri_mismatch.
-  // Example callback: https://your-backend.com/api/auth/google/callback
-  // See backend/.env.example for expected settings.
+if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
   console.warn(
-    "[auth] Google OAuth is not fully configured. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_CALLBACK_URL.",
+    "[auth] Google OAuth is not fully configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the backend.",
   );
 } else {
-  console.log("[auth] Registering Google OAuth strategy with callback URL:", googleCallbackUrl);
+  console.log(
+    "[auth] Registering Google OAuth strategy with callback URL:",
+    env.GOOGLE_CALLBACK_URL,
+  );
   passport.use(
     new GoogleStrategy(
       {
         clientID: requireEnv("GOOGLE_CLIENT_ID"),
         clientSecret: requireEnv("GOOGLE_CLIENT_SECRET"),
-        callbackURL: requireEnv("GOOGLE_CALLBACK_URL"),
+        callbackURL: env.GOOGLE_CALLBACK_URL,
       },
       async (_accessToken, _refreshToken, profile, done) => {
         try {
-          console.log("[auth] Google strategy callback received for user:", profile?.displayName);
+          console.log(
+            "[auth] Google strategy callback received for user:",
+            profile?.displayName,
+          );
           const email = profile?.emails?.[0]?.value;
           const displayName = profile?.displayName;
           const avatar = profile?.photos?.[0]?.value;
@@ -51,18 +51,21 @@ if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET || !googleCallbackUrl) {
   );
 }
 
-// GitHub strategy also uses an explicit callback URL from the environment.
-if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET || !env.GITHUB_CALLBACK_URL) {
+if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) {
   console.warn(
-    "[auth] GitHub OAuth is not fully configured. Set GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, and GITHUB_CALLBACK_URL.",
+    "[auth] GitHub OAuth is not fully configured. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET on the backend.",
   );
 } else {
+  console.log(
+    "[auth] Registering GitHub OAuth strategy with callback URL:",
+    env.GITHUB_CALLBACK_URL,
+  );
   passport.use(
     new GithubStrategy(
       {
         clientID: requireEnv("GITHUB_CLIENT_ID"),
         clientSecret: requireEnv("GITHUB_CLIENT_SECRET"),
-        callbackURL: requireEnv("GITHUB_CALLBACK_URL"),
+        callbackURL: env.GITHUB_CALLBACK_URL,
         scope: ["user:email"],
       },
       async (_accessToken, _refreshToken, profile, done) => {

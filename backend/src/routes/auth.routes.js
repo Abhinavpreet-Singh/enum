@@ -2,7 +2,7 @@ import { Router } from "express";
 import passport from "passport";
 
 import "../auth/passport.js";
-import { requireEnv, env } from "../config/env.js";
+import { env } from "../config/env.js";
 import { oauthSignupGate } from "../middlewares/feature-gate.middleware.js";
 import { handleOAuthSuccess } from "../auth/controllers/auth.controller.js";
 
@@ -106,15 +106,11 @@ const respondWithOAuthSuccess = (req, res, userId) => {
 };
 
 const ensureGoogleConfigured = (_req, res, next) => {
-  if (
-    !process.env.GOOGLE_CLIENT_ID ||
-    !process.env.GOOGLE_CLIENT_SECRET ||
-    !process.env.GOOGLE_CALLBACK_URL
-  ) {
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
     return res.status(500).json({
       success: false,
       message:
-        "Google OAuth is not configured. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_CALLBACK_URL.",
+        "Google OAuth is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the API host (api.enum.live).",
     });
   }
 
@@ -122,23 +118,25 @@ const ensureGoogleConfigured = (_req, res, next) => {
     return res.status(500).json({
       success: false,
       message:
-        "Google OAuth is not ready (missing strategy registration or callback URL mismatch)",
+        "Google OAuth is not ready (strategy not registered — restart API after setting env vars)",
     });
   }
   return next();
 };
 
 const ensureGithubConfigured = (_req, res, next) => {
-  if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
-    return res
-      .status(500)
-      .json({ success: false, message: "GitHub OAuth is not configured" });
+  if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) {
+    return res.status(500).json({
+      success: false,
+      message:
+        "GitHub OAuth is not configured. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET on the API host.",
+    });
   }
   if (!passport._strategy("github")) {
     return res.status(500).json({
       success: false,
       message:
-        "GitHub OAuth is not ready (missing BACKEND_URL or service public URL)",
+        "GitHub OAuth is not ready (strategy not registered — restart API after setting env vars)",
     });
   }
   return next();
@@ -172,7 +170,7 @@ router.get("/google/callback", oauthSignupGate, (req, res, next) => {
     query: req.query,
   });
 
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
     console.error("[AUTH] Google OAuth missing credentials");
     return res
       .status(500)
@@ -183,7 +181,7 @@ router.get("/google/callback", oauthSignupGate, (req, res, next) => {
     return res.status(500).json({
       success: false,
       message:
-        "Google OAuth is not ready (missing BACKEND_URL or service public URL)",
+        "Google OAuth is not ready (strategy not registered — restart API after setting env vars)",
     });
   }
 
@@ -217,7 +215,7 @@ router.get(
 );
 
 router.get("/github/callback", oauthSignupGate, (req, res, next) => {
-  if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
+  if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) {
     return res
       .status(500)
       .json({ success: false, message: "GitHub OAuth is not configured" });
@@ -226,7 +224,7 @@ router.get("/github/callback", oauthSignupGate, (req, res, next) => {
     return res.status(500).json({
       success: false,
       message:
-        "GitHub OAuth is not ready (missing BACKEND_URL or service public URL)",
+        "GitHub OAuth is not ready (strategy not registered — restart API after setting env vars)",
     });
   }
 
