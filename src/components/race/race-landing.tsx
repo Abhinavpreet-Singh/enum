@@ -296,9 +296,8 @@ export default function RaceLanding() {
               Create a race
             </h2>
             <p className="font-mono text-sm leading-6 text-gray-600 dark:text-gray-400">
-              Start a coding race (up to 5 people) and share the invite link
-              with friends — wait in the lobby, then race.
-
+              Start a coding race (up to 5 people), set topics and rules in the
+              lobby, then share the invite.
             </p>
           </div>
           <div className="mt-auto pt-6">

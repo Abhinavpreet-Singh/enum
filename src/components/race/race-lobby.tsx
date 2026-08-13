@@ -21,6 +21,10 @@ import {
   buildRaceInviteUrl,
   getStoredRaceUsername,
 } from "@/components/race/race-landing";
+import RaceSettingsPanel, {
+  type RaceCatalogQuestion,
+  type RaceSettingsDraft,
+} from "@/components/race/race-settings-panel";
 import type { CompetitionState } from "@/hooks/useQuestionCompetition";
 
 function withLocalFlags(
@@ -66,8 +70,14 @@ export default function RaceLobby({ competitionId }: { competitionId: string }) 
   const [joining, setJoining] = useState(false);
   const [starting, setStarting] = useState(false);
   const [ending, setEnding] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+  const [topics, setTopics] = useState<string[]>([]);
+  const [catalogQuestions, setCatalogQuestions] = useState<RaceCatalogQuestion[]>(
+    [],
+  );
+  const [catalogLoading, setCatalogLoading] = useState(false);
   const joinedRef = useRef(false);
   const competitionIdRef = useRef(competitionId);
 
@@ -139,6 +149,33 @@ export default function RaceLobby({ competitionId }: { competitionId: string }) 
     void fetchCompetition();
   }, [fetchCompetition]);
 
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    setCatalogLoading(true);
+    void (async () => {
+      try {
+        const res = await fetch(apiUrl("/api/v1/competitions/catalog/questions"), {
+          credentials: "include",
+          headers: authHeaders(),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || cancelled) return;
+        setTopics(Array.isArray(json.data?.topics) ? json.data.topics : []);
+        setCatalogQuestions(
+          Array.isArray(json.data?.questions) ? json.data.questions : [],
+        );
+      } catch {
+        // Catalog is optional for guests; host can still use defaults.
+      } finally {
+        if (!cancelled) setCatalogLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authHeaders, userId]);
+
   // Auto-join lobby if not already a participant.
   useEffect(() => {
     if (!competition || !userId || joining || joinedRef.current) return;
@@ -181,9 +218,9 @@ export default function RaceLobby({ competitionId }: { competitionId: string }) 
   // When race starts, go to the arena.
   useEffect(() => {
     if (!competition || competition.status !== "active") return;
-    router.replace(
-      buildRaceArenaPath(competition.questionId, competition.id),
-    );
+    const firstQuestionId =
+      competition.questionIds?.[0] || competition.questionId;
+    router.replace(buildRaceArenaPath(firstQuestionId, competition.id));
   }, [competition, router]);
 
   // Completed race — send back to landing.
@@ -200,6 +237,38 @@ export default function RaceLobby({ competitionId }: { competitionId: string }) 
       setTimeout(() => setCopied(false), 2000);
     } catch {
       window.prompt("Copy invite link:", url);
+    }
+  }
+
+  async function handleSaveSettings(draft: RaceSettingsDraft) {
+    if (!competition?.id) return;
+    setSavingSettings(true);
+    setError("");
+    try {
+      const res = await fetch(apiUrl("/api/v1/competitions/settings"), {
+        method: "POST",
+        credentials: "include",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          competitionId: competition.id,
+          excludeTopics: draft.excludeTopics,
+          questionCount: draft.questionCount,
+          includedQuestionIds: draft.includedQuestionIds,
+          mode: draft.mode,
+          durationSeconds:
+            draft.mode === "timed" ? draft.durationSeconds ?? 900 : null,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.message || "Could not save settings");
+      }
+      const next = json.data?.competition
+        ? withLocalFlags(json.data.competition, userId)
+        : null;
+      setCompetition(next);
+    } finally {
+      setSavingSettings(false);
     }
   }
 
@@ -259,6 +328,17 @@ export default function RaceLobby({ competitionId }: { competitionId: string }) 
     return Array.from({ length: max }, (_, index) => filled[index] ?? null);
   }, [competition]);
 
+  const setupSummary = useMemo(() => {
+    if (!competition?.settings) return "Configure the race, then invite friends.";
+    const s = competition.settings;
+    const mode =
+      s.mode === "timed"
+        ? `Timed (${Math.round((s.durationSeconds || 900) / 60)}m)`
+        : "First to finish";
+    const q = `${s.questionCount} question${s.questionCount === 1 ? "" : "s"}`;
+    return `${mode} · ${q}`;
+  }, [competition?.settings]);
+
   if (loading || !userId) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
@@ -290,7 +370,7 @@ export default function RaceLobby({ competitionId }: { competitionId: string }) 
   const waitingCount = competition.participantCount;
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-8 sm:px-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 pb-10 pt-4 sm:px-6 sm:pt-5">
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
@@ -317,93 +397,98 @@ export default function RaceLobby({ competitionId }: { competitionId: string }) 
         </div>
       </div>
 
-      <div className="text-center">
-        <div className="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center border border-black/10 dark:border-white/15">
-          <Swords className="h-5 w-5" />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="mb-2 inline-flex h-9 w-9 items-center justify-center border border-black/10 dark:border-white/15">
+            <Swords className="h-4 w-4" />
+          </div>
+          <h1 className="font-mono text-2xl font-bold tracking-tight text-black dark:text-white sm:text-3xl">
+            Versus lobby
+          </h1>
+          <p className="mt-1 max-w-xl font-mono text-sm text-gray-600 dark:text-gray-400">
+            {setupSummary}
+          </p>
         </div>
-        <h1 className="font-mono text-3xl font-bold tracking-tight text-black dark:text-white sm:text-4xl">
-          Versus
-        </h1>
-        <p className="mt-2 font-mono text-sm text-gray-600 dark:text-gray-400">
-          Race friends on the same problem. First to pass every test wins.
-        </p>
-      </div>
-
-      {/* Player grid — NeetCode-style slots */}
-      <div className="grid grid-cols-5 gap-2 sm:gap-3">
-        {slots.map((player, index) => {
-          const empty = !player;
-          const isYou = player?.userId === userId;
-          const host = index === 0 && !!player;
-
-          return (
-            <div
-              key={player?.id ?? `slot-${index}`}
-              className={`relative flex min-h-[7.5rem] min-w-0 flex-col items-center justify-center gap-2 overflow-hidden border p-2 sm:min-h-[9rem] sm:gap-3 sm:p-4 transition-colors ${
-                empty
-                  ? "border-dashed border-gray-300 bg-gray-50/80 dark:border-white/15 dark:bg-white/[0.02]"
-                  : isYou
-                    ? "border-black bg-white dark:border-white dark:bg-white/[0.06]"
-                    : "border-gray-200 bg-white dark:border-white/10 dark:bg-black"
-              }`}
-            >
-              {empty ? (
-                <>
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-dashed border-gray-300 sm:h-14 sm:w-14 dark:border-white/20">
-                    <User className="h-4 w-4 text-gray-400 sm:h-5 sm:w-5" />
-                  </div>
-                  <div className="w-full min-w-0 px-0.5 text-center">
-                    <p className="hidden truncate font-mono text-sm text-gray-400 sm:block">
-                      Waiting for player...
-                    </p>
-                    <p className="mt-0.5 font-mono text-[9px] uppercase tracking-widest text-gray-400 sm:mt-1 sm:text-[10px]">
-                      Slot {index + 1}
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-mono text-xs font-bold sm:h-14 sm:w-14 sm:text-sm ${
-                      isYou
-                        ? "bg-black text-white dark:bg-white dark:text-black"
-                        : "bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-white"
-                    }`}
-                  >
-                    {initials(player.username)}
-                  </div>
-                  <div className="w-full min-w-0 px-0.5 text-center">
-                    <p
-                      className="truncate font-mono text-xs font-semibold text-black sm:text-sm dark:text-white"
-                      title={
-                        isYou ? `${player.username} (you)` : player.username
-                      }
-                    >
-                      {player.username}
-                      {isYou ? " (you)" : ""}
-                    </p>
-                    <p className="mt-0.5 font-mono text-[9px] uppercase tracking-widest text-gray-500 sm:mt-1 sm:text-[10px] dark:text-gray-400">
-                      {host ? "Host" : "Ready"}
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="flex flex-col items-center gap-4 border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-black">
         <div className="flex items-center gap-2 font-mono text-xs text-gray-500 dark:text-gray-400">
           <Users className="h-3.5 w-3.5" />
           {waitingCount}/{competition.maxParticipants} in lobby
         </div>
+      </div>
 
-        <div className="flex w-full flex-col gap-3 sm:max-w-md sm:flex-row">
+      <RaceSettingsPanel
+        competition={competition}
+        isHost={isHost}
+        topics={topics}
+        questions={catalogQuestions}
+        catalogLoading={catalogLoading}
+        saving={savingSettings}
+        onSave={handleSaveSettings}
+      />
+
+      <div className="space-y-4">
+        <div className="grid grid-cols-5 gap-2 sm:gap-3">
+          {slots.map((player, index) => {
+            const empty = !player;
+            const isYou = player?.userId === userId;
+            const host = index === 0 && !!player;
+
+            return (
+              <div
+                key={player?.id ?? `slot-${index}`}
+                className={`relative flex min-h-28 min-w-0 flex-col items-center justify-center gap-2 overflow-hidden border p-2 sm:min-h-34 sm:gap-3 sm:p-3 transition-colors ${
+                  empty
+                    ? "border-dashed border-gray-300 bg-gray-50/80 dark:border-white/15 dark:bg-white/2"
+                    : isYou
+                      ? "border-black bg-white dark:border-white dark:bg-white/6"
+                      : "border-gray-200 bg-white dark:border-white/10 dark:bg-black"
+                }`}
+              >
+                {empty ? (
+                  <>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-dashed border-gray-300 sm:h-11 sm:w-11 dark:border-white/20">
+                      <User className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <p className="font-mono text-[9px] uppercase tracking-widest text-gray-400 sm:text-[10px]">
+                      Slot {index + 1}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-bold sm:h-11 sm:w-11 sm:text-xs ${
+                        isYou
+                          ? "bg-black text-white dark:bg-white dark:text-black"
+                          : "bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-white"
+                      }`}
+                    >
+                      {initials(player.username)}
+                    </div>
+                    <div className="w-full min-w-0 px-0.5 text-center">
+                      <p
+                        className="truncate font-mono text-[11px] font-semibold text-black sm:text-xs dark:text-white"
+                        title={
+                          isYou ? `${player.username} (you)` : player.username
+                        }
+                      >
+                        {player.username}
+                        {isYou ? " (you)" : ""}
+                      </p>
+                      <p className="mt-0.5 font-mono text-[9px] uppercase tracking-widest text-gray-500 sm:text-[10px] dark:text-gray-400">
+                        {host ? "Host" : "Ready"}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-col gap-3 border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-black sm:flex-row">
           <button
             type="button"
             onClick={() => void handleCopyInvite()}
-            className="inline-flex h-11 flex-1 items-center justify-center gap-2 border border-gray-200 bg-transparent px-4 font-mono text-sm font-medium text-black transition-colors hover:border-black hover:bg-gray-50 dark:border-white/10 dark:text-white dark:hover:border-white dark:hover:bg-white/[0.06]"
+            className="inline-flex h-11 flex-1 items-center justify-center gap-2 border border-gray-200 bg-transparent px-4 font-mono text-sm font-medium text-black transition-colors hover:border-black hover:bg-gray-50 dark:border-white/10 dark:text-white dark:hover:border-white dark:hover:bg-white/6"
           >
             {copied ? (
               <>
@@ -446,27 +531,28 @@ export default function RaceLobby({ competitionId }: { competitionId: string }) 
         </div>
 
         {isHost && waitingCount < 2 ? (
-          <p className="text-center font-mono text-xs text-gray-500 dark:text-gray-400">
+          <p className="font-mono text-xs text-gray-500 dark:text-gray-400">
             Share the invite link — you need at least one more player to start.
           </p>
         ) : null}
 
         {!isHost ? (
-          <p className="text-center font-mono text-xs text-gray-500 dark:text-gray-400">
-            Hang tight. The problem unlocks when the host starts the race.
+          <p className="font-mono text-xs text-gray-500 dark:text-gray-400">
+            Hang tight. Problems unlock when the host starts the race.
           </p>
         ) : null}
 
         {error ? (
           <p
             role="alert"
-            className="w-full rounded border border-black/15 px-3 py-2 text-center font-mono text-xs text-black/70 dark:border-white/15 dark:text-white/70"
+            className="rounded border border-black/15 px-3 py-2 font-mono text-xs text-black/70 dark:border-white/15 dark:text-white/70"
           >
             {error}
           </p>
         ) : null}
 
-        {(joining || !competition.isParticipant) && competition.status === "waiting" ? (
+        {(joining || !competition.isParticipant) &&
+        competition.status === "waiting" ? (
           <p className="font-mono text-xs text-gray-400">Joining lobby...</p>
         ) : null}
       </div>

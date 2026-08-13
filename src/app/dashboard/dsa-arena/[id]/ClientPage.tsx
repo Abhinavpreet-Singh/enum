@@ -42,6 +42,7 @@ export default function DSAArenaClientPage() {
     canEnd,
     ending,
     end,
+    settleTimed,
     join,
     joining,
     handleCompetitionSubmitResult,
@@ -198,6 +199,7 @@ export default function DSAArenaClientPage() {
         canEnd={canEnd}
         ending={ending}
         onEndRace={end}
+        onSettleTimed={settleTimed}
       />
 
       <div className="flex flex-1 overflow-hidden relative min-h-0">

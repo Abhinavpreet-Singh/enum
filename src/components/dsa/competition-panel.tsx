@@ -10,10 +10,18 @@ import {
   Copy,
   Check,
   Square,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import type { CompetitionState } from "@/hooks/useQuestionCompetition";
-import { buildRaceInviteUrl } from "@/components/race/race-landing";
+import {
+  buildRaceArenaPath,
+  buildRaceInviteUrl,
+} from "@/components/race/race-landing";
 
 interface CompetitionPanelProps {
   competition: CompetitionState | null;
@@ -24,6 +32,14 @@ interface CompetitionPanelProps {
   canEnd?: boolean;
   ending?: boolean;
   onEndRace?: () => void | Promise<void>;
+  onSettleTimed?: () => void | Promise<void>;
+}
+
+function formatRemaining(ms: number) {
+  const totalSec = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 export default function CompetitionPanel({
@@ -35,9 +51,58 @@ export default function CompetitionPanel({
   canEnd = false,
   ending = false,
   onEndRace,
+  onSettleTimed,
 }: CompetitionPanelProps) {
+  const params = useParams();
+  const currentQuestionId = params?.id as string | undefined;
   const [copied, setCopied] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const settleAttemptedRef = useRef(false);
+
+  useEffect(() => {
+    settleAttemptedRef.current = false;
+  }, [competition?.id, competition?.endsAt]);
+
+  useEffect(() => {
+    if (!competition?.endsAt || competition.status !== "active") return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [competition?.endsAt, competition?.status]);
+
+  useEffect(() => {
+    if (
+      !competition?.endsAt ||
+      competition.status !== "active" ||
+      !onSettleTimed ||
+      settleAttemptedRef.current
+    ) {
+      return;
+    }
+    const remaining = new Date(competition.endsAt).getTime() - now;
+    if (remaining <= 0) {
+      settleAttemptedRef.current = true;
+      void onSettleTimed();
+    }
+  }, [competition?.endsAt, competition?.status, now, onSettleTimed]);
+
+  const questionIds = competition?.questionIds?.length
+    ? competition.questionIds
+    : competition?.questionId
+      ? [competition.questionId]
+      : [];
+
+  const currentIndex = useMemo(() => {
+    if (!currentQuestionId) return 0;
+    const idx = questionIds.indexOf(currentQuestionId);
+    return idx >= 0 ? idx : 0;
+  }, [currentQuestionId, questionIds]);
+
+  const mySolved = new Set(competition?.mySolvedQuestionIds ?? []);
+  const remainingMs = competition?.endsAt
+    ? new Date(competition.endsAt).getTime() - now
+    : null;
+  const isTimed = competition?.settings?.mode === "timed";
 
   if (loading) {
     return (
@@ -79,6 +144,10 @@ export default function CompetitionPanel({
     }
   }
 
+  const prevId = currentIndex > 0 ? questionIds[currentIndex - 1] : null;
+  const nextId =
+    currentIndex < questionIds.length - 1 ? questionIds[currentIndex + 1] : null;
+
   return (
     <div
       className={`border-b px-4 py-3 ${
@@ -93,7 +162,7 @@ export default function CompetitionPanel({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             {isCompleted ? (
               isWinner ? (
                 <Crown className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -114,20 +183,36 @@ export default function CompetitionPanel({
                     : editorLocked
                       ? "Race over"
                       : "Race completed"
-                : "Live race"}
+                : isTimed
+                  ? "Timed race"
+                  : "Live race"}
             </span>
+            {!isCompleted && remainingMs != null ? (
+              <span
+                className={`inline-flex items-center gap-1 font-mono text-[11px] ${
+                  remainingMs <= 60_000
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-amber-800 dark:text-amber-200"
+                }`}
+              >
+                <Clock className="h-3 w-3" />
+                {formatRemaining(remainingMs)}
+              </span>
+            ) : null}
           </div>
 
           {isCompleted && competition.winner && (
             <p className="font-mono text-xs text-gray-700 dark:text-gray-300 mb-2">
               {isWinner ? (
-                "You were first to pass all test cases."
+                isTimed
+                  ? "You topped the scoreboard."
+                  : "You were first to solve every problem."
               ) : (
                 <>
                   <span className="font-semibold">
                     {competition.winner.username}
                   </span>{" "}
-                  won by passing all test cases first.
+                  won this race.
                 </>
               )}
             </p>
@@ -141,9 +226,60 @@ export default function CompetitionPanel({
 
           {!isCompleted && (
             <p className="font-mono text-[11px] text-gray-600 dark:text-gray-400 mb-2">
-              First to pass all test cases wins. Others get locked out.
+              {isTimed
+                ? "Solve as many as you can before time runs out."
+                : questionIds.length > 1
+                  ? "Solve every problem first to win."
+                  : "First to pass all test cases wins."}
             </p>
           )}
+
+          {questionIds.length > 1 ? (
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              {prevId ? (
+                <Link
+                  href={buildRaceArenaPath(prevId, competition.id)}
+                  className="inline-flex h-7 items-center gap-1 border border-gray-200 px-2 font-mono text-[10px] text-gray-600 hover:border-black dark:border-white/10 dark:text-gray-400 dark:hover:border-white"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                  Prev
+                </Link>
+              ) : null}
+              <div className="flex flex-wrap gap-1">
+                {questionIds.map((qid, index) => {
+                  const solved = mySolved.has(qid);
+                  const active = qid === currentQuestionId;
+                  return (
+                    <Link
+                      key={qid}
+                      href={buildRaceArenaPath(qid, competition.id)}
+                      className={`inline-flex h-7 min-w-7 items-center justify-center border px-2 font-mono text-[10px] ${
+                        active
+                          ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                          : solved
+                            ? "border-emerald-400 text-emerald-700 dark:border-emerald-500/40 dark:text-emerald-300"
+                            : "border-gray-200 text-gray-500 dark:border-white/10 dark:text-gray-400"
+                      }`}
+                    >
+                      Q{index + 1}
+                    </Link>
+                  );
+                })}
+              </div>
+              {nextId ? (
+                <Link
+                  href={buildRaceArenaPath(nextId, competition.id)}
+                  className="inline-flex h-7 items-center gap-1 border border-gray-200 px-2 font-mono text-[10px] text-gray-600 hover:border-black dark:border-white/10 dark:text-gray-400 dark:hover:border-white"
+                >
+                  Next
+                  <ChevronRight className="h-3 w-3" />
+                </Link>
+              ) : null}
+              <span className="font-mono text-[10px] text-gray-400">
+                {mySolved.size}/{questionIds.length} solved
+              </span>
+            </div>
+          ) : null}
 
           <div className="flex items-center gap-3 flex-wrap">
             <span className="inline-flex items-center gap-1.5 font-mono text-[10px] text-gray-500 dark:text-gray-400">
@@ -152,19 +288,26 @@ export default function CompetitionPanel({
             </span>
             {competition.participants.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
-                {competition.participants.map((p) => (
-                  <span
-                    key={p.id}
-                    className={`font-mono text-[10px] px-2 py-0.5 rounded border ${
-                      competition.winner?.id === p.userId
-                        ? "border-emerald-400 bg-emerald-100 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-300"
-                        : "border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-600 dark:text-gray-400"
-                    }`}
-                  >
-                    {p.username}
-                    {competition.winner?.id === p.userId ? " ★" : ""}
-                  </span>
-                ))}
+                {competition.participants.map((p) => {
+                  const progress =
+                    competition.participantProgress?.find(
+                      (row) => row.userId === p.userId,
+                    )?.solvedCount ?? 0;
+                  return (
+                    <span
+                      key={p.id}
+                      className={`font-mono text-[10px] px-2 py-0.5 rounded border ${
+                        competition.winner?.id === p.userId
+                          ? "border-emerald-400 bg-emerald-100 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-300"
+                          : "border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-600 dark:text-gray-400"
+                      }`}
+                    >
+                      {p.username}
+                      {questionIds.length > 1 ? ` ${progress}/${questionIds.length}` : ""}
+                      {competition.winner?.id === p.userId ? " ★" : ""}
+                    </span>
+                  );
+                })}
               </div>
             )}
           </div>

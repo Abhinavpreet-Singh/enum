@@ -8,6 +8,9 @@ import {
   createRace,
   startRace,
   endRace,
+  updateRaceSettings,
+  settleTimedRace,
+  listRaceQuestionCatalog,
   quickMatch,
   DEFAULT_MAX_PARTICIPANTS,
 } from "../services/competition.service.js";
@@ -118,6 +121,49 @@ const end = asyncHandler(async (req, res) => {
   });
 });
 
+const updateSettings = asyncHandler(async (req, res) => {
+  const { competitionId } = req.body;
+  if (!competitionId) throw new ApiError(400, "Competition ID is required");
+
+  const competition = await updateRaceSettings({
+    competitionId,
+    userId: req.user.id,
+    excludeTopics: req.body?.excludeTopics,
+    questionCount: req.body?.questionCount,
+    includedQuestionIds: req.body?.includedQuestionIds,
+    mode: req.body?.mode,
+    durationSeconds: req.body?.durationSeconds,
+  });
+
+  return res.status(200).json({
+    message: "Race settings updated",
+    data: { competition },
+  });
+});
+
+const settle = asyncHandler(async (req, res) => {
+  const { competitionId } = req.body;
+  if (!competitionId) throw new ApiError(400, "Competition ID is required");
+
+  const competition = await settleTimedRace({
+    competitionId,
+    userId: req.user.id,
+  });
+
+  return res.status(200).json({
+    message: "Race settled",
+    data: { competition },
+  });
+});
+
+const catalog = asyncHandler(async (req, res) => {
+  const data = await listRaceQuestionCatalog();
+  return res.status(200).json({
+    message: "Race catalog fetched",
+    data,
+  });
+});
+
 const create = asyncHandler(async (req, res) => {
   const username = resolveUsername(req);
 
@@ -152,4 +198,16 @@ const match = asyncHandler(async (req, res) => {
   });
 });
 
-export { getStatus, getById, join, leave, start, end, create, match };
+export {
+  getStatus,
+  getById,
+  join,
+  leave,
+  start,
+  end,
+  updateSettings,
+  settle,
+  catalog,
+  create,
+  match,
+};

@@ -13,9 +13,25 @@ export interface CompetitionParticipant {
   joinedAt: string;
 }
 
+export interface CompetitionQuestionSummary {
+  id: string;
+  title: string;
+  topic: string;
+  level: string;
+}
+
+export interface CompetitionSettings {
+  excludeTopics: string[];
+  questionCount: number;
+  includedQuestionIds: string[];
+  mode: "first_solve" | "timed";
+  durationSeconds: number | null;
+}
+
 export interface CompetitionState {
   id: string;
   questionId: string;
+  questionIds?: string[];
   maxParticipants: number;
   status: "waiting" | "active" | "completed";
   participantCount: number;
@@ -24,6 +40,16 @@ export interface CompetitionState {
   completedAt: string | null;
   createdAt: string;
   participants: CompetitionParticipant[];
+  settings?: CompetitionSettings;
+  startedAt?: string | null;
+  endsAt?: string | null;
+  mySolvedQuestionIds?: string[];
+  participantProgress?: Array<{
+    userId: string;
+    solvedCount: number;
+    solvedQuestionIds: string[];
+  }>;
+  questions?: CompetitionQuestionSummary[];
   isParticipant: boolean;
   isWinner: boolean;
   isWaiting?: boolean;
@@ -164,7 +190,10 @@ export function useQuestionCompetition({
     };
 
     const handleState = (state: CompetitionState) => {
-      if (state.questionId !== questionId) return;
+      const ids = state.questionIds?.length
+        ? state.questionIds
+        : [state.questionId];
+      if (!ids.includes(questionId) && state.questionId !== questionId) return;
       if (competitionId && state.id !== competitionId) return;
       setCompetition(withLocalFlags(state, userId));
       competitionIdRef.current = state.id;
@@ -345,6 +374,40 @@ export function useQuestionCompetition({
     }
   }, [competition?.id, userId]);
 
+  const settleTimed = useCallback(async () => {
+    if (!competition?.id || !userId) return;
+    if (competition.status !== "active") return;
+    if (competition.settings?.mode !== "timed") return;
+    try {
+      const token = getMemoryToken();
+      const res = await fetch(apiUrl("/api/v1/competitions/settle"), {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ competitionId: competition.id }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) return;
+      const next = json.data?.competition
+        ? withLocalFlags(json.data.competition, userId)
+        : null;
+      if (next) {
+        setCompetition(next);
+        competitionIdRef.current = next.id;
+      }
+    } catch {
+      // Non-fatal; status refresh / next submit will settle.
+    }
+  }, [
+    competition?.id,
+    competition?.status,
+    competition?.settings?.mode,
+    userId,
+  ]);
+
   const handleCompetitionSubmitResult = useCallback(
     (next: CompetitionState | null) => {
       if (next) {
@@ -371,6 +434,7 @@ export function useQuestionCompetition({
     leave,
     start,
     end,
+    settleTimed,
     refresh: fetchStatus,
     handleCompetitionSubmitResult,
     isParticipant: competition?.isParticipant ?? false,

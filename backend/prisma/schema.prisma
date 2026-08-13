@@ -486,21 +486,45 @@ model Question {
 // ─── Question Competition (race to solve) ────────────────────────────────────
 
 model QuestionCompetition {
-  id              String    @id @default(cuid())
-  questionId      String
-  maxParticipants Int       @default(10)
-  status          String    @default("waiting") // waiting | active | completed
-  winnerId        String?
-  winnerUsername  String?
-  completedAt     DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                  String    @id @default(cuid())
+  questionId          String
+  maxParticipants     Int       @default(10)
+  status              String    @default("waiting") // waiting | active | completed
+  winnerId            String?
+  winnerUsername      String?
+  completedAt         DateTime?
+  // Race setup (host configures in lobby while waiting)
+  excludeTopics       String[]  @default([])
+  questionCount       Int       @default(1)
+  includedQuestionIds String[]  @default([])
+  questionIds         String[]  @default([])
+  mode                String    @default("first_solve") // first_solve | timed
+  durationSeconds     Int?
+  startedAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   question     Question                         @relation(fields: [questionId], references: [id], onDelete: Cascade)
   participants QuestionCompetitionParticipant[]
+  solves       QuestionCompetitionSolve[]
 
   @@index([questionId, status])
   @@map("question_competitions")
+}
+
+model QuestionCompetitionSolve {
+  id            String   @id @default(cuid())
+  competitionId String
+  userId        String
+  questionId    String
+  solvedAt      DateTime @default(now())
+
+  competition QuestionCompetition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+
+  @@unique([competitionId, userId, questionId])
+  @@index([competitionId, userId])
+  @@index([competitionId, questionId])
+  @@map("question_competition_solves")
 }
 
 model QuestionCompetitionParticipant {
