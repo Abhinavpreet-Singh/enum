@@ -62,7 +62,37 @@ export async function getActiveCompetition(questionId, currentUserId) {
   return serializeCompetition(competition, currentUserId);
 }
 
-export async function getCompetitionStatus(questionId, currentUserId) {
+export async function getCompetitionById(competitionId, currentUserId) {
+  const competition = await prisma.questionCompetition.findUnique({
+    where: { id: competitionId },
+    include: competitionInclude,
+  });
+  if (!competition) return null;
+  return serializeCompetition(competition, currentUserId);
+}
+
+export async function getCompetitionStatus(
+  questionId,
+  currentUserId,
+  competitionId = null,
+) {
+  if (competitionId) {
+    const targeted = await prisma.questionCompetition.findFirst({
+      where: { id: competitionId, questionId },
+      include: competitionInclude,
+    });
+
+    if (targeted) {
+      const serialized = serializeCompetition(targeted, currentUserId);
+      return {
+        competition: serialized,
+        lastCompleted:
+          targeted.status === "completed" ? serialized : null,
+        canStartNew: targeted.status === "completed",
+      };
+    }
+  }
+
   const active = await prisma.questionCompetition.findFirst({
     where: { questionId, status: "active" },
     include: competitionInclude,
@@ -115,33 +145,49 @@ export async function getCompetitionStatus(questionId, currentUserId) {
 
 export async function joinCompetition({
   questionId,
+  competitionId = null,
   userId,
   username,
   maxParticipants = DEFAULT_MAX_PARTICIPANTS,
 }) {
-  const question = await prisma.question.findUnique({
-    where: { id: questionId },
-    select: { id: true },
-  });
-  if (!question) throw new ApiError(404, "Question not found");
-
   const cappedMax = Math.min(Math.max(2, maxParticipants), 50);
 
   const result = await prisma.$transaction(async (tx) => {
-    let competition = await tx.questionCompetition.findFirst({
-      where: { questionId, status: "active" },
-      include: competitionInclude,
-      orderBy: { createdAt: "desc" },
-    });
+    let competition = null;
 
-    if (!competition) {
-      competition = await tx.questionCompetition.create({
-        data: {
-          questionId,
-          maxParticipants: cappedMax,
-        },
+    if (competitionId) {
+      competition = await tx.questionCompetition.findUnique({
+        where: { id: competitionId },
         include: competitionInclude,
       });
+      if (!competition) throw new ApiError(404, "Race not found");
+      if (questionId && competition.questionId !== questionId) {
+        throw new ApiError(400, "Invite does not match this question");
+      }
+    } else {
+      if (!questionId) throw new ApiError(400, "Question ID is required");
+
+      const question = await tx.question.findUnique({
+        where: { id: questionId },
+        select: { id: true },
+      });
+      if (!question) throw new ApiError(404, "Question not found");
+
+      competition = await tx.questionCompetition.findFirst({
+        where: { questionId, status: "active" },
+        include: competitionInclude,
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (!competition) {
+        competition = await tx.questionCompetition.create({
+          data: {
+            questionId,
+            maxParticipants: cappedMax,
+          },
+          include: competitionInclude,
+        });
+      }
     }
 
     const alreadyJoined = competition.participants.some(
@@ -326,28 +372,28 @@ export async function assertCanSubmitInCompetition(questionId, userId) {
 }
 
 async function pickRandomQuestionId() {
-  const total = await prisma.question.count();
-  if (total === 0) throw new ApiError(404, "No questions available for racing");
-
-  const skip = Math.floor(Math.random() * total);
-  const [question] = await prisma.question.findMany({
-    take: 1,
-    skip,
-    select: { id: true, title: true },
-    orderBy: { id: "asc" },
-  });
-
-  if (!question) throw new ApiError(404, "No questions available for racing");
-  return question;
+  // Single round-trip — fewer chances to hit a dropped idle connection.
+  const rows = await prisma.$queryRaw`
+    SELECT id, title
+    FROM questions
+    ORDER BY RANDOM()
+    LIMIT 1
+  `;
+  const question = Array.isArray(rows) ? rows[0] : null;
+  if (!question?.id) {
+    throw new ApiError(404, "No questions available for racing");
+  }
+  return { id: question.id, title: question.title ?? null };
 }
 
 /**
- * Match a user into an active race or start a new one on a random question.
+ * Create a private invite race on a random question (host only).
+ * Rejoins an existing active race if the user already has one.
  */
-export async function quickMatch({
+export async function createRace({
   userId,
   username,
-  maxParticipants = DEFAULT_MAX_PARTICIPANTS,
+  maxParticipants = 2,
 }) {
   const existing = await prisma.questionCompetitionParticipant.findFirst({
     where: {
@@ -361,55 +407,52 @@ export async function quickMatch({
   });
 
   if (existing) {
-    const question = await prisma.question.findUnique({
-      where: { id: existing.competition.questionId },
-      select: { id: true, title: true },
-    });
     return {
       questionId: existing.competition.questionId,
-      questionTitle: question?.title ?? null,
+      questionTitle: null,
       competition: serializeCompetition(existing.competition, userId),
       matchedExisting: true,
     };
   }
 
-  const actives = await prisma.questionCompetition.findMany({
-    where: { status: "active" },
+  const randomQuestion = await pickRandomQuestionId();
+  const cappedMax = Math.min(Math.max(2, maxParticipants), 50);
+
+  // Nested create avoids multi-step interactive transactions that hang when
+  // the remote Postgres drops a pooled socket mid-flight.
+  const competition = await prisma.questionCompetition.create({
+    data: {
+      questionId: randomQuestion.id,
+      maxParticipants: cappedMax,
+      participants: {
+        create: {
+          userId,
+          username,
+        },
+      },
+    },
     include: competitionInclude,
-    orderBy: { createdAt: "desc" },
   });
 
-  const openRoom = actives
-    .filter((c) => c.participants.length < c.maxParticipants)
-    .sort((a, b) => b.participants.length - a.participants.length)[0];
-
-  let questionId;
-  let questionTitle = null;
-
-  if (openRoom) {
-    questionId = openRoom.questionId;
-    const question = await prisma.question.findUnique({
-      where: { id: questionId },
-      select: { title: true },
-    });
-    questionTitle = question?.title ?? null;
-  } else {
-    const randomQuestion = await pickRandomQuestionId();
-    questionId = randomQuestion.id;
-    questionTitle = randomQuestion.title;
-  }
-
-  const competition = await joinCompetition({
-    questionId,
-    userId,
-    username,
-    maxParticipants,
-  });
+  const serialized = serializeCompetition(competition, userId);
+  emitCompetitionState(serialized.id, serialized);
 
   return {
-    questionId,
-    questionTitle,
-    competition,
+    questionId: randomQuestion.id,
+    questionTitle: randomQuestion.title,
+    competition: serialized,
     matchedExisting: false,
   };
+}
+
+/**
+ * Match a user into an active race or start a new one on a random question.
+ * Kept for backwards compatibility; prefer createRace for invite flow.
+ */
+export async function quickMatch({
+  userId,
+  username,
+  maxParticipants = DEFAULT_MAX_PARTICIPANTS,
+}) {
+  return createRace({ userId, username, maxParticipants });
 }

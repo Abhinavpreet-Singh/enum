@@ -2,18 +2,33 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import {
   getCompetitionStatus,
+  getCompetitionById,
   joinCompetition,
   leaveCompetition,
+  createRace,
   quickMatch,
   DEFAULT_MAX_PARTICIPANTS,
 } from "../services/competition.service.js";
+
+function resolveUsername(req) {
+  const fromBody =
+    typeof req.body?.username === "string" ? req.body.username.trim() : "";
+  if (fromBody) return fromBody.slice(0, 40);
+  return (
+    req.user.displayName || req.user.username || req.user.email || "Anonymous"
+  );
+}
 
 const getStatus = asyncHandler(async (req, res) => {
   const { questionId } = req.params;
   if (!questionId) throw new ApiError(400, "Question ID is required");
 
   const userId = req.user?.id ?? null;
-  const data = await getCompetitionStatus(questionId, userId);
+  const competitionId =
+    typeof req.query?.competitionId === "string"
+      ? req.query.competitionId
+      : null;
+  const data = await getCompetitionStatus(questionId, userId, competitionId);
 
   return res.status(200).json({
     message: "Competition status fetched",
@@ -21,15 +36,30 @@ const getStatus = asyncHandler(async (req, res) => {
   });
 });
 
-const join = asyncHandler(async (req, res) => {
-  const { questionId, maxParticipants } = req.body;
-  if (!questionId) throw new ApiError(400, "Question ID is required");
+const getById = asyncHandler(async (req, res) => {
+  const { competitionId } = req.params;
+  if (!competitionId) throw new ApiError(400, "Competition ID is required");
 
-  const username =
-    req.user.displayName || req.user.username || req.user.email || "Anonymous";
+  const competition = await getCompetitionById(competitionId, req.user.id);
+  if (!competition) throw new ApiError(404, "Race not found");
+
+  return res.status(200).json({
+    message: "Race fetched",
+    data: { competition },
+  });
+});
+
+const join = asyncHandler(async (req, res) => {
+  const { questionId, competitionId, maxParticipants } = req.body;
+  if (!questionId && !competitionId) {
+    throw new ApiError(400, "Question ID or competition ID is required");
+  }
+
+  const username = resolveUsername(req);
 
   const competition = await joinCompetition({
-    questionId,
+    questionId: questionId || null,
+    competitionId: competitionId || null,
     userId: req.user.id,
     username,
     maxParticipants: maxParticipants ?? DEFAULT_MAX_PARTICIPANTS,
@@ -56,22 +86,38 @@ const leave = asyncHandler(async (req, res) => {
   });
 });
 
-const match = asyncHandler(async (req, res) => {
-  const username =
-    req.user.displayName || req.user.username || req.user.email || "Anonymous";
+const create = asyncHandler(async (req, res) => {
+  const username = resolveUsername(req);
 
-  const result = await quickMatch({
+  const result = await createRace({
     userId: req.user.id,
     username,
-    maxParticipants: req.body?.maxParticipants ?? DEFAULT_MAX_PARTICIPANTS,
+    maxParticipants: req.body?.maxParticipants ?? 2,
   });
 
   return res.status(200).json({
     message: result.matchedExisting
       ? "Rejoined your active race"
-      : "Matched into a race",
+      : "Race created",
     data: result,
   });
 });
 
-export { getStatus, join, leave, match };
+const match = asyncHandler(async (req, res) => {
+  const username = resolveUsername(req);
+
+  const result = await quickMatch({
+    userId: req.user.id,
+    username,
+    maxParticipants: req.body?.maxParticipants ?? 2,
+  });
+
+  return res.status(200).json({
+    message: result.matchedExisting
+      ? "Rejoined your active race"
+      : "Race created",
+    data: result,
+  });
+});
+
+export { getStatus, getById, join, leave, create, match };

@@ -6,7 +6,10 @@ import { usePathname } from "next/navigation";
 import useAuth from "@/hooks/useAuth";
 import { AuthContext } from "@/providers/AuthProvider";
 import { silentRefreshFromCookie } from "@/lib/api";
-import { restoreMemoryTokenFromSession } from "@/lib/tokenStore";
+import {
+  getMemoryToken,
+  restoreMemoryTokenFromSession,
+} from "@/lib/tokenStore";
 
 export default function ProtectedRoute({
   children,
@@ -38,6 +41,15 @@ export default function ProtectedRoute({
 
     (async () => {
       restoreMemoryTokenFromSession();
+
+      const existingToken = getMemoryToken();
+      if (existingToken) {
+        if (cancelled) return;
+        authCtx?.setAccessToken(existingToken);
+        recoveryAttemptedRef.current = false;
+        return;
+      }
+
       const token = await silentRefreshFromCookie();
       if (cancelled) return;
 

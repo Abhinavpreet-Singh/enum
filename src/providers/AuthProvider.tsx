@@ -198,26 +198,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      if (getMemoryToken()) {
+      const memoryToken = getMemoryToken();
+      if (memoryToken) {
         const established = await trySessionWithAccessToken();
         if (established) return;
 
         setState((prev) => ({
           ...prev,
-          accessToken: getMemoryToken(),
+          accessToken: memoryToken,
           loading: false,
           authenticated: true,
         }));
         return;
       }
 
-      clearMemoryToken();
-      setState({
-        user: null,
-        accountType: "student",
-        accessToken: null,
-        loading: false,
-        authenticated: false,
+      if (!mountedRef.current) return;
+
+      setState((prev) => {
+        const token = getMemoryToken();
+        if (token || prev.authenticated) {
+          return {
+            ...prev,
+            accessToken: token ?? prev.accessToken,
+            loading: false,
+            authenticated: Boolean(token ?? prev.accessToken),
+          };
+        }
+
+        clearMemoryToken();
+        return {
+          user: null,
+          accountType: "student",
+          accessToken: null,
+          loading: false,
+          authenticated: false,
+        };
       });
     }
   }, [trySessionWithAccessToken]);

@@ -11,7 +11,6 @@ import { API_BASE_URL } from "@/lib/api-config";
 import {
   getMemoryToken,
   setMemoryToken,
-  clearMemoryToken,
   notifyAuthSessionExpired,
 } from "@/lib/tokenStore";
 
@@ -48,16 +47,17 @@ export async function silentRefreshFromCookie(): Promise<string | null> {
     const res = await refreshClient.post("/api/v1/auth/refresh", {});
     const newToken: string = res.data?.accessToken;
     if (!newToken) {
-      clearMemoryToken();
-      notifyAuthSessionExpired();
       return null;
     }
     setMemoryToken(newToken);
     return newToken;
   } catch (error) {
-    clearMemoryToken();
+    // Keep any bearer token from a recent login — it may still be valid even
+    // when the HttpOnly refresh cookie is missing or not yet available.
     if (isAxiosError(error) && error.response?.status === 401) {
-      notifyAuthSessionExpired();
+      if (!getMemoryToken()) {
+        notifyAuthSessionExpired();
+      }
     }
     return null;
   }

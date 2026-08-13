@@ -7,8 +7,12 @@ import {
   Swords,
   Crown,
   Lock,
+  Copy,
+  Check,
 } from "lucide-react";
+import { useState } from "react";
 import type { CompetitionState } from "@/hooks/useQuestionCompetition";
+import { buildRaceInviteUrl } from "@/components/race/race-landing";
 
 interface CompetitionPanelProps {
   competition: CompetitionState | null;
@@ -25,6 +29,8 @@ export default function CompetitionPanel({
   isWinner,
   editorLocked,
 }: CompetitionPanelProps) {
+  const [copied, setCopied] = useState(false);
+
   if (loading) {
     return (
       <div className="border-b border-gray-200 dark:border-white/10 bg-amber-50/50 dark:bg-amber-500/5 px-4 py-3 flex items-center gap-2">
@@ -39,6 +45,17 @@ export default function CompetitionPanel({
   if (!competition || !isParticipant) return null;
 
   const isCompleted = competition.status === "completed";
+
+  async function handleCopyInvite() {
+    const url = buildRaceInviteUrl(competition!.id);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt("Copy invite link:", url);
+    }
+  }
 
   return (
     <div
@@ -95,6 +112,9 @@ export default function CompetitionPanel({
           {!isCompleted && (
             <p className="font-mono text-[11px] text-gray-600 dark:text-gray-400 mb-2">
               First to pass all test cases wins. Others get locked out.
+              {competition.participantCount < 2
+                ? " Share the invite link so a friend can join."
+                : ""}
             </p>
           )}
 
@@ -128,6 +148,26 @@ export default function CompetitionPanel({
             </p>
           )}
         </div>
+
+        {!isCompleted && (
+          <button
+            type="button"
+            onClick={() => void handleCopyInvite()}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-amber-300 dark:border-amber-500/40 bg-white dark:bg-black px-2.5 py-1.5 font-mono text-[10px] font-medium text-amber-800 dark:text-amber-200 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
+          >
+            {copied ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                Copied
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                Copy invite
+              </>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

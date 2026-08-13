@@ -7,26 +7,23 @@ import { PrismaClient } from "@prisma/client";
 const globalForPrisma = globalThis;
 
 /**
- * Prisma sizes its pool at `num_cpus * 2 + 1` unless told otherwise, which is
- * only 5 connections on a 2 vCPU host. Past that the 6th concurrent query waits
- * and then fails with P2024 (pool timeout) even though Postgres itself is idle,
- * so the ceiling has to be raised explicitly for a few hundred concurrent users.
- *
- * Applied here rather than in DATABASE_URL so every environment gets the same
- * pool behaviour without editing a secret-bearing value. Anything already present
- * in the URL wins, so a deployment can still override per-parameter.
- *
- * Keep the total across all app instances below the server's max_connections
- * (default 100), leaving headroom for migrations and admin sessions.
+ * Prisma sizes its pool at `num_cpus * 2 + 1` unless told otherwise.
+ * Keepalives + light retries help with remote hosts that drop idle sockets
+ * (P1017). Never call $disconnect() on retry — that kills in-flight requests
+ * and leaves the UI stuck loading.
  */
 function buildDatabaseUrl() {
   const raw = process.env.DATABASE_URL;
   if (!raw) return undefined;
 
   const defaults = {
-    connection_limit: process.env.DATABASE_CONNECTION_LIMIT || "20",
-    pool_timeout: process.env.DATABASE_POOL_TIMEOUT || "20",
-    connect_timeout: process.env.DATABASE_CONNECT_TIMEOUT || "10",
+    connection_limit: process.env.DATABASE_CONNECTION_LIMIT || "5",
+    pool_timeout: process.env.DATABASE_POOL_TIMEOUT || "10",
+    connect_timeout: process.env.DATABASE_CONNECT_TIMEOUT || "8",
+    keepalives: "1",
+    keepalives_idle: process.env.DATABASE_KEEPALIVES_IDLE || "20",
+    keepalives_interval: process.env.DATABASE_KEEPALIVES_INTERVAL || "5",
+    keepalives_count: process.env.DATABASE_KEEPALIVES_COUNT || "5",
   };
 
   try {
@@ -38,15 +35,58 @@ function buildDatabaseUrl() {
     }
     return url.toString();
   } catch {
-    // Malformed or non-standard URL: leave it untouched and let Prisma report it.
     return raw;
   }
 }
 
+function isConnectionError(err) {
+  if (!err) return false;
+  const code = err.code || err.errorCode;
+  if (
+    code === "P1017" ||
+    code === "P1001" ||
+    code === "P1002" ||
+    code === "P2024"
+  ) {
+    return true;
+  }
+  const message = String(err.message || err);
+  return (
+    message.includes("Server has closed the connection") ||
+    message.includes("Connection reset") ||
+    message.includes("Can't reach database server") ||
+    message.includes("Connection refused") ||
+    message.includes("ECONNRESET") ||
+    message.includes("closed the connection")
+  );
+}
+
+async function withConnectionRetry(operation, { retries = 2 } = {}) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await operation();
+    } catch (err) {
+      lastError = err;
+      if (!isConnectionError(err) || attempt === retries) {
+        throw err;
+      }
+      // Soft reconnect only — do NOT $disconnect() (drops the whole pool).
+      await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)));
+      try {
+        await basePrisma.$connect();
+      } catch {
+        // next attempt will surface the failure if still down
+      }
+    }
+  }
+  throw lastError;
+}
+
 const databaseUrl = buildDatabaseUrl();
 
-const prisma =
-  globalForPrisma.prisma ??
+const basePrisma =
+  globalForPrisma.prismaBase ??
   new PrismaClient({
     ...(databaseUrl ? { datasources: { db: { url: databaseUrl } } } : {}),
     log:
@@ -55,7 +95,18 @@ const prisma =
         : ["error"],
   });
 
+const prisma =
+  globalForPrisma.prisma ??
+  basePrisma.$extends({
+    query: {
+      async $allOperations({ args, query }) {
+        return withConnectionRetry(() => query(args));
+      },
+    },
+  });
+
 if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prismaBase = basePrisma;
   globalForPrisma.prisma = prisma;
 }
 

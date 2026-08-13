@@ -9,13 +9,17 @@ import {
   type CompetitionState,
 } from "@/hooks/useQuestionCompetition";
 import { useAuthContext } from "@/providers/AuthProvider";
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { getStoredRaceUsername } from "@/components/race/race-landing";
 
 export default function DSAArenaClientPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const id = params.id as string;
+  const raceId = searchParams.get("race");
   const { user } = useAuthContext();
   const [question, setQuestion] = useState<Question | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,12 +35,44 @@ export default function DSAArenaClientPage() {
     editorLocked,
     isWinner,
     isParticipant,
+    join,
+    joining,
     handleCompetitionSubmitResult,
   } = useQuestionCompetition({
     questionId: id,
     userId: user?.id,
+    competitionId: raceId,
     enabled: Boolean(user?.id),
   });
+
+  const joinAttemptedRef = useRef<string | null>(null);
+
+  // Invite link deep-link: ensure name first, then join the targeted race.
+  useEffect(() => {
+    if (!raceId || !user?.id || competitionLoading || joining) return;
+    if (isParticipant) return;
+    if (joinAttemptedRef.current === raceId) return;
+
+    const username = getStoredRaceUsername();
+    if (!username) {
+      router.replace(`/dashboard/race?invite=${encodeURIComponent(raceId)}`);
+      return;
+    }
+
+    if (competition && !competition.canJoin) return;
+
+    joinAttemptedRef.current = raceId;
+    void join({ competitionId: raceId, username });
+  }, [
+    raceId,
+    user?.id,
+    competitionLoading,
+    joining,
+    isParticipant,
+    competition,
+    join,
+    router,
+  ]);
 
   useEffect(() => {
     const loadQuestion = async () => {
@@ -138,7 +174,9 @@ export default function DSAArenaClientPage() {
     <div className="flex flex-col h-[calc(100vh/1.1)] overflow-hidden">
       <CompetitionPanel
         competition={competition}
-        loading={competitionLoading}
+        loading={
+          competitionLoading || Boolean(raceId && !isParticipant && joining)
+        }
         isParticipant={isParticipant}
         isWinner={isWinner}
         editorLocked={editorLocked}

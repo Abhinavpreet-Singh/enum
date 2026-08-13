@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { apiUrl } from "@/lib/api-config";
 import { getMemoryToken } from "@/lib/tokenStore";
 import { getSocket } from "@/lib/socket";
+import { getStoredRaceUsername } from "@/components/race/race-landing";
 
 export interface CompetitionParticipant {
   id: string;
@@ -38,12 +39,14 @@ interface CompetitionStatusResponse {
 interface UseQuestionCompetitionOptions {
   questionId: string;
   userId?: string;
+  competitionId?: string | null;
   enabled?: boolean;
 }
 
 export function useQuestionCompetition({
   questionId,
   userId,
+  competitionId = null,
   enabled = true,
 }: UseQuestionCompetitionOptions) {
   const [competition, setCompetition] = useState<CompetitionState | null>(
@@ -67,8 +70,11 @@ export function useQuestionCompetition({
 
     try {
       const token = getMemoryToken();
+      const query = competitionId
+        ? `?competitionId=${encodeURIComponent(competitionId)}`
+        : "";
       const res = await fetch(
-        apiUrl(`/api/v1/competitions/status/${questionId}`),
+        apiUrl(`/api/v1/competitions/status/${questionId}${query}`),
         {
           credentials: "include",
           headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -86,14 +92,14 @@ export function useQuestionCompetition({
       setCompetition(next);
       setLastCompleted(data?.lastCompleted ?? null);
       setCanStartNew(data?.canStartNew ?? !next);
-      competitionIdRef.current = next?.id ?? null;
+      competitionIdRef.current = next?.id ?? competitionId ?? null;
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load competition");
     } finally {
       setLoading(false);
     }
-  }, [enabled, questionId, userId]);
+  }, [enabled, questionId, userId, competitionId]);
 
   useEffect(() => {
     setLoading(true);
@@ -105,8 +111,8 @@ export function useQuestionCompetition({
 
     const socket = getSocket();
 
-    const joinRoom = (competitionId: string) => {
-      socket.emit("competition:join", { competitionId });
+    const joinRoom = (id: string) => {
+      socket.emit("competition:join", { competitionId: id });
     };
 
     const handleConnect = () => {
@@ -117,6 +123,7 @@ export function useQuestionCompetition({
 
     const handleState = (state: CompetitionState) => {
       if (state.questionId !== questionId) return;
+      if (competitionId && state.id !== competitionId) return;
       setCompetition(state);
       competitionIdRef.current = state.id;
     };
@@ -139,7 +146,7 @@ export function useQuestionCompetition({
       socket.off("connect", handleConnect);
       socket.off("competition:state", handleState);
     };
-  }, [enabled, questionId, userId]);
+  }, [enabled, questionId, userId, competitionId]);
 
   useEffect(() => {
     if (competition?.id) {
@@ -151,36 +158,47 @@ export function useQuestionCompetition({
     }
   }, [competition?.id]);
 
-  const join = useCallback(async () => {
-    if (!userId) return;
-    setJoining(true);
-    setError(null);
-    try {
-      const token = getMemoryToken();
-      const res = await fetch(apiUrl("/api/v1/competitions/join"), {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ questionId }),
-      });
+  const join = useCallback(
+    async (opts?: { competitionId?: string; username?: string }) => {
+      if (!userId) return;
+      setJoining(true);
+      setError(null);
+      try {
+        const token = getMemoryToken();
+        const username =
+          opts?.username?.trim() || getStoredRaceUsername() || undefined;
+        const res = await fetch(apiUrl("/api/v1/competitions/join"), {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            questionId,
+            competitionId: opts?.competitionId ?? competitionId ?? undefined,
+            ...(username ? { username } : {}),
+          }),
+        });
 
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(json.message || "Failed to join competition");
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(json.message || "Failed to join competition");
+        }
+
+        const next = json.data?.competition ?? null;
+        setCompetition(next);
+        competitionIdRef.current = next?.id ?? null;
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to join competition",
+        );
+      } finally {
+        setJoining(false);
       }
-
-      const next = json.data?.competition ?? null;
-      setCompetition(next);
-      competitionIdRef.current = next?.id ?? null;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to join competition");
-    } finally {
-      setJoining(false);
-    }
-  }, [questionId, userId]);
+    },
+    [questionId, userId, competitionId],
+  );
 
   const leave = useCallback(async () => {
     if (!competition?.id) return;

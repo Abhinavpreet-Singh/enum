@@ -1,8 +1,6 @@
 "use client";
 
-import { API_BASE_URL, apiUrl } from "@/lib/api-config";
 import api from "@/lib/api";
-import { getMemoryToken } from "@/lib/tokenStore";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -34,7 +32,6 @@ import {
   ClipboardList,
   Crown,
   Swords,
-  Loader2,
 } from "lucide-react";
 import { useTheme } from "@/providers/theme-provider";
 import useAccountType, {
@@ -137,7 +134,6 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
   }, [accountType, access.isPro]);
   const [hovered, setHovered] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [isQuickMatching, setIsQuickMatching] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   const expanded = pinned || hovered;
@@ -209,39 +205,6 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
   };
 
   const isStudent = accountType === "student";
-
-  const handleQuickRace = async () => {
-    if (isQuickMatching) return;
-    setIsQuickMatching(true);
-    try {
-      const token = getMemoryToken();
-      const res = await fetch(apiUrl("/api/v1/competitions/quick-match"), {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({}),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(json.message || "Could not start a race");
-      }
-      const questionId = json.data?.questionId;
-      if (!questionId) {
-        throw new Error("No question was selected for the race");
-      }
-      if (!pinned) setHovered(false);
-      router.push(`/dashboard/dsa-arena/${questionId}`);
-    } catch (err) {
-      window.alert(
-        err instanceof Error ? err.message : "Could not start a race",
-      );
-    } finally {
-      setIsQuickMatching(false);
-    }
-  };
 
   return (
     <>
@@ -342,28 +305,29 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
               );
             })}
             {isStudent && (
-              <button
-                type="button"
-                onClick={handleQuickRace}
-                disabled={isQuickMatching}
-                title="Join a random coding race"
+              <Link
+                href="/dashboard/race"
+                title="Create or join a coding race"
+                onClick={() => {
+                  if (!pinned) setHovered(false);
+                }}
                 className={`group relative flex items-center w-full ${
                   expanded ? "gap-3 pl-4 pr-3" : "justify-center px-0"
-                } py-2.5 rounded-lg font-mono text-sm tracking-wide transition-all duration-200 whitespace-nowrap border border-transparent text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-500/10 hover:border-amber-300 dark:hover:border-amber-500/40 disabled:opacity-60 disabled:cursor-not-allowed`}
+                } py-2.5 rounded-lg font-mono text-sm tracking-wide transition-all duration-200 whitespace-nowrap border border-transparent ${
+                  pathname.startsWith("/dashboard/race")
+                    ? "bg-amber-50 dark:bg-amber-500/10 border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-200"
+                    : "text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-500/10 hover:border-amber-300 dark:hover:border-amber-500/40"
+                }`}
               >
-                {isQuickMatching ? (
-                  <Loader2 className="w-4.5 h-4.5 shrink-0 animate-spin" />
-                ) : (
-                  <Swords className="w-4.5 h-4.5 shrink-0" />
-                )}
+                <Swords className="w-4.5 h-4.5 shrink-0" />
                 <span
                   className={`transition-opacity duration-300 ${
                     expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
                   }`}
                 >
-                  {isQuickMatching ? "Finding race..." : "Quick Race"}
+                  Quick Race
                 </span>
-              </button>
+              </Link>
             )}
           </nav>
 
@@ -598,19 +562,20 @@ export default function Sidebar({ pinned = false, onTogglePin }: SidebarProps) {
             );
           })}
           {isStudent && (
-            <button
-              type="button"
-              onClick={handleQuickRace}
-              disabled={isQuickMatching}
-              className="relative flex flex-col items-center gap-1 px-3 py-1 rounded-md text-amber-600 dark:text-amber-400 disabled:opacity-60"
+            <Link
+              href="/dashboard/race"
+              className={`relative flex flex-col items-center gap-1 px-3 py-1 rounded-md ${
+                pathname.startsWith("/dashboard/race")
+                  ? "text-amber-700 dark:text-amber-300"
+                  : "text-amber-600 dark:text-amber-400"
+              }`}
             >
-              {isQuickMatching ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Swords className="w-5 h-5" />
+              {pathname.startsWith("/dashboard/race") && (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-0.75 bg-amber-600 dark:bg-amber-400 rounded-full" />
               )}
+              <Swords className="w-5 h-5" />
               <span className="font-mono text-[10px] tracking-wide">Race</span>
-            </button>
+            </Link>
           )}
         </div>
       </nav>
