@@ -344,11 +344,12 @@ model BankQuestionOption {
 }
 
 model BankQuestionTestCase {
-  id             String @id @default(cuid())
+  id             String  @id @default(cuid())
   questionId     String
-  sortOrder      Int    @default(0)
+  sortOrder      Int     @default(0)
   input          Json?
-  expectedOutput String @default("")
+  expectedOutput String  @default("")
+  isHidden       Boolean @default(false)
 
   question BankQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
@@ -544,11 +545,12 @@ model QuestionCompetitionParticipant {
 }
 
 model QuestionTestCase {
-  id             String @id @default(cuid())
+  id             String  @id @default(cuid())
   questionId     String
-  sortOrder      Int    @default(0)
+  sortOrder      Int     @default(0)
   input          Json
   expectedOutput String
+  isHidden       Boolean @default(false)
 
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 

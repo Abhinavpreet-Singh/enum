@@ -203,31 +203,41 @@ export function serializeUserProfile(user) {
   };
 }
 
-export function serializeQuestion(question) {
+function mapSerializedTestCase({ input, expectedOutput, isHidden }) {
+  return {
+    input,
+    expectedOutput,
+    isHidden: Boolean(isHidden),
+  };
+}
+
+export function serializeQuestion(question, { includeHidden = false } = {}) {
   if (!question) return question;
   const { testCases, initialCodes, ...rest } = question;
+  const mapped = (testCases || []).map(mapSerializedTestCase);
+  const visible = includeHidden ? mapped : mapped.filter((tc) => !tc.isHidden);
   return {
     ...rest,
-    testcases: (testCases || []).map(({ input, expectedOutput }) => ({
-      input,
-      expectedOutput,
-    })),
+    testcases: includeHidden
+      ? visible
+      : visible.map(({ isHidden: _isHidden, ...tc }) => tc),
     initialCode: (initialCodes || []).map(({ language, code }) => ({
       [language]: code,
     })),
   };
 }
 
-export function serializeBankQuestion(question) {
+export function serializeBankQuestion(question, { includeHidden = true } = {}) {
   if (!question) return question;
   const { options, testCases, ...rest } = question;
+  const mapped = (testCases || []).map(mapSerializedTestCase);
+  const visible = includeHidden ? mapped : mapped.filter((tc) => !tc.isHidden);
   return {
     ...rest,
     options: (options || []).map(({ text, isCorrect }) => ({ text, isCorrect })),
-    testCases: (testCases || []).map(({ input, expectedOutput }) => ({
-      input,
-      expectedOutput,
-    })),
+    testCases: includeHidden
+      ? visible
+      : visible.map(({ isHidden: _isHidden, ...tc }) => tc),
   };
 }
 
@@ -347,6 +357,7 @@ export function buildQuestionNestedCreate({ testcases = [], initialCode = [] } =
         expectedOutput: String(
           testcase?.expectedOutput ?? testcase?.output ?? "",
         ),
+        isHidden: Boolean(testcase?.isHidden),
       })),
     },
     initialCodes: {
@@ -383,6 +394,7 @@ export function buildBankQuestionNestedCreate({
       expectedOutput: String(
         testcase?.expectedOutput ?? testcase?.output ?? "",
       ),
+      isHidden: Boolean(testcase?.isHidden),
     })),
   };
 
@@ -516,6 +528,7 @@ export async function replaceQuestionTestCases(tx, questionId, testcases = []) {
       expectedOutput: String(
         testcase?.expectedOutput ?? testcase?.output ?? "",
       ),
+      isHidden: Boolean(testcase?.isHidden),
     })),
   });
 }
@@ -557,6 +570,7 @@ export async function replaceBankQuestionTestCases(tx, questionId, testCases = [
       expectedOutput: String(
         testcase?.expectedOutput ?? testcase?.output ?? "",
       ),
+      isHidden: Boolean(testcase?.isHidden),
     })),
   });
 }

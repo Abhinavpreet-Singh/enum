@@ -6,8 +6,10 @@ import {
   adminPostQuestion,
   adminEditQuestion,
   adminDeleteQuestion,
+  adminDeleteAllDsaQuestions,
+  getAdminDsaQuestions,
 } from "./admin.controllers.js";
-import { adminPostSimulation } from "./simulation.controller.js";
+import { adminPostSimulation, adminDeleteSimulation } from "./simulation.controller.js";
 import { createSystemDesignSimulation } from "./systemDesign.controller.js";
 import {
   buildIncidentNestedCreate,
@@ -16,6 +18,8 @@ import {
   linuxQuestionInclude,
   serializeIncident,
   serializeLinuxQuestion,
+  serializeSimulation,
+  simulationInclude,
 } from "../utils/prismaNormalizers.js";
 
 function slugify(value) {
@@ -164,10 +168,26 @@ export const createIncidentSimulation = asyncHandler(async (req, res) => {
   });
 });
 
+const getAdminSimulations = asyncHandler(async (_req, res) => {
+  const simulations = await prisma.simulation.findMany({
+    orderBy: { updatedAt: "desc" },
+    include: simulationInclude,
+  });
+
+  return res.status(200).json({
+    message: "Simulations fetched",
+    data: simulations.map(serializeSimulation),
+  });
+});
+
 export {
   adminPostQuestion as createDsaQuestion,
   adminEditQuestion as updateDsaQuestion,
   adminDeleteQuestion as deleteDsaQuestion,
+  adminDeleteAllDsaQuestions as deleteAllDsaQuestions,
+  getAdminDsaQuestions,
   adminPostSimulation as createSimulation,
+  adminDeleteSimulation as deleteSimulation,
+  getAdminSimulations,
   createSystemDesignSimulation as createSystemDesign,
 };

@@ -1,6 +1,10 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import prisma from "../db/index.js";
+import {
+  bankQuestionInclude,
+  serializeBankQuestion,
+} from "../utils/prismaNormalizers.js";
 
 export const createQuestionBank = asyncHandler(async (req, res) => {
   const organizationId = req.organization.id;
@@ -46,7 +50,10 @@ export const getQuestionBankById = asyncHandler(async (req, res) => {
   const bank = await prisma.questionBank.findUnique({
     where: { id },
     include: {
-      questions: { orderBy: { createdAt: "asc" } },
+      questions: {
+        orderBy: { createdAt: "asc" },
+        include: bankQuestionInclude,
+      },
       _count: { select: { questions: true } },
     },
   });
@@ -54,7 +61,13 @@ export const getQuestionBankById = asyncHandler(async (req, res) => {
   if (!bank) throw new ApiError(404, "Question bank not found.");
   if (bank.organizationId !== organizationId) throw new ApiError(403, "Access denied.");
 
-  return res.status(200).json({ message: "Question bank fetched.", data: bank });
+  return res.status(200).json({
+    message: "Question bank fetched.",
+    data: {
+      ...bank,
+      questions: (bank.questions || []).map((q) => serializeBankQuestion(q)),
+    },
+  });
 });
 
 export const updateQuestionBank = asyncHandler(async (req, res) => {

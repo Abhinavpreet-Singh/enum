@@ -82,6 +82,7 @@ export interface ExamQuestion {
   options?: QuestionOption[];
   codeTemplate?: string;
   testCases?: { input: string; expectedOutput?: string }[];
+  bankQuestionId?: string;
   // Judge harness metadata (coding questions only)
   functionName?: string | null;
   parameterTypes?: string[];

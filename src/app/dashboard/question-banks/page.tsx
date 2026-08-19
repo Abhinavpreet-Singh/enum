@@ -317,7 +317,9 @@ function QuestionBanksInner() {
       options: q.options ? (q.options as Option[]) : null,
       correctAnswer: q.correctAnswer,
       codeTemplate: q.codeTemplate || "", codeLanguage: "javascript",
-      testCases: q.testCases.length > 0 ? q.testCases : [{ input: "", expectedOutput: "", isHidden: false }],
+      testCases: q.testCases.length > 0
+        ? q.testCases.map((tc) => ({ ...tc, isHidden: Boolean(tc.isHidden) }))
+        : [{ input: "", expectedOutput: "", isHidden: false }],
       blanks: q.type === "fill_blank" && Array.isArray(q.correctAnswer) ? (q.correctAnswer as string[]) : [""],
       numericalAnswer: q.type === "numerical" && q.correctAnswer ? String((q.correctAnswer as { value: number }).value ?? "") : "",
       numericalTolerance: q.type === "numerical" && q.correctAnswer ? String((q.correctAnswer as { tolerance: number }).tolerance ?? "0") : "0",
@@ -1049,7 +1051,7 @@ function QuestionModal({ draft, setDraft, editingId, saving, error, onSave, onCl
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className={labelCls}>Test Cases</label>
-                  <button type="button" onClick={() => set({ testCases: [...draft.testCases, { input: "", expectedOutput: "", isHidden: false }] })} className="font-mono text-[10px] border border-black/20 dark:border-white/20 px-2 py-0.5 hover:border-black dark:hover:border-white transition-colors">+ Add</button>
+                  <button type="button" onClick={() => set({ testCases: [...draft.testCases, { input: "", expectedOutput: "", isHidden: draft.testCases.length > 0 }] })} className="font-mono text-[10px] border border-black/20 dark:border-white/20 px-2 py-0.5 hover:border-black dark:hover:border-white transition-colors">+ Add</button>
                 </div>
                 <div className="space-y-3">
                   {draft.testCases.map((tc, i) => (
@@ -1057,7 +1059,7 @@ function QuestionModal({ draft, setDraft, editingId, saving, error, onSave, onCl
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-[9px] text-gray-400 uppercase">Test Case {i + 1}</span>
                         <div className="flex items-center gap-3">
-                          <label className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={tc.isHidden} onChange={e => { const tcs = [...draft.testCases]; tcs[i] = { ...tcs[i], isHidden: e.target.checked }; set({ testCases: tcs }); }} className="w-3 h-3" /><span className="font-mono text-[9px] text-gray-400">Hidden</span></label>
+                          <label className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={tc.isHidden} onChange={e => { const tcs = [...draft.testCases]; tcs[i] = { ...tcs[i], isHidden: e.target.checked }; set({ testCases: tcs }); }} className="w-3 h-3" /><span className="font-mono text-[9px] text-gray-400">{tc.isHidden ? "Hidden (Submit only)" : "Sample (visible)"}</span></label>
                           {draft.testCases.length > 1 && <button type="button" onClick={() => set({ testCases: draft.testCases.filter((_, j) => j !== i) })}><X className="w-3 h-3 text-gray-400 hover:text-red-500" /></button>}
                         </div>
                       </div>

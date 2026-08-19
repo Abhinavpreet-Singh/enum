@@ -35,6 +35,10 @@ export default function ProblemTabs({
   activeTab,
   onTabChange,
 }: ProblemTabsProps) {
+  const sampleExamples = (question.examples || []).filter(
+    (example) => !example.isHidden,
+  );
+
   return (
     <div className="h-full flex flex-col bg-white dark:bg-black">
       {/* Tabs — scroll horizontally so Whiteboard stays reachable in narrow panels */}
@@ -133,8 +137,8 @@ export default function ProblemTabs({
                 EXAMPLES
               </h2>
               <div className="space-y-4">
-                {question.examples && question.examples.length > 0 ? (
-                  question.examples.map((example, idx) => (
+                {sampleExamples.length > 0 ? (
+                  sampleExamples.map((example, idx) => (
                     <div
                       key={idx}
                       className="border border-gray-300 dark:border-white/10 p-4 bg-gray-50 dark:bg-white/5"

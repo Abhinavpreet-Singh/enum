@@ -190,7 +190,7 @@ export default function EditSimulationModal({
       };
 
       await api.put(
-        `/api/v1/simulations/editSimulation/${simulation?._id}`,
+        `/api/v1/simulations/editSimulation/${simulation?.id || simulation?._id}`,
         payload,
         {
           headers: {
@@ -233,7 +233,7 @@ export default function EditSimulationModal({
           <div>
             <h2 className="text-2xl font-bold text-black">Edit Simulation</h2>
             <p className="font-mono text-xs text-gray-500 mt-1">
-              ID: {simulation._id}
+              ID: {simulation.id || simulation._id}
             </p>
           </div>
           <button

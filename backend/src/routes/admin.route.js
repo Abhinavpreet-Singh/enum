@@ -33,9 +33,13 @@ import {
   createDsaQuestion,
   updateDsaQuestion,
   deleteDsaQuestion,
+  deleteAllDsaQuestions,
+  getAdminDsaQuestions,
   createLinuxQuestion,
   createIncidentSimulation,
   createSimulation,
+  deleteSimulation,
+  getAdminSimulations,
   createSystemDesign,
 } from "../controllers/admin-content.controller.js";
 
@@ -105,11 +109,15 @@ router.delete("/maintenance-pages/:id", deleteMaintenancePage);
 
 // Content creation
 router.post("/adminPostQuestion", createDsaQuestion);
+router.get("/dsa-questions", getAdminDsaQuestions);
 router.put("/editQuestion/:id", updateDsaQuestion);
+router.delete("/dsa-questions", deleteAllDsaQuestions);
 router.delete("/deleteQuestion/:id", deleteDsaQuestion);
 router.post("/content/linux-questions", createLinuxQuestion);
 router.post("/content/incidents", createIncidentSimulation);
 router.post("/content/simulations", createSimulation);
+router.get("/content/simulations", getAdminSimulations);
+router.delete("/content/simulations/:id", deleteSimulation);
 router.post("/content/system-design", createSystemDesign);
 
 // Legacy aliases used by older frontend builds

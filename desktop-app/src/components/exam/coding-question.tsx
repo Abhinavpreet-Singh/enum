@@ -23,6 +23,8 @@ interface JudgeResult {
   expected?: string;
   error?: string;
   input?: string | string[];
+  isHidden?: boolean;
+  caseNumber?: number;
 }
 
 interface TestRunResult {
@@ -32,6 +34,7 @@ interface TestRunResult {
   expected: string;
   input: string;
   error?: string;
+  isHidden?: boolean;
 }
 
 type PanelTab = "testcase" | "result" | "custom";
@@ -126,6 +129,7 @@ export default function CodingQuestion({ question, answer, language = "python", 
       ? [{ input: customInput, expectedOutput: "" }]
       : question.testCases ?? [];
     const startTime = Date.now();
+    const useServerCases = Boolean(question.bankQuestionId) && mode !== "custom";
 
     try {
       const backendUrl =
@@ -136,12 +140,13 @@ export default function CodingQuestion({ question, answer, language = "python", 
         body: JSON.stringify({
           language: lang,
           code,
-          testCases,
           mode: isSubmit ? "submit" : "run",
-          // Include function signature so the judge can auto-generate the harness
           functionName: question.functionName ?? undefined,
           parameterTypes: question.parameterTypes?.length ? question.parameterTypes : undefined,
           returnType: question.returnType ?? undefined,
+          ...(useServerCases
+            ? { bankQuestionId: question.bankQuestionId }
+            : { testCases }),
         }),
       });
       const data = await resp.json();
@@ -179,16 +184,46 @@ export default function CodingQuestion({ question, answer, language = "python", 
         return;
       }
 
+      if (data.allPassed && isSubmit) {
+        const passed = data.passedCount ?? 0;
+        const total = data.totalCount ?? 0;
+        setRuntime(Date.now() - startTime);
+        setPassedCount(passed);
+        setTotalCount(total);
+        setVerdict("accepted");
+        setResults([]);
+        setSummary(`${passed}/${total} test cases passed`);
+        setSubmitOverlay({
+          phase: "done",
+          passed,
+          total,
+          runtime: Date.now() - startTime,
+        });
+        onAnswer({
+          code,
+          language: lang,
+          judge: {
+            passed: true,
+            passedCount: passed,
+            totalCount: total,
+            runtimeMs: Date.now() - startTime,
+            submittedAt: new Date().toISOString(),
+          },
+        });
+        return;
+      }
+
       if (Array.isArray(data.results) && data.results.length > 0) {
         const mapped: TestRunResult[] = data.results.map((r: JudgeResult, i: number) => {
           const sample = testCases?.[i];
           return {
-            index: i + 1,
+            index: typeof r.caseNumber === "number" ? r.caseNumber : i + 1,
             passed: Boolean(r.passed),
             actual: r.output ?? "",
             expected: r.expected ?? sample?.expectedOutput ?? "",
             input: formatInput(r.input ?? sample?.input),
             error: r.error,
+            isHidden: Boolean(r.isHidden),
           };
         });
         setResults(mapped);
@@ -200,7 +235,7 @@ export default function CodingQuestion({ question, answer, language = "python", 
         setPassedCount(passed);
         setTotalCount(total);
         setVerdict(allPassed ? "accepted" : hasError ? "error" : "wrong_answer");
-        setActiveTab(!isSubmit && hasError ? "result" : "testcase");
+        setActiveTab("result");
         setSummary(
           mode === "custom"
             ? "Custom run completed"
@@ -624,6 +659,7 @@ function TestcasePanel({
                 }`}
               >
                 Test case {row.index}
+                {row.isHidden ? " (hidden)" : ""}
               </span>
             </div>
           ))}

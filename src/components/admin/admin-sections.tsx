@@ -14,6 +14,13 @@ import {
 import { normalizePagePath } from "@/lib/normalize-page-path";
 import Link from "next/link";
 import { ADMIN_CONTENT_TYPES } from "@/lib/admin-content-types";
+import QuestionsManager from "@/components/admin/questions-manager";
+import SimulationsManager, {
+  type SimulationListItem,
+} from "@/components/admin/simulations-manager";
+import EditQuestionModal from "@/components/admin/edit-question-modal";
+import EditSimulationModal from "@/components/admin/edit-simulation-modal";
+import type { Question } from "@/data/dsa-questions";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const panelBorder = "border border-black/20 dark:border-white/25";
@@ -949,14 +956,26 @@ export function ContentTab() {
     recentIncidents: { id: string; title: string; difficulty: string; category: string; updatedAt: string }[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  const [editingSimulation, setEditingSimulation] = useState<SimulationListItem | null>(null);
+  const [inventoryKey, setInventoryKey] = useState(0);
 
-  useEffect(() => {
+  const refreshStats = useCallback(() => {
     api
       .get("/api/v1/admin/content-stats", getAdminRequestConfig())
       .then((r) => setData(r.data.data))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    refreshStats();
+  }, [refreshStats]);
+
+  const handleInventoryChanged = () => {
+    setInventoryKey((key) => key + 1);
+    refreshStats();
+  };
 
   if (loading) {
     return (
@@ -1003,6 +1022,45 @@ export function ContentTab() {
           <StatCard label="Proctor Violations" value={counts.violations} icon={AlertTriangle} accent="bg-red-50 dark:bg-red-950/20" />
         </div>
       </div>
+
+      <div>
+        <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-gray-400">
+          Manage questions
+        </p>
+        <div className="space-y-6">
+          <QuestionsManager
+            key={`dsa-${inventoryKey}`}
+            onEdit={setEditingQuestion}
+            onChanged={handleInventoryChanged}
+          />
+          <SimulationsManager
+            key={`sim-${inventoryKey}`}
+            onEdit={setEditingSimulation}
+            onChanged={handleInventoryChanged}
+          />
+        </div>
+      </div>
+
+      {editingQuestion && (
+        <EditQuestionModal
+          question={editingQuestion}
+          onClose={() => setEditingQuestion(null)}
+          onSuccess={() => {
+            setEditingQuestion(null);
+            handleInventoryChanged();
+          }}
+        />
+      )}
+      {editingSimulation && (
+        <EditSimulationModal
+          simulation={editingSimulation}
+          onClose={() => setEditingSimulation(null)}
+          onSuccess={() => {
+            setEditingSimulation(null);
+            handleInventoryChanged();
+          }}
+        />
+      )}
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className={`${panelSurface} overflow-hidden`}>

@@ -1,12 +1,17 @@
 "use client";
-import { API_BASE_URL } from "@/lib/api-config";
 import api from "@/lib/api";
-import { getMemoryToken } from "@/lib/tokenStore";
+import { getAdminRequestConfig } from "@/lib/admin-api";
 
 import { useEffect, useState, useMemo } from "react";
 import { Edit, Trash2, Search, Filter, Bug } from "lucide-react";
+import {
+  inputCls,
+  panelSurface,
+} from "@/components/admin/content/admin-form-styles";
+
 export interface SimulationListItem {
-  _id: string;
+  id?: string;
+  _id?: string;
   title: string;
   category: "frontend" | "backend" | "fullstack" | "devops";
   difficulty: "easy" | "medium" | "hard";
@@ -28,10 +33,16 @@ export interface SimulationListItem {
 
 interface SimulationsManagerProps {
   onEdit: (simulation: SimulationListItem) => void;
+  onChanged?: () => void;
+}
+
+function simulationId(simulation: SimulationListItem) {
+  return simulation.id || simulation._id || "";
 }
 
 export default function SimulationsManager({
   onEdit,
+  onChanged,
 }: SimulationsManagerProps) {
   const [simulations, setSimulations] = useState<SimulationListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +54,8 @@ export default function SimulationsManager({
     setLoading(true);
     try {
       const response = await api.get(
-        "/api/v1/simulations/getSimulations",
+        "/api/v1/admin/content/simulations",
+        getAdminRequestConfig(),
       );
       setSimulations(response.data.data || []);
     } catch (error) {
@@ -83,20 +95,14 @@ export default function SimulationsManager({
     return filtered;
   }, [simulations, searchTerm, difficultyFilter, categoryFilter]);
 
-  const handleDelete = async (simulationId: string, title: string) => {
-    if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
+  const handleDelete = async (id: string, title: string) => {
+    if (!id) return;
+    if (!confirm(`Delete simulation "${title}"? This cannot be undone.`)) return;
 
     try {
-      await api.delete(
-        `/api/v1/simulations/deleteSimulation/${simulationId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${getMemoryToken()}`,
-          },
-        },
-      );
-      alert("Simulation deleted successfully!");
-      fetchSimulations();
+      await api.delete(`/api/v1/admin/content/simulations/${id}`, getAdminRequestConfig());
+      await fetchSimulations();
+      onChanged?.();
     } catch (error) {
       console.error("Error deleting simulation:", error);
       alert("Failed to delete simulation. Please try again.");
@@ -118,7 +124,7 @@ export default function SimulationsManager({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8">
+      <div className={`${panelSurface} p-8`}>
         <div className="text-center text-gray-500 font-mono text-sm">
           Loading simulations...
         </div>
@@ -127,32 +133,31 @@ export default function SimulationsManager({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Filters */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+    <div className="space-y-4">
+      <div className={`${panelSurface} p-5`}>
         <div className="flex items-center gap-2 mb-4">
-          <Filter className="w-5 h-5 text-gray-600" />
-          <h2 className="font-mono text-sm text-gray-700 tracking-wide">
-            FILTERS & SEARCH
+          <Filter className="w-4 h-4 text-gray-500" />
+          <h2 className="font-mono text-[10px] uppercase tracking-widest text-gray-400">
+            Browser simulations
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search simulations..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-sm"
+              className={`${inputCls} pl-10`}
             />
           </div>
 
           <select
             value={difficultyFilter}
             onChange={(e) => setDifficultyFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-sm"
+            className={inputCls}
           >
             <option value="All">All Difficulties</option>
             <option value="Easy">Easy</option>
@@ -163,7 +168,7 @@ export default function SimulationsManager({
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-sm"
+            className={inputCls}
           >
             <option value="All">All Categories</option>
             <option value="Frontend">Frontend</option>
@@ -173,24 +178,22 @@ export default function SimulationsManager({
           </select>
         </div>
 
-        <div className="mt-4 text-xs font-mono text-gray-500">
-          Showing {filteredSimulations.length} of {simulations.length}{" "}
-          simulations
+        <div className="mt-3 font-mono text-[10px] text-gray-400">
+          Showing {filteredSimulations.length} of {simulations.length} simulations
         </div>
       </div>
 
-      {/* Simulations List */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+      <div className={`${panelSurface} overflow-hidden`}>
         {filteredSimulations.length === 0 ? (
           <div className="p-8 text-center text-gray-500 font-mono text-sm">
             No simulations found. Try adjusting your filters.
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-black/5 dark:divide-white/5">
             {filteredSimulations.map((simulation) => (
               <div
-                key={simulation._id}
-                className="p-6 hover:bg-gray-50 transition-colors"
+                key={simulationId(simulation)}
+                className="p-4 hover:bg-black/2 dark:hover:bg-white/3"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
@@ -241,7 +244,7 @@ export default function SimulationsManager({
                     </button>
                     <button
                       onClick={() =>
-                        handleDelete(simulation._id, simulation.title)
+                        handleDelete(simulationId(simulation), simulation.title)
                       }
                       className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
                       title="Delete simulation"

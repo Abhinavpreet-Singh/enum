@@ -53,10 +53,13 @@ export async function hydrateAssessmentQuestions(assessmentId) {
             difficulty: bq.difficulty,
             options: safeOptions,
             codeTemplate: bq.codeTemplate,
-            testCases: (serialized.testCases || []).map((tc) => ({
-              input: tc.input,
-              expectedOutput: tc.expectedOutput ?? tc.output ?? "",
-            })),
+            bankQuestionId: bq.id,
+            testCases: (serialized.testCases || [])
+              .filter((tc) => !tc.isHidden)
+              .map((tc) => ({
+                input: tc.input,
+                expectedOutput: tc.expectedOutput ?? tc.output ?? "",
+              })),
             tags: bq.tags,
             technology: bq.technology,
             topic: bq.topic,

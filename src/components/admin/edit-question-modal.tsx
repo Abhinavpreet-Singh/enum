@@ -9,6 +9,7 @@ import { X, Plus, Trash2 } from "lucide-react";
 interface Testcase {
   input: string[];
   expectedOutput: string;
+  isHidden: boolean;
 }
 
 interface Parameter {
@@ -52,7 +53,7 @@ export default function EditQuestionModal({
   ]);
 
   const [testcases, setTestcases] = useState<Testcase[]>([
-    { input: [""], expectedOutput: "" },
+    { input: [""], expectedOutput: "", isHidden: false },
   ]);
 
   const [submitStatus, setSubmitStatus] = useState<{
@@ -111,13 +112,17 @@ export default function EditQuestionModal({
           return val;
         });
 
-        return { input: displayInput, expectedOutput };
+        return {
+          input: displayInput,
+          expectedOutput,
+          isHidden: Boolean(exRaw.isHidden),
+        };
       });
 
       setTestcases(
         parsedTestcases.length > 0
           ? parsedTestcases
-          : [{ input: [""], expectedOutput: "" }],
+          : [{ input: [""], expectedOutput: "", isHidden: false }],
       );
     }
   }, [question]);
@@ -192,7 +197,7 @@ export default function EditQuestionModal({
   const addTestcase = () => {
     setTestcases([
       ...testcases,
-      { input: parameters.map(() => ""), expectedOutput: "" },
+      { input: parameters.map(() => ""), expectedOutput: "", isHidden: true },
     ]);
   };
 
@@ -218,6 +223,7 @@ export default function EditQuestionModal({
         return val;
       }),
       expectedOutput: tc.expectedOutput,
+      isHidden: Boolean(tc.isHidden),
     }));
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -527,16 +533,37 @@ export default function EditQuestionModal({
                   <div className="flex items-center justify-between mb-3">
                     <span className="font-mono text-xs text-gray-600">
                       TESTCASE #{tcIndex + 1}
+                      {testcase.isHidden ? " · HIDDEN" : " · SAMPLE"}
                     </span>
-                    {testcases.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeTestcase(tcIndex)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={testcase.isHidden}
+                          onChange={(e) => {
+                            const updated = [...testcases];
+                            updated[tcIndex] = {
+                              ...updated[tcIndex],
+                              isHidden: e.target.checked,
+                            };
+                            setTestcases(updated);
+                          }}
+                          className="w-3 h-3"
+                        />
+                        <span className="font-mono text-[10px] text-gray-500">
+                          Hidden
+                        </span>
+                      </label>
+                      {testcases.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeTestcase(tcIndex)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-2">

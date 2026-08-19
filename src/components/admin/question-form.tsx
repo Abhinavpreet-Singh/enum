@@ -19,6 +19,7 @@ import {
 interface Testcase {
   input: string[]; // Array of input values (one per parameter line)
   expectedOutput: string;
+  isHidden: boolean;
 }
 
 interface Parameter {
@@ -54,7 +55,7 @@ export default function QuestionForm() {
   ]);
 
   const [testcases, setTestcases] = useState<Testcase[]>([
-    { input: [""], expectedOutput: "" },
+    { input: [""], expectedOutput: "", isHidden: false },
   ]);
 
   const [submitStatus, setSubmitStatus] = useState<{
@@ -134,7 +135,7 @@ export default function QuestionForm() {
   const addTestcase = () => {
     setTestcases([
       ...testcases,
-      { input: parameters.map(() => ""), expectedOutput: "" },
+      { input: parameters.map(() => ""), expectedOutput: "", isHidden: true },
     ]);
   };
 
@@ -160,6 +161,7 @@ export default function QuestionForm() {
         return val;
       }),
       expectedOutput: tc.expectedOutput,
+      isHidden: Boolean(tc.isHidden),
     }));
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -444,7 +446,7 @@ export default function QuestionForm() {
 
         {/* ═══ Test Cases Section ═══ */}
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-1">
             <label className="block font-mono text-sm text-gray-700 tracking-wide">
               TEST CASES
             </label>
@@ -457,6 +459,10 @@ export default function QuestionForm() {
               ADD TESTCASE
             </button>
           </div>
+          <p className="mb-4 font-mono text-[10px] text-gray-400">
+            Visible cases appear as examples and Run. Hidden cases run only on
+            Submit; the first failure is then revealed.
+          </p>
 
           <div className="space-y-4">
             {testcases.map((testcase, tcIndex) => (
@@ -467,17 +473,38 @@ export default function QuestionForm() {
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-mono text-xs text-gray-600">
                     TESTCASE #{tcIndex + 1}
+                    {testcase.isHidden ? " · HIDDEN" : " · SAMPLE"}
                   </span>
-                  {testcases.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeTestcase(tcIndex)}
-                      className="text-red-600 hover:text-red-700 transition-colors"
-                      title="Remove testcase"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={testcase.isHidden}
+                        onChange={(e) => {
+                          const updated = [...testcases];
+                          updated[tcIndex] = {
+                            ...updated[tcIndex],
+                            isHidden: e.target.checked,
+                          };
+                          setTestcases(updated);
+                        }}
+                        className="w-3 h-3"
+                      />
+                      <span className="font-mono text-[10px] text-gray-500">
+                        Hidden
+                      </span>
+                    </label>
+                    {testcases.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeTestcase(tcIndex)}
+                        className="text-red-600 hover:text-red-700 transition-colors"
+                        title="Remove testcase"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-2">

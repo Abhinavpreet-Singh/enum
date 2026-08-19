@@ -287,11 +287,13 @@ const adminDeleteSimulation = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Simulation ID is required");
   }
 
-  const deletedSimulation = await prisma.simulation
-    .delete({
-      where: { id },
-    })
-    .catch(() => null);
+  const deletedSimulation = await prisma.$transaction(async (tx) => {
+    const existing = await tx.simulation.findUnique({ where: { id } });
+    if (!existing) return null;
+    await tx.userSimulationProgress.deleteMany({ where: { simulationId: id } });
+    await tx.assessmentQuestion.deleteMany({ where: { simulationId: id } });
+    return tx.simulation.delete({ where: { id } });
+  });
 
   if (!deletedSimulation) {
     throw new ApiError(404, "Simulation not found");

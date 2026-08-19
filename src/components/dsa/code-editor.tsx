@@ -36,6 +36,8 @@ interface TestCaseResult {
   actualOutput: string;
   passed: boolean;
   error?: string;
+  isHidden?: boolean;
+  caseNumber?: number;
 }
 
 interface CodeEditorProps {
@@ -271,6 +273,16 @@ export default function CodeEditor({
           language,
           userCode: code,
           mode,
+          ...(mode === "run"
+            ? {
+                customTestCases: customTestCases
+                  .filter((tc) => tc.input.trim())
+                  .map((tc) => ({
+                    input: tc.input,
+                    expectedOutput: tc.output || tc.expectedOutput || "",
+                  })),
+              }
+            : {}),
         }),
       });
 
@@ -288,16 +300,19 @@ export default function CodeEditor({
 
       // Map judge results to our format
       const results: TestCaseResult[] = (data.results || []).map(
-        (r: Record<string, unknown>) => ({
+        (r: Record<string, unknown>, idx: number) => ({
           input: Array.isArray(r.input)
             ? r.input.join("\n")
             : String(r.input || ""),
-          expectedOutput: r.expected || r.expectedOutput || "",
+          expectedOutput: String(r.expected || r.expectedOutput || ""),
           actualOutput: r.error
             ? `Error: ${r.error}`
-            : r.output || r.actualOutput || "(no output)",
-          passed: r.passed,
-          error: r.error,
+            : String(r.output || r.actualOutput || "(no output)"),
+          passed: Boolean(r.passed),
+          error: r.error ? String(r.error) : undefined,
+          isHidden: Boolean(r.isHidden),
+          caseNumber:
+            typeof r.caseNumber === "number" ? r.caseNumber : idx + 1,
         }),
       );
 
@@ -416,7 +431,7 @@ export default function CodeEditor({
       verdict = "wrong_answer";
     }
 
-    // Show result in overlay
+    // Show result in overlay and Test Result panel (LeetCode: one failing case)
     setSubmitResultData({
       verdict,
       passedCount: judgeResult.passedCount,
@@ -426,6 +441,13 @@ export default function CodeEditor({
     setSubmitPhase("done");
     setIsSubmitting(false);
     if (verdict === "accepted") setHasAcceptedSubmission(true);
+
+    setTestResults(judgeResult.results);
+    setPassedCount(judgeResult.passedCount);
+    setTotalCount(judgeResult.totalCount);
+    setRuntime(elapsed);
+    setOverallVerdict(verdict);
+    setActiveResultIdx(0);
 
     // Save all submissions to backend (accepted AND failed)
     try {
@@ -475,6 +497,19 @@ export default function CodeEditor({
   };
 
   // ---------- Custom test case helpers ----------
+  const useFailedCaseAsTestcase = (result: TestCaseResult) => {
+    setCustomTestCases((prev) => [
+      ...prev,
+      { input: result.input, output: result.expectedOutput || "" },
+    ]);
+    setBottomTab("testcase");
+    setActiveTestCaseIdx(testCases.length + customTestCases.length);
+    if (consoleCollapsed) {
+      setConsoleHeight(savedConsoleHeight || 280);
+      setConsoleCollapsed(false);
+    }
+  };
+
   const addCustomTestCase = () => {
     setCustomTestCases((prev) => [...prev, { input: "", output: "" }]);
     setActiveTestCaseIdx(allTestCases.length); // Focus the new one
@@ -796,6 +831,9 @@ export default function CodeEditor({
                 </div>
               ) : (
                 <>
+                  <p className="mb-3 font-mono text-[10px] text-gray-400">
+                    Sample cases only. Hidden cases run on Submit.
+                  </p>
                   {/* Test case tabs */}
                   <div className="flex items-center gap-1 mb-4 flex-wrap">
                     {allTestCases.map((_, idx) => {
@@ -913,7 +951,7 @@ export default function CodeEditor({
                 <div className="text-center py-8 text-gray-400 font-mono text-xs">
                   <p>Click RUN to test against sample cases</p>
                   <p className="mt-1">
-                    or SUBMIT to test against all test cases
+                    or SUBMIT to evaluate hidden test cases
                   </p>
                 </div>
               )}
@@ -927,101 +965,135 @@ export default function CodeEditor({
                 </div>
               )}
 
-              {testResults.length > 0 && (
+              {overallVerdict !== "idle" && overallVerdict !== "running" && (
                 <>
                   {/* Overall Verdict Banner */}
-                  {overallVerdict !== "running" && (
-                    <div
-                      className={`mb-4 p-4 border ${
-                        overallVerdict === "accepted"
-                          ? "border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10"
-                          : overallVerdict === "wrong_answer" ||
-                              overallVerdict === "error"
-                            ? "border-red-200 bg-red-50 dark:border-red-500/30 dark:bg-red-500/10"
-                            : "border-yellow-200 bg-yellow-50 dark:border-yellow-500/30 dark:bg-yellow-500/10"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          {overallVerdict === "accepted" ? (
-                            <CircleCheck className="w-6 h-6 text-emerald-500" />
-                          ) : (
-                            <CircleX className="w-6 h-6 text-red-500" />
+                  <div
+                    className={`mb-4 p-4 border ${
+                      overallVerdict === "accepted"
+                        ? "border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10"
+                        : overallVerdict === "wrong_answer" ||
+                            overallVerdict === "error"
+                          ? "border-red-200 bg-red-50 dark:border-red-500/30 dark:bg-red-500/10"
+                          : "border-yellow-200 bg-yellow-50 dark:border-yellow-500/30 dark:bg-yellow-500/10"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {overallVerdict === "accepted" ? (
+                          <CircleCheck className="w-6 h-6 text-emerald-500" />
+                        ) : (
+                          <CircleX className="w-6 h-6 text-red-500" />
+                        )}
+                        <div>
+                          <h3
+                            className={`text-lg font-bold ${verdictConfig[overallVerdict].color}`}
+                          >
+                            {verdictConfig[overallVerdict].label}
+                          </h3>
+                          {totalCount > 0 && (
+                            <p className="text-xs font-mono text-gray-400 mt-0.5">
+                              {passedCount}/{totalCount} test cases passed
+                            </p>
                           )}
-                          <div>
-                            <h3
-                              className={`text-lg font-bold ${verdictConfig[overallVerdict].color}`}
-                            >
-                              {verdictConfig[overallVerdict].label}
-                            </h3>
-                            {totalCount > 0 && (
-                              <p className="text-xs font-mono text-gray-400 mt-0.5">
-                                {passedCount}/{totalCount} test cases passed
-                              </p>
-                            )}
-                          </div>
                         </div>
-                        {runtime !== null && (
-                          <div className="text-right">
-                            <p className="font-mono text-xs text-gray-500">
-                              Runtime
-                            </p>
-                            <p className="font-mono text-sm font-bold text-gray-800 dark:text-gray-200">
-                              {runtime}ms
-                            </p>
-                          </div>
-                        )}
                       </div>
+                      {runtime !== null && (
+                        <div className="text-right">
+                          <p className="font-mono text-xs text-gray-500">
+                            Runtime
+                          </p>
+                          <p className="font-mono text-sm font-bold text-gray-800 dark:text-gray-200">
+                            {runtime}ms
+                          </p>
+                        </div>
+                      )}
+                    </div>
 
-                      {/* Analyze Complexity — only after a real submission that passed */}
-                      {overallVerdict === "accepted" &&
-                        questionId &&
-                        wasSubmission && (
-                          <div className="mt-3 pt-3 border-t border-white/10">
-                            <button
-                              onClick={() => setShowComplexityModal(true)}
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg text-xs font-mono font-bold hover:bg-gray-800 transition-colors shadow-sm"
-                            >
-                              <Brain className="w-4 h-4 text-purple-400" />
-                              <span>Analyze Time Complexity</span>
-                            </button>
-                          </div>
-                        )}
+                    {overallVerdict === "accepted" &&
+                      questionId &&
+                      wasSubmission && (
+                        <div className="mt-3 pt-3 border-t border-white/10">
+                          <button
+                            onClick={() => setShowComplexityModal(true)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg text-xs font-mono font-bold hover:bg-gray-800 transition-colors shadow-sm"
+                          >
+                            <Brain className="w-4 h-4 text-purple-400" />
+                            <span>Analyze Time Complexity</span>
+                          </button>
+                        </div>
+                      )}
+                  </div>
+
+                  {wasSubmission &&
+                    overallVerdict === "accepted" &&
+                    testResults.length === 0 && (
+                      <p className="font-mono text-xs text-gray-500">
+                        All sample and hidden test cases passed.
+                      </p>
+                    )}
+
+                  {/* Result case tabs — Run shows samples; Submit fail shows the first failing case */}
+                  {testResults.length > 0 && !wasSubmission && (
+                    <div className="flex items-center gap-1 mb-4 flex-wrap">
+                      {testResults.map((result, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setActiveResultIdx(idx)}
+                          className={`px-3 py-1.5 font-mono text-xs rounded transition-colors flex items-center gap-1.5 ${
+                            activeResultIdx === idx
+                              ? "bg-black dark:bg-white text-white dark:text-black"
+                              : "bg-gray-100 dark:bg-white/8 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/15 hover:text-black dark:hover:text-white"
+                          }`}
+                        >
+                          {result.passed ? (
+                            <CircleCheck
+                              className={`w-3 h-3 ${activeResultIdx === idx ? "text-emerald-300" : "text-emerald-500"}`}
+                            />
+                          ) : result.actualOutput === "(not executed)" ? (
+                            <span className="w-3 h-3 inline-block rounded-full bg-gray-300" />
+                          ) : (
+                            <CircleX
+                              className={`w-3 h-3 ${activeResultIdx === idx ? "text-red-300" : "text-red-600"}`}
+                            />
+                          )}
+                          Case {idx + 1}
+                        </button>
+                      ))}
                     </div>
                   )}
 
-                  {/* Result case tabs */}
-                  <div className="flex items-center gap-1 mb-4 flex-wrap">
-                    {testResults.map((result, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setActiveResultIdx(idx)}
-                        className={`px-3 py-1.5 font-mono text-xs rounded transition-colors flex items-center gap-1.5 ${
-                          activeResultIdx === idx
-                            ? "bg-black dark:bg-white text-white dark:text-black"
-                            : "bg-gray-100 dark:bg-white/8 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/15 hover:text-black dark:hover:text-white"
-                        }`}
-                      >
-                        {result.passed ? (
-                          <CircleCheck
-                            className={`w-3 h-3 ${activeResultIdx === idx ? "text-emerald-300" : "text-emerald-500"}`}
-                          />
-                        ) : result.actualOutput === "(not executed)" ? (
-                          <span className="w-3 h-3 inline-block rounded-full bg-gray-300" />
-                        ) : (
-                          <CircleX
-                            className={`w-3 h-3 ${activeResultIdx === idx ? "text-red-300" : "text-red-600"}`}
-                          />
-                        )}
-                        Case {idx + 1}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Active result detail */}
-                  {testResults[activeResultIdx] && (
+                  {testResults[activeResultIdx] &&
+                    !(wasSubmission && overallVerdict === "accepted") && (
                     <div className="space-y-3">
-                      {/* Input */}
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-mono text-xs text-gray-500">
+                          {wasSubmission
+                            ? testResults[activeResultIdx].isHidden
+                              ? `Hidden Test Case${
+                                  testResults[activeResultIdx].caseNumber
+                                    ? ` ${testResults[activeResultIdx].caseNumber}`
+                                    : ""
+                                }`
+                              : `Test Case ${testResults[activeResultIdx].caseNumber || 1}`
+                            : null}
+                        </p>
+                        {wasSubmission &&
+                          !testResults[activeResultIdx].passed && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                useFailedCaseAsTestcase(
+                                  testResults[activeResultIdx],
+                                )
+                              }
+                              className="font-mono text-[10px] px-2 py-1 border border-gray-300 dark:border-white/20 text-gray-600 dark:text-gray-300 hover:border-black dark:hover:border-white transition-colors"
+                            >
+                              Use as Testcase
+                            </button>
+                          )}
+                      </div>
+
                       <div>
                         <label className="font-mono text-xs text-gray-500 tracking-wider block mb-1">
                           INPUT
@@ -1031,7 +1103,6 @@ export default function CodeEditor({
                         </pre>
                       </div>
 
-                      {/* Expected vs Actual - side by side on wider screens */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <label className="font-mono text-xs text-gray-500 tracking-wider block mb-1">
@@ -1087,7 +1158,7 @@ export default function CodeEditor({
                     Evaluating your solution
                   </p>
                   <p className="text-xs text-gray-400 mt-1 font-mono">
-                    Running against all test cases...
+                    Running against all test cases, including hidden ones...
                   </p>
                 </div>
               </div>

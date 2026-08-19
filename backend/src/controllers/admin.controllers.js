@@ -72,7 +72,7 @@ const adminPostQuestion = asyncHandler(async (req, res) => {
         .status(201)
         .json({
             message: "Question created",
-            data: serializeQuestion(createQuestion)
+            data: serializeQuestion(createQuestion, { includeHidden: true })
         });
 });
 
@@ -118,9 +118,17 @@ const adminEditQuestion = asyncHandler(async (req, res) => {
 
     return res.status(200).json({
         message: "Question updated successfully",
-        data: serializeQuestion(updatedQuestion)
+        data: serializeQuestion(updatedQuestion, { includeHidden: true })
     });
 });
+
+async function deleteQuestionRelations(tx, questionIds) {
+    if (!questionIds.length) return;
+    await tx.submission.deleteMany({ where: { questionId: { in: questionIds } } });
+    await tx.solution.deleteMany({ where: { questionId: { in: questionIds } } });
+    await tx.editorial.deleteMany({ where: { questionId: { in: questionIds } } });
+    await tx.questionCompetition.deleteMany({ where: { questionId: { in: questionIds } } });
+}
 
 const adminDeleteQuestion = asyncHandler(async (req, res) => {
     const { id } = req.params;
@@ -129,9 +137,12 @@ const adminDeleteQuestion = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Question ID is required");
     }
 
-    const deletedQuestion = await prisma.question.delete({
-        where: { id },
-    }).catch(() => null);
+    const deletedQuestion = await prisma.$transaction(async (tx) => {
+        const existing = await tx.question.findUnique({ where: { id } });
+        if (!existing) return null;
+        await deleteQuestionRelations(tx, [id]);
+        return tx.question.delete({ where: { id } });
+    });
 
     if (!deletedQuestion) {
         throw new ApiError(404, "Question not found");
@@ -143,9 +154,36 @@ const adminDeleteQuestion = asyncHandler(async (req, res) => {
     });
 });
 
+const adminDeleteAllDsaQuestions = asyncHandler(async (_req, res) => {
+    const result = await prisma.$transaction(async (tx) => {
+        const questions = await tx.question.findMany({ select: { id: true } });
+        const ids = questions.map((q) => q.id);
+        await deleteQuestionRelations(tx, ids);
+        const deleted = await tx.question.deleteMany({});
+        return { count: deleted.count };
+    });
+
+    return res.status(200).json({
+        message: result.count
+            ? `Deleted ${result.count} DSA Arena question(s)`
+            : "No DSA Arena questions to delete",
+        data: result,
+    });
+});
+
+const getAdminDsaQuestions = asyncHandler(async (_req, res) => {
+    const allData = await prisma.question.findMany({ include: questionInclude });
+    return res.status(200).json({
+        message: "Questions fetched!!",
+        data: allData.map((q) => serializeQuestion(q, { includeHidden: true })),
+    });
+});
+
 export {
     adminPostQuestion,
     getAdminPrivilege,
     adminEditQuestion,
-    adminDeleteQuestion
+    adminDeleteQuestion,
+    adminDeleteAllDsaQuestions,
+    getAdminDsaQuestions,
 };

@@ -237,7 +237,9 @@ export default function DSAArenaClientPage() {
         >
           <CodeEditor
             initialCode={question.initialCode}
-            testCases={question.examples.map((tc) => ({
+            testCases={question.examples
+              .filter((tc) => !tc.isHidden)
+              .map((tc) => ({
               ...tc,
               input: Array.isArray(tc.input) ? tc.input.join("\n") : tc.input,
             }))}
