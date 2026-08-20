@@ -37,7 +37,13 @@ const SUPPORTED_TYPES = [
   "float[]",
 ];
 
-export default function QuestionForm() {
+export default function QuestionForm({
+  redirectOnSuccess = "/dashboard/admin/content/dsa?tab=edit",
+  onSuccess,
+}: {
+  redirectOnSuccess?: string;
+  onSuccess?: () => void;
+}) {
   const router = useRouter();
   const [accessTier, setAccessTier] = useState<"free" | "paid">("free");
   const [formData, setFormData] = useState({
@@ -199,8 +205,9 @@ export default function QuestionForm() {
           type: "success",
           message: "Question posted successfully!",
         });
+        onSuccess?.();
 
-        setTimeout(() => router.push("/dashboard/admin/content/"), 1200);
+        setTimeout(() => router.push(redirectOnSuccess), 1200);
       }
     } catch (error) {
       setSubmitStatus({

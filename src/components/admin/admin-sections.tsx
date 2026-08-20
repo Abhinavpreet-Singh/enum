@@ -14,13 +14,10 @@ import {
 import { normalizePagePath } from "@/lib/normalize-page-path";
 import Link from "next/link";
 import { ADMIN_CONTENT_TYPES } from "@/lib/admin-content-types";
-import QuestionsManager from "@/components/admin/questions-manager";
 import SimulationsManager, {
   type SimulationListItem,
 } from "@/components/admin/simulations-manager";
-import EditQuestionModal from "@/components/admin/edit-question-modal";
 import EditSimulationModal from "@/components/admin/edit-simulation-modal";
-import type { Question } from "@/data/dsa-questions";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const panelBorder = "border border-black/20 dark:border-white/25";
@@ -85,7 +82,7 @@ function StatCard({
         <p className="font-mono text-2xl font-bold text-black dark:text-white leading-tight">{value}</p>
         {href && (
           <p className="mt-1 font-mono text-[9px] uppercase tracking-wider text-amber-600 dark:text-amber-400">
-            Click to add
+            Click to manage
           </p>
         )}
       </div>
@@ -956,7 +953,6 @@ export function ContentTab() {
     recentIncidents: { id: string; title: string; difficulty: string; category: string; updatedAt: string }[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editingSimulation, setEditingSimulation] = useState<SimulationListItem | null>(null);
   const [inventoryKey, setInventoryKey] = useState(0);
 
@@ -1025,14 +1021,9 @@ export function ContentTab() {
 
       <div>
         <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-gray-400">
-          Manage questions
+          Manage content
         </p>
         <div className="space-y-6">
-          <QuestionsManager
-            key={`dsa-${inventoryKey}`}
-            onEdit={setEditingQuestion}
-            onChanged={handleInventoryChanged}
-          />
           <SimulationsManager
             key={`sim-${inventoryKey}`}
             onEdit={setEditingSimulation}
@@ -1041,16 +1032,6 @@ export function ContentTab() {
         </div>
       </div>
 
-      {editingQuestion && (
-        <EditQuestionModal
-          question={editingQuestion}
-          onClose={() => setEditingQuestion(null)}
-          onSuccess={() => {
-            setEditingQuestion(null);
-            handleInventoryChanged();
-          }}
-        />
-      )}
       {editingSimulation && (
         <EditSimulationModal
           simulation={editingSimulation}

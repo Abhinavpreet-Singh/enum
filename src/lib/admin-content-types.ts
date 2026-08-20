@@ -40,8 +40,8 @@ export const ADMIN_CONTENT_TYPES: Record<AdminContentType, AdminContentTypeConfi
     key: "dsa",
     label: "DSA Questions",
     singularLabel: "DSA Question",
-    description: "Create a new data structures and algorithms coding question.",
-    href: "/dashboard/admin/content/new/dsa/",
+    description: "Create, edit, and delete DSA Arena coding questions.",
+    href: "/dashboard/admin/content/dsa/",
     countKey: "dsaQuestions",
   },
   linux: {

@@ -1,10 +1,11 @@
 "use client";
 
 import type { ComponentType } from "react";
-import { notFound } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { useEffect } from "react";
 import AdminPageShell from "@/components/admin/admin-page-shell";
 import QuestionForm from "@/components/admin/question-form";
 import SimulationForm from "@/components/admin/simulation-form";
@@ -27,8 +28,21 @@ const FORM_BY_TYPE: Record<AdminContentType, ComponentType> = {
 
 export default function ContentCreateClient() {
   const params = useParams();
+  const router = useRouter();
   const rawType = params?.type;
   const type = Array.isArray(rawType) ? rawType[0] : rawType;
+
+  useEffect(() => {
+    if (type === "dsa") {
+      router.replace("/dashboard/admin/content/dsa?tab=create");
+    }
+  }, [type, router]);
+
+  if (type === "dsa") {
+    return (
+      <div className="font-mono text-xs text-gray-400">Redirecting to DSA admin...</div>
+    );
+  }
 
   if (!type || !isAdminContentType(type)) {
     notFound();

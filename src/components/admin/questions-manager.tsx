@@ -12,11 +12,16 @@ import {
 } from "@/components/admin/content/admin-form-styles";
 
 interface QuestionsManagerProps {
-  onEdit: (question: Question) => void;
+  onEdit?: (question: Question) => void;
   onChanged?: () => void;
+  mode?: "edit" | "delete" | "full";
 }
 
-export default function QuestionsManager({ onEdit, onChanged }: QuestionsManagerProps) {
+export default function QuestionsManager({
+  onEdit,
+  onChanged,
+  mode = "full",
+}: QuestionsManagerProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -105,6 +110,15 @@ export default function QuestionsManager({ onEdit, onChanged }: QuestionsManager
 
   const uniqueCategories = Array.from(new Set(questions.map((q) => q.category)));
 
+  const showEdit = mode === "edit" || mode === "full";
+  const showDelete = mode === "delete" || mode === "full";
+  const sectionTitle =
+    mode === "edit"
+      ? "Select a question to edit"
+      : mode === "delete"
+        ? "Delete DSA questions"
+        : "DSA Arena questions";
+
   if (loading) {
     return (
       <div className={`${panelSurface} p-8`}>
@@ -120,17 +134,19 @@ export default function QuestionsManager({ onEdit, onChanged }: QuestionsManager
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-gray-500" />
             <h2 className="font-mono text-[10px] uppercase tracking-widest text-gray-400">
-              DSA Arena questions
+              {sectionTitle}
             </h2>
           </div>
-          <button
-            type="button"
-            onClick={() => void handleDeleteAll()}
-            disabled={questions.length === 0 || busyId !== null}
-            className={`${actionButtonCls} border-red-400/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20`}
-          >
-            {busyId === "all" ? "Deleting..." : "Delete all DSA questions"}
-          </button>
+          {showDelete && (
+            <button
+              type="button"
+              onClick={() => void handleDeleteAll()}
+              disabled={questions.length === 0 || busyId !== null}
+              className={`${actionButtonCls} border-red-400/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20`}
+            >
+              {busyId === "all" ? "Deleting..." : "Delete all DSA questions"}
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -205,23 +221,27 @@ export default function QuestionsManager({ onEdit, onChanged }: QuestionsManager
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => onEdit(question)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-md"
-                      title="Edit question"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDelete(question.id, question.title)}
-                      disabled={busyId !== null}
-                      className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-md disabled:opacity-50"
-                      title="Delete question"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {showEdit && onEdit && (
+                      <button
+                        type="button"
+                        onClick={() => onEdit(question)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-md"
+                        title="Edit question"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                    )}
+                    {showDelete && (
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete(question.id, question.title)}
+                        disabled={busyId !== null}
+                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-md disabled:opacity-50"
+                        title="Delete question"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
