@@ -1,6 +1,10 @@
 import { API_BASE_URL } from "@/lib/api-config";
 import api from "@/lib/api";
 import { getAdminRequestConfig } from "@/lib/admin-api";
+import {
+  formatTestCaseInputDisplay,
+  formatTestCaseOutputDisplay,
+} from "@/lib/format-test-case-display";
 export interface Question {
   id: string;
   title: string;
@@ -87,17 +91,27 @@ function mapBackendQuestion(q: BackendQuestion): Question {
     });
   }
 
+  const parameterNames = q.parameterNames || [];
+  const parameterTypes = q.parameterTypes || [];
+  const returnType = q.returnType || "int";
+
   const examples = Array.isArray(q.testcases)
     ? q.testcases.map((tc) => {
         const input = tc.input;
         const expectedOutput = tc.expectedOutput || tc.output || "";
-        const displayInput = Array.isArray(input)
-          ? input.join("\n")
-          : String(input || "");
+        const displayInput = formatTestCaseInputDisplay(
+          input,
+          parameterNames,
+          parameterTypes,
+        );
+        const displayOutput = formatTestCaseOutputDisplay(
+          String(expectedOutput),
+          returnType,
+        );
         return {
           input: displayInput,
-          output: String(expectedOutput),
-          expectedOutput: String(expectedOutput),
+          output: displayOutput,
+          expectedOutput: displayOutput,
           isHidden: Boolean(tc.isHidden),
         };
       })

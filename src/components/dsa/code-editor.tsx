@@ -23,6 +23,10 @@ import Editor from "@monaco-editor/react";
 import PublishSolutionModal from "./publish-solution-modal";
 import ComplexityAnalysisModal from "./complexity-analysis-modal";
 import { useTheme } from "@/providers/theme-provider";
+import {
+  formatTestCaseInputDisplay,
+  formatTestCaseOutputDisplay,
+} from "@/lib/format-test-case-display";
 
 interface TestCase {
   input: string;
@@ -32,7 +36,9 @@ interface TestCase {
 
 interface TestCaseResult {
   input: string;
+  rawInput?: string;
   expectedOutput: string;
+  rawExpectedOutput?: string;
   actualOutput: string;
   passed: boolean;
   error?: string;
@@ -49,6 +55,9 @@ interface CodeEditorProps {
   };
   testCases?: TestCase[];
   questionId?: string;
+  parameterNames?: string[];
+  parameterTypes?: string[];
+  returnType?: string;
   onSolutionPublished?: () => void;
   onSubmitSuccess?: () => void;
   /** When true, editor and submit are disabled (competition lost). */
@@ -94,6 +103,9 @@ export default function CodeEditor({
   initialCode,
   testCases = [],
   questionId,
+  parameterNames = [],
+  parameterTypes = [],
+  returnType = "int",
   onSolutionPublished,
   onSubmitSuccess,
   competitionLocked = false,
@@ -300,20 +312,35 @@ export default function CodeEditor({
 
       // Map judge results to our format
       const results: TestCaseResult[] = (data.results || []).map(
-        (r: Record<string, unknown>, idx: number) => ({
-          input: Array.isArray(r.input)
+        (r: Record<string, unknown>, idx: number) => {
+          const rawInput = Array.isArray(r.input)
             ? r.input.join("\n")
-            : String(r.input || ""),
-          expectedOutput: String(r.expected || r.expectedOutput || ""),
-          actualOutput: r.error
+            : String(r.input || "");
+          const rawExpected = String(r.expected || r.expectedOutput || "");
+          const rawActual = r.error
             ? `Error: ${r.error}`
-            : String(r.output || r.actualOutput || "(no output)"),
-          passed: Boolean(r.passed),
-          error: r.error ? String(r.error) : undefined,
-          isHidden: Boolean(r.isHidden),
-          caseNumber:
-            typeof r.caseNumber === "number" ? r.caseNumber : idx + 1,
-        }),
+            : String(r.output || r.actualOutput || "(no output)");
+
+          return {
+            input: formatTestCaseInputDisplay(
+              Array.isArray(r.input) ? r.input.map(String) : rawInput,
+              parameterNames,
+              parameterTypes,
+            ),
+            rawInput,
+            expectedOutput: formatTestCaseOutputDisplay(rawExpected, returnType),
+            rawExpectedOutput: rawExpected,
+            actualOutput:
+              r.error || rawActual === "(no output)"
+                ? rawActual
+                : formatTestCaseOutputDisplay(rawActual, returnType),
+            passed: Boolean(r.passed),
+            error: r.error ? String(r.error) : undefined,
+            isHidden: Boolean(r.isHidden),
+            caseNumber:
+              typeof r.caseNumber === "number" ? r.caseNumber : idx + 1,
+          };
+        },
       );
 
       return {
@@ -500,7 +527,10 @@ export default function CodeEditor({
   const useFailedCaseAsTestcase = (result: TestCaseResult) => {
     setCustomTestCases((prev) => [
       ...prev,
-      { input: result.input, output: result.expectedOutput || "" },
+      {
+        input: result.rawInput || result.input,
+        output: result.rawExpectedOutput || result.expectedOutput || "",
+      },
     ]);
     setBottomTab("testcase");
     setActiveTestCaseIdx(testCases.length + customTestCases.length);

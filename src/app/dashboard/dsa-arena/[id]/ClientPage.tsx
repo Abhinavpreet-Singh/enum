@@ -237,13 +237,11 @@ export default function DSAArenaClientPage() {
         >
           <CodeEditor
             initialCode={question.initialCode}
-            testCases={question.examples
-              .filter((tc) => !tc.isHidden)
-              .map((tc) => ({
-              ...tc,
-              input: Array.isArray(tc.input) ? tc.input.join("\n") : tc.input,
-            }))}
+            testCases={question.examples.filter((tc) => !tc.isHidden)}
             questionId={question.id}
+            parameterNames={question.parameterNames}
+            parameterTypes={question.parameterTypes}
+            returnType={question.returnType}
             onSolutionPublished={handleSolutionPublished}
             onSubmitSuccess={handleSubmitSuccess}
             competitionLocked={isParticipant && editorLocked}
