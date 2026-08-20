@@ -17,7 +17,7 @@ export interface Question {
   parameterTypes: string[];
   returnType: string;
   examples: {
-    input: string[] | string;
+    input: string;
     output: string;
     expectedOutput?: string;
     isHidden?: boolean;
